@@ -63,6 +63,24 @@ cd app && node test.js
 
 ---
 
+## 远程仓库
+
+| 平台 | 地址 | 推送方式 |
+|---|---|---|
+| Gitee（私有） | https://gitee.com/man-qianyi/lianjie | https + 本机已存凭证 |
+| GitHub | https://github.com/yi199/lianjian | SSH 443 端口（`ssh.github.com:443`，绕过 22 端口封锁） |
+
+一次推到两边：
+
+```bash
+git push gitee main && git push github main
+```
+
+> GitHub 走的是 ssh 443，不是默认的 22 端口——因为本机直连 github.com 的 22 端口不通。
+> 用的是 `~/.ssh/id_ed25519`，公钥已加到 GitHub 账号。
+
+---
+
 ## 进度
 
 - [x] 产品对标分析（见 `文档/`）
