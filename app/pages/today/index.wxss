@@ -108,3 +108,48 @@
 .footbar {
   padding: 32rpx 40rpx calc(32rpx + env(safe-area-inset-bottom));
 }
+
+/* ---------------- 本周进度 ---------------- */
+
+.weekbar {
+  margin-top: 32rpx;
+  display: flex;
+  align-items: center;
+}
+
+.wdots {
+  display: flex;
+  align-items: center;
+}
+
+.wdot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  margin-right: 14rpx;
+  background: #E2DFD1;
+  transition: background .25s;
+}
+
+.wdot.on {
+  background: var(--green, #3C4A32);
+}
+
+.wtext {
+  margin-left: 12rpx;
+  font-size: 21rpx;
+  color: var(--muted, #8B8878);
+  letter-spacing: 1rpx;
+}
+
+/* ---------------- 提示 ---------------- */
+
+.tip {
+  margin-top: 40rpx;
+  padding: 26rpx 28rpx;
+  border-radius: 22rpx;
+  background: #EFF2E7;
+  font-size: 22rpx;
+  line-height: 1.8;
+  color: var(--muted, #7C8A70);
+}

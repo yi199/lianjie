@@ -1,41 +1,59 @@
 /**
  * 动作字典
  *
- * place: gym = 健身房（需要器械），home = 居家（徒手/一条毛巾即可）
+ * place: gym = 健身房（需要器械），home = 居家（徒手 / 一条毛巾 / 两瓶水）
  * unit:  kg = 记重量, bw = 自重（记次数）, sec = 计时（记秒数）
  *
  * 表里只放「动作是什么」，不放重量——重量是计划模板决定的。
+ * 每个部位的同类动作要够多，「换动作」才换得出来。
  */
 
 const EXERCISES = [
   /* ---------------- 健身房 ---------------- */
-  { id: 'g1',  cn: '卧推',       en: 'Bench Press',    part: 'chest',     place: 'gym', unit: 'kg'  },
-  { id: 'g2',  cn: '哑铃推举',   en: 'Shoulder Press', part: 'shoulders', place: 'gym', unit: 'kg'  },
-  { id: 'g3',  cn: '绳索下压',   en: 'Triceps Push',   part: 'arms',      place: 'gym', unit: 'kg'  },
-  { id: 'g4',  cn: '哑铃侧平举', en: 'Lateral Raise',  part: 'shoulders', place: 'gym', unit: 'kg'  },
-  { id: 'g5',  cn: '引体向上',   en: 'Pull-up',        part: 'back',      place: 'gym', unit: 'bw'  },
-  { id: 'g6',  cn: '俯身划船',   en: 'Barbell Row',    part: 'back',      place: 'gym', unit: 'kg'  },
-  { id: 'g7',  cn: '面拉',       en: 'Face Pull',      part: 'back',      place: 'gym', unit: 'kg'  },
-  { id: 'g8',  cn: '哑铃弯举',   en: 'Biceps Curl',    part: 'arms',      place: 'gym', unit: 'kg'  },
-  { id: 'g9',  cn: '高脚杯深蹲', en: 'Goblet Squat',   part: 'legs',      place: 'gym', unit: 'kg'  },
-  { id: 'g10', cn: '壶铃摆荡',   en: 'Kettlebell Swing', part: 'legs',    place: 'gym', unit: 'kg'  },
-  { id: 'g11', cn: '箭步蹲',     en: 'Lunge',          part: 'legs',      place: 'gym', unit: 'kg'  },
-  { id: 'g12', cn: '腿举',       en: 'Leg Press',      part: 'legs',      place: 'gym', unit: 'kg'  },
-  { id: 'g13', cn: '平板支撑',   en: 'Plank',          part: 'core',      place: 'gym', unit: 'sec' },
-  { id: 'g14', cn: '卷腹',       en: 'Crunch',         part: 'core',      place: 'gym', unit: 'bw'  },
+  { id: 'g1',  cn: '卧推',         en: 'Bench Press',      part: 'chest',     place: 'gym', unit: 'kg'  },
+  { id: 'g15', cn: '上斜卧推',     en: 'Incline Press',    part: 'chest',     place: 'gym', unit: 'kg'  },
+  { id: 'g16', cn: '哑铃飞鸟',     en: 'Dumbbell Fly',     part: 'chest',     place: 'gym', unit: 'kg'  },
+  { id: 'g2',  cn: '哑铃推举',     en: 'Shoulder Press',   part: 'shoulders', place: 'gym', unit: 'kg'  },
+  { id: 'g4',  cn: '哑铃侧平举',   en: 'Lateral Raise',    part: 'shoulders', place: 'gym', unit: 'kg'  },
+  { id: 'g19', cn: '前平举',       en: 'Front Raise',      part: 'shoulders', place: 'gym', unit: 'kg'  },
+  { id: 'g3',  cn: '绳索下压',     en: 'Triceps Pushdown', part: 'arms',      place: 'gym', unit: 'kg'  },
+  { id: 'g8',  cn: '哑铃弯举',     en: 'Biceps Curl',      part: 'arms',      place: 'gym', unit: 'kg'  },
+  { id: 'g20', cn: '锤式弯举',     en: 'Hammer Curl',      part: 'arms',      place: 'gym', unit: 'kg'  },
+  { id: 'g5',  cn: '引体向上',     en: 'Pull-up',          part: 'back',      place: 'gym', unit: 'bw'  },
+  { id: 'g6',  cn: '俯身划船',     en: 'Barbell Row',      part: 'back',      place: 'gym', unit: 'kg'  },
+  { id: 'g17', cn: '高位下拉',     en: 'Lat Pulldown',     part: 'back',      place: 'gym', unit: 'kg'  },
+  { id: 'g18', cn: '坐姿划船',     en: 'Seated Row',       part: 'back',      place: 'gym', unit: 'kg'  },
+  { id: 'g7',  cn: '面拉',         en: 'Face Pull',        part: 'back',      place: 'gym', unit: 'kg'  },
+  { id: 'g9',  cn: '高脚杯深蹲',   en: 'Goblet Squat',     part: 'legs',      place: 'gym', unit: 'kg'  },
+  { id: 'g10', cn: '壶铃摆荡',     en: 'Kettlebell Swing', part: 'legs',      place: 'gym', unit: 'kg'  },
+  { id: 'g11', cn: '箭步蹲',       en: 'Lunge',            part: 'legs',      place: 'gym', unit: 'kg'  },
+  { id: 'g12', cn: '腿举',         en: 'Leg Press',        part: 'legs',      place: 'gym', unit: 'kg'  },
+  { id: 'g21', cn: '罗马尼亚硬拉', en: 'Romanian Deadlift', part: 'legs',     place: 'gym', unit: 'kg'  },
+  { id: 'g22', cn: '提踵',         en: 'Calf Raise',       part: 'legs',      place: 'gym', unit: 'kg'  },
+  { id: 'g13', cn: '平板支撑',     en: 'Plank',            part: 'core',      place: 'gym', unit: 'sec' },
+  { id: 'g14', cn: '卷腹',         en: 'Crunch',           part: 'core',      place: 'gym', unit: 'bw'  },
 
   /* ---------------- 居家 ---------------- */
-  { id: 'h1',  cn: '俯卧撑',     en: 'Push-up',        part: 'chest',     place: 'home', unit: 'bw'  },
-  { id: 'h2',  cn: '跪姿俯卧撑', en: 'Knee Push-up',   part: 'chest',     place: 'home', unit: 'bw'  },
-  { id: 'h3',  cn: '板凳臂屈伸', en: 'Bench Dip',      part: 'arms',      place: 'home', unit: 'bw'  },
-  { id: 'h4',  cn: '反向划船',   en: 'Inverted Row',   part: 'back',      place: 'home', unit: 'bw'  },
-  { id: 'h5',  cn: '毛巾划船',   en: 'Towel Row',      part: 'back',      place: 'home', unit: 'bw'  },
-  { id: 'h6',  cn: '徒手深蹲',   en: 'Bodyweight Squat', part: 'legs',    place: 'home', unit: 'bw'  },
-  { id: 'h7',  cn: '臀桥',       en: 'Glute Bridge',   part: 'legs',      place: 'home', unit: 'bw'  },
-  { id: 'h8',  cn: '弓步蹲',     en: 'Split Squat',    part: 'legs',      place: 'home', unit: 'bw'  },
-  { id: 'h9',  cn: '平板支撑',   en: 'Plank',          part: 'core',      place: 'home', unit: 'sec' },
-  { id: 'h10', cn: '登山跑',     en: 'Mountain Climber', part: 'core',    place: 'home', unit: 'sec' },
-  { id: 'h11', cn: '仰卧举腿',   en: 'Leg Raise',      part: 'core',      place: 'home', unit: 'bw'  }
+  { id: 'h1',  cn: '俯卧撑',       en: 'Push-up',          part: 'chest',     place: 'home', unit: 'bw' },
+  { id: 'h2',  cn: '跪姿俯卧撑',   en: 'Knee Push-up',     part: 'chest',     place: 'home', unit: 'bw' },
+  { id: 'h12', cn: '上斜俯卧撑',   en: 'Incline Push-up',  part: 'chest',     place: 'home', unit: 'bw' },
+  { id: 'h13', cn: '宽距俯卧撑',   en: 'Wide Push-up',     part: 'chest',     place: 'home', unit: 'bw' },
+  { id: 'h19', cn: '水瓶侧平举',   en: 'Bottle Raise',     part: 'shoulders', place: 'home', unit: 'bw' },
+  { id: 'h3',  cn: '板凳臂屈伸',   en: 'Bench Dip',        part: 'arms',      place: 'home', unit: 'bw' },
+  { id: 'h20', cn: '钻石俯卧撑',   en: 'Diamond Push-up',  part: 'arms',      place: 'home', unit: 'bw' },
+  { id: 'h4',  cn: '反向划船',     en: 'Inverted Row',     part: 'back',      place: 'home', unit: 'bw' },
+  { id: 'h5',  cn: '毛巾划船',     en: 'Towel Row',        part: 'back',      place: 'home', unit: 'bw' },
+  { id: 'h14', cn: '俯卧挺身',     en: 'Superman',         part: 'back',      place: 'home', unit: 'bw' },
+  { id: 'h6',  cn: '徒手深蹲',     en: 'Bodyweight Squat', part: 'legs',      place: 'home', unit: 'bw' },
+  { id: 'h7',  cn: '臀桥',         en: 'Glute Bridge',     part: 'legs',      place: 'home', unit: 'bw' },
+  { id: 'h8',  cn: '弓步蹲',       en: 'Split Squat',      part: 'legs',      place: 'home', unit: 'bw' },
+  { id: 'h18', cn: '后撤步弓步',   en: 'Reverse Lunge',    part: 'legs',      place: 'home', unit: 'bw' },
+  { id: 'h16', cn: '单腿臀桥',     en: 'Single Glute Bridge', part: 'legs',   place: 'home', unit: 'bw' },
+  { id: 'h15', cn: '靠墙静蹲',     en: 'Wall Sit',         part: 'legs',      place: 'home', unit: 'sec' },
+  { id: 'h9',  cn: '平板支撑',     en: 'Plank',            part: 'core',      place: 'home', unit: 'sec' },
+  { id: 'h10', cn: '登山跑',       en: 'Mountain Climber', part: 'core',      place: 'home', unit: 'sec' },
+  { id: 'h11', cn: '仰卧举腿',     en: 'Leg Raise',        part: 'core',      place: 'home', unit: 'bw' },
+  { id: 'h17', cn: '死虫式',       en: 'Dead Bug',         part: 'core',      place: 'home', unit: 'bw' }
 ];
 
 const PART_CN = {
@@ -51,4 +69,13 @@ function byPlace(place) {
   return EXERCISES.filter(function (e) { return e.place === place; });
 }
 
-module.exports = { EXERCISES, PART_CN, byId, byPlace };
+/** 同部位、同场所的其它动作（换动作用） */
+function alternatives(exId, place) {
+  const ex = byId(exId);
+  if (!ex) return [];
+  return EXERCISES.filter(function (e) {
+    return e.id !== exId && e.part === ex.part && e.place === place;
+  });
+}
+
+module.exports = { EXERCISES, PART_CN, byId, byPlace, alternatives };

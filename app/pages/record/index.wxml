@@ -18,9 +18,15 @@
 
 <view class="wrap">
   <view class="exhead">
-    <view class="nm">{{ex.cn}}</view>
-    <view class="last">{{lastText}}</view>
+    <view class="exmain">
+      <view class="nm">{{ex.cn}}</view>
+      <view class="en">{{ex.en}}</view>
+    </view>
+    <view class="swap" bindtap="changeEx" hover-class="swap-hover">换一个</view>
   </view>
+
+  <view class="last" wx:if="{{lastText}}">{{lastText}}</view>
+  <view class="sug" wx:if="{{sugHint}}">{{sugHint}}</view>
 
   <!-- 杠铃片：一组一片，完成的点亮；超过历史最好成绩的那组是陶土色 -->
   <view class="plates">

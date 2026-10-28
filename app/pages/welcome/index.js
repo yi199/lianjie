@@ -57,7 +57,7 @@ Page({
       return;
     }
     const plans = P.buildPlan(days, place, level || 'some');
-    const names = Object.keys(plans).map(function (k) { return plans[k].name; }).join(' / ');
+    const names = plans.map(function (p) { return p.name; }).join(' / ');
     this.setData({
       canFinish: true,
       summary: '一周 ' + days + ' 练 · ' + (place === 'home' ? '居家' : '健身房') + ' · ' + names

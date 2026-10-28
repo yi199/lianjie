@@ -2,12 +2,23 @@
 
 <view class="wrap">
   <view class="kicker">Today · {{weekday}}</view>
-  <view class="h1">今天练什么。</view>
+  <view class="h1">{{h1}}</view>
 
-  <!-- 训练日 -->
-  <block wx:if="{{!plan.rest}}">
+  <!-- 本周进度：不绑星期几，练了就算一次 -->
+  <view class="weekbar">
+    <view class="wdots">
+      <view
+        class="wdot {{index < weekDone ? 'on' : ''}}"
+        wx:for="{{weekDots}}"
+        wx:key="*this"
+      ></view>
+    </view>
+    <text class="wtext">本周 {{weekDone}}/{{weekTarget}}</text>
+  </view>
+
+  <block wx:if="{{plan}}">
     <view class="todaybig">
-      <view class="day">{{plan.en}}</view>
+      <view class="day">{{plan.key}} · {{plan.en}}</view>
       <view class="tt">{{plan.name}}</view>
       <view class="meta">{{items.length}} 个动作 · 约 45 分钟</view>
       <view class="last">{{lastText}}</view>
@@ -25,19 +36,30 @@
         <text class="tick" wx:if="{{item.done}}">✓</text>
       </view>
     </view>
+
+    <view class="tip" wx:if="{{finished}}">
+      这周的目标已经完成。想再练一次也没问题，肌肉不嫌多。
+    </view>
+    <view class="tip" wx:elif="{{resumed}}">
+      今天已经练过了，接着练剩下的就行。
+    </view>
+    <view class="tip" wx:else>
+      今天没时间也没关系，第二天打开还是这个训练日，不会跳过。
+    </view>
   </block>
 
-  <!-- 休息日 -->
   <block wx:else>
     <view class="restcard">
-      <view class="rtitle">今天休息。</view>
-      <view class="rdesc">肌肉是在休息的时候长的，别急。</view>
-      <view class="rlink" bindtap="gotoStats">看看这个月的记录 →</view>
+      <view class="rtitle">还没有训练计划</view>
+      <view class="rdesc">回到引导页重新选一次，30 秒就好。</view>
+      <view class="rlink" bindtap="gotoStats">先看看数据 →</view>
     </view>
   </block>
 </view>
 
 <view class="footbar">
-  <view wx:if="{{!plan.rest}}" class="btn" hover-class="btn-hover" bindtap="start">开始训练 →</view>
+  <view wx:if="{{plan}}" class="btn" hover-class="btn-hover" bindtap="start">
+    {{finished ? '再练一次 →' : (resumed ? '继续训练 →' : '开始训练 →')}}
+  </view>
   <view wx:else class="btn btn-ghost" hover-class="btn-hover" bindtap="gotoStats">去看数据</view>
 </view>

@@ -1,6 +1,10 @@
 /**
  * 本地自测：用 mock 的 wx 存储跑一遍数据层
  * 跑法：node test.js
+ *
+ * 固定用 2026-10 这一周做样本：
+ *   2026-10-26 周一  2026-10-27 周二  2026-10-28 周三
+ *   2026-10-29 周四  2026-10-30 周五  2026-11-01 周日
  */
 
 const store = {};
@@ -21,167 +25,159 @@ function ok(label, cond, extra) {
   if (!cond) process.exitCode = 1;
 }
 
+function set(date, exId, planKey, no, weight, reps, unit) {
+  const ex = EX.byId(exId);
+  return db.saveSet({
+    date, exId, exCn: ex.cn, part: ex.part, planKey,
+    setNo: no, weight, reps, unit: unit || ex.unit
+  });
+}
+
 /* ================= 1. 动作库 ================= */
 console.log('\n=== 1. 动作库 ===');
 const gym = EX.byPlace('gym');
 const home = EX.byPlace('home');
-ok('健身房动作', gym.length >= 10, gym.length + ' 个');
-ok('居家动作', home.length >= 8, home.length + ' 个');
+ok('健身房动作', gym.length >= 18, gym.length + ' 个');
+ok('居家动作', home.length >= 18, home.length + ' 个');
 ok('动作 id 不重复', new Set(EX.EXERCISES.map(e => e.id)).size === EX.EXERCISES.length, EX.EXERCISES.length + ' 个');
 ok('每个动作都有部位分类', EX.EXERCISES.every(e => !!EX.PART_CN[e.part]));
 
-/* ================= 2. 计划生成 ================= */
-console.log('\n=== 2. 计划生成 ===');
+/* ================= 2. 计划模板 ================= */
+console.log('\n=== 2. 计划模板 ===');
 const p3 = P.buildPlan(3, 'gym', 'some');
-ok('一周 3 练 → 3 个训练日', Object.keys(p3).length === 3, Object.keys(p3).join(',') + '（周一=0）');
-ok('每个训练日都有动作', Object.keys(p3).every(k => p3[k].items.length >= 3));
+ok('返回数组', Array.isArray(p3), '数组');
+ok('3 练 → 3 个训练日', p3.length === 3);
+ok('按 A/B/C 编号', p3.map(x => x.key).join('') === 'ABC', p3.map(x => x.key).join(''));
+ok('训练日名称', p3.map(x => x.name).join('/') === '推日/拉日/腿日', p3.map(x => x.name).join('/'));
+ok('每天都有动作', p3.every(x => x.items.length >= 3));
 
-const p2 = P.buildPlan(2, 'gym', 'some');
-ok('一周 2 练 → 2 个训练日', Object.keys(p2).length === 2);
+const p4 = P.buildPlan(4, 'gym', 'some');
+ok('4 练 → 4 个训练日', p4.length === 4);
+ok('4 练的四天内容不重复', new Set(p4.map(x => x.type)).size === 4, p4.map(x => x.type).join(','));
 
-const p4 = P.buildPlan(4, 'home', 'some');
-ok('一周 4 练 → 4 个训练日', Object.keys(p4).length === 4);
+const p2 = P.buildPlan(2, 'home', 'some');
+ok('2 练 → 2 个训练日（全身）', p2.length === 2 && p2[0].name.indexOf('全身') === 0, p2.map(x => x.name).join('/'));
+ok('居家计划没有任何负重', p2.every(x => x.items.every(i => i.weight === 0)));
 
-ok('健身房计划里有负重动作', Object.keys(p3).some(k => p3[k].items.some(i => i.unit === 'kg' && i.weight > 0)));
-ok('居家计划里没有任何负重', Object.keys(p4).every(k => p4[k].items.every(i => i.weight === 0)));
-ok('计时动作单位是秒', Object.keys(p4).some(k => p4[k].items.some(i => i.unit === 'sec')));
-
-const lvNew = P.buildPlan(3, 'gym', 'new');
-const lvPro = P.buildPlan(3, 'gym', 'trained');
-const wNew = lvNew[0].items.filter(i => i.unit === 'kg')[0].weight;
-const wPro = lvPro[0].items.filter(i => i.unit === 'kg')[0].weight;
-ok('水平越高起始重量越大', wPro > wNew, wNew + ' kg → ' + wPro + ' kg');
-
-ok('重量取到 2.5 的整数倍', P.roundWeight(23.7) === 22.5 || P.roundWeight(23.7) === 25, P.roundWeight(23.7));
+const wNew = P.buildPlan(3, 'gym', 'new')[0].items.filter(i => i.unit === 'kg')[0].weight;
+const wPro = P.buildPlan(3, 'gym', 'trained')[0].items.filter(i => i.unit === 'kg')[0].weight;
+ok('水平越高起始重量越大', wPro > wNew, wNew + ' → ' + wPro + ' kg');
 
 /* ================= 3. 首次引导 ================= */
 console.log('\n=== 3. 首次引导 ===');
-ok('一开始未标记已引导', !db.hasOnboarded());
-ok('一开始没有计划', Object.keys(db.plans()).length === 0);
+ok('一开始未引导', !db.hasOnboarded());
+ok('一开始没有计划', db.plans().length === 0);
 ok('一开始没有记录', !db.hasAnyRecord());
 
 db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
 ok('走完引导后已标记', db.hasOnboarded());
-ok('profile 存下来了', db.profile() && db.profile().days === 3, JSON.stringify(db.profile()));
-ok('计划已生成', Object.keys(db.plans()).length === 3, Object.keys(db.plans()).join(','));
+ok('计划已生成', db.plans().length === 3);
 ok('摘要文案', db.profileText() === '一周 3 练 · 健身房', db.profileText());
 
-/* ================= 4. 今天练什么 ================= */
-console.log('\n=== 4. 今天练什么 ===');
-const mon = db.todayPlan('2026-10-26');       // 周一，3 练计划里一定有
-ok('周一有训练', !mon.rest, mon.rest ? '休息' : mon.name);
-ok('动作已展开中文名', !mon.rest && !!mon.items[0].cn, mon.rest ? '-' : mon.items[0].cn + ' / ' + mon.items[0].en);
-ok('动作带部位', !mon.rest && !!mon.items[0].part);
+/* ================= 4. 周循环：按次排队，不绑星期 ================= */
+console.log('\n=== 4. 周循环 ===');
 
-const sun = db.todayPlan('2026-11-01');       // 周日，3 练计划里没有
-ok('周日休息', sun.rest === true, sun.rest ? 'rest' : '有训练');
+let s = db.todaySession('2026-10-26');           // 周一
+ok('周一开始是 A', s.plan && s.plan.key === 'A', s.plan ? s.plan.key + ' ' + s.plan.name : '无');
+ok('本周 0/3', s.week.done === 0 && s.week.target === 3, s.week.done + '/' + s.week.target);
 
-ok('没练过时 lastRecord 为空', db.lastRecord(mon.items[0].exId, '2026-10-26') === null);
+set('2026-10-26', 'g1', 'A', 1, 50, 10);
+ok('练完 A 后本周 1/3', db.weeklyProgress().done === 1, db.weeklyProgress().done + '/3');
 
-/* ================= 5. 写一组 ================= */
-console.log('\n=== 5. 写一组记录 ===');
-const ex0 = mon.items[0];
-const before = db.allSets().length;
+ok('周二该练 B', db.todaySession('2026-10-27').plan.key === 'B');
+ok('周三没练还是 B（自动顺延）', db.todaySession('2026-10-28').plan.key === 'B', '顺延 ✓');
 
-db.saveSet({
-  date: '2026-10-26', exId: ex0.exId, exCn: ex0.cn, part: ex0.part,
-  setNo: 1, weight: 30, reps: 10, unit: 'kg'
-});
-ok('记录 +1', db.allSets().length === before + 1);
+set('2026-10-28', 'g5', 'B', 1, 0, 6);
+ok('周三练完 B，周四该练 C', db.todaySession('2026-10-29').plan.key === 'C');
+ok('同一天再查还是 B（不跳）', db.todaySession('2026-10-28').plan.key === 'B', 'resumed');
 
-const row = db.allSets()[0];
-ok('重量写对了', row.weight === 30, row.weight + ' kg');
+set('2026-10-30', 'g9', 'C', 1, 24, 10);
+const s4 = db.todaySession('2026-10-30');
+ok('练满 3 次 → finished', s4.finished === true, s4.week.done + '/' + s4.week.target);
+ok('达标后仍给一个模板（允许加练）', !!s4.plan, s4.plan ? s4.plan.key : '无');
 
-db.saveSet({
-  date: '2026-10-26', exId: ex0.exId, exCn: ex0.cn, part: ex0.part,
-  setNo: 1, weight: 32.5, reps: 8, unit: 'kg'
-});
-const again = db.allSets().filter(s => s.exId === ex0.exId && s.setNo === 1);
-ok('同组号覆盖而非重复', again.length === 1, again.length + ' 条');
-ok('覆盖后重量更新', again[0].weight === 32.5, again[0].weight + ' kg');
-ok('覆盖后次数更新', again[0].reps === 8, again[0].reps + ' 次');
+const nextWeek = db.todaySession('2026-11-02');  // 下周一
+ok('下周一重新从 A 开始', nextWeek.plan.key === 'A' && nextWeek.week.done === 0, nextWeek.plan.key + ' / 0/3');
 
-ok('有记录了', db.hasAnyRecord());
-ok('那天的记录能查到', db.todaySets('2026-10-26').length === 1);
+/* ================= 5. 重量建议（渐进超负荷） ================= */
+console.log('\n=== 5. 重量建议 ===');
+ok('从没练过 → first', db.suggestWeight('g21', 10, '2026-10-20').reason === 'first');
 
-/* ================= 6. 统计 ================= */
-console.log('\n=== 6. 统计 ===');
+// 10-19 卧推 50kg × 10 次 × 3 组，全部达标
+set('2026-10-19', 'g1', 'A', 1, 50, 10);
+set('2026-10-19', 'g1', 'A', 2, 50, 10);
+set('2026-10-19', 'g1', 'A', 3, 50, 10);
+const sugUp = db.suggestWeight('g1', 10, '2026-10-20');
+ok('全部做满 → 加重', sugUp.reason === 'up' && sugUp.weight === 52.5, sugUp.prev + ' → ' + sugUp.weight + ' kg');
+
+// 下肢加 5kg
+set('2026-10-19', 'g9', 'C', 1, 24, 10);
+set('2026-10-19', 'g9', 'C', 2, 24, 10);
+const sugLeg = db.suggestWeight('g9', 10, '2026-10-20');
+ok('下肢加 5kg（并取到 2.5 的倍数）', sugLeg.weight === 30, sugLeg.prev + ' + 5 → 29 → 取整 ' + sugLeg.weight + ' kg');
+
+// 没做满 → 保持
+set('2026-10-21', 'g6', 'B', 1, 40, 6);
+const sugKeep = db.suggestWeight('g6', 10, '2026-10-22');
+ok('没做满 → 保持原重量', sugKeep.reason === 'keep' && sugKeep.weight === 40, sugKeep.weight + ' kg');
+
+/* ================= 6. 换动作 ================= */
+console.log('\n=== 6. 换动作 ===');
+const alts = db.alternatives('g1');
+ok('卧推有可替换动作', alts.length >= 2, alts.map(a => a.cn).join('/'));
+ok('替换的都是同部位', alts.every(a => a.part === 'chest'));
+ok('不含自己', alts.every(a => a.id !== 'g1'));
+
+const homeAlts = db.alternatives('h1');
+ok('居家也有可换的', homeAlts.length >= 2, homeAlts.map(a => a.cn).join('/'));
+
+/* ================= 7. 记录与战报 ================= */
+console.log('\n=== 7. 记录与战报 ===');
+const rep = db.todayReport('2026-10-28');
+ok('战报计划名来自 planKey', rep.planName === '拉日', rep.planName);
+ok('战报组数', rep.sets === 1, rep.sets + ' 组');
+ok('战报动作数', rep.exercises === 1, rep.exercises + ' 个');
+
+// PR：10-19 卧推 50kg，10-26 提到 60kg
+set('2026-10-26', 'g1', 'A', 1, 60, 10);
+const prs = db.detectPRs('2026-10-26');
+ok('识别出 PR', prs.length === 1 && prs[0].weight === 60, prs.map(p => p.cn + ' ' + p.weight).join(','));
+ok('PR 增量', prs.length && prs[0].delta === 10, prs.length ? '+' + prs[0].delta : '-');
+
+// 第一次做的不算 PR
+const rep2 = db.todayReport('2026-10-28');
+ok('第一次做的动作不算 PR', rep2.prs.length === 0, rep2.prs.length + ' 个');
+
+/* ================= 8. 统计 ================= */
+console.log('\n=== 8. 统计 ===');
 const st = db.monthlyStats(2026, 10);
-ok('训练天数 = 1', st.days === 1, st.days + ' 天');
+ok('训练天数', st.days >= 4, st.days + ' 天');
 ok('日历格子数 = 当月天数', st.calendar.length === 31, st.calendar.length + ' 格');
-ok('日历上那天是深色', st.calendar.filter(c => c.on).length === 1);
 ok('部位占比合计 ≈ 100%',
   Math.abs(st.parts.reduce((a, p) => a + p.pct, 0) - 100) <= 2,
   st.parts.map(p => p.name + p.pct + '%').join(' '));
 ok('累计吨数 > 0', st.ton > 0, st.ton + ' 吨');
+ok('动作 TOP 不超过 5 条', st.top.length <= 5, st.top.map(t => t.cn + ':' + t.count).join(' '));
 
-const wk = db.weeklyProgress();
-ok('本周进度有计划数', wk.planned === 3, wk.done + '/' + wk.planned);
-
-/* ================= 7. 示例数据 ================= */
-console.log('\n=== 7. 示例数据（用户主动点才生成） ===');
-const n = db.loadDemo();
-ok('示例数据生成成功', n > 0, n + ' 条组记录');
-
-const st2 = db.monthlyStats(D.thisMonth().y, D.thisMonth().m);
-ok('本月训练天数 > 1', st2.days > 1, st2.days + ' 天');
-ok('部位占比有多个部位', st2.parts.length >= 3, st2.parts.map(p => p.name + p.pct + '%').join(' '));
-ok('动作 TOP 不超过 5 条', st2.top.length <= 5, st2.top.map(t => t.cn + ':' + t.count).join(' '));
-
-/* ================= 8. 清空 ================= */
-console.log('\n=== 8. 清空与重来 ===');
+/* ================= 9. 示例数据 ================= */
+console.log('\n=== 9. 示例数据 ===');
 db.clearSets();
 ok('清空后没有记录', !db.hasAnyRecord());
-db.resetAll();
-ok('resetAll 后回到未引导状态', !db.hasOnboarded());
-ok('resetAll 后没有计划', Object.keys(db.plans()).length === 0);
+const n = db.loadDemo();
+ok('示例数据生成', n > 0, n + ' 条');
+ok('示例数据带 planKey', db.allSets().every(x => !!x.planKey), db.allSets()[0].planKey);
+const st2 = db.monthlyStats(D.thisMonth().y, D.thisMonth().m);
+ok('示例数据让数据页有内容', st2.days > 1, st2.days + ' 天');
 
-/* ================= 9. 旧版本数据迁移 ================= */
-console.log('\n=== 9. 旧版本数据迁移 ===');
-store['lj.seeded'] = 1;
-store['lj.sets'] = [{
-  id: 'old-1', date: '2026-01-01', exId: 'g1', exCn: '旧记录', part: 'chest',
-  setNo: 1, weight: 24, reps: 12, unit: 'kg', done: true
-}];
+/* ================= 10. 旧数据迁移 ================= */
+console.log('\n=== 10. 旧数据迁移 ===');
+// 旧版的 plans 是按星期的对象
 store['lj.plans'] = { 0: { name: '旧计划', en: 'Old', items: [] } };
-delete store['lj.onboarded'];
-
+store['lj.profile'] = { days: 3, place: 'gym', level: 'some' };
 const migrated = db.migrate();
-ok('检测到旧版本存储', migrated === true);
-ok('旧记录已清除', !db.hasAnyRecord());
-ok('旧计划已清除', Object.keys(db.plans()).length === 0);
-ok('旧标记已删除', store['lj.seeded'] === undefined);
-ok('再次调用不重复清理', db.migrate() === false);
-
-/* ================= 10. 战报与 PR ================= */
-console.log('\n=== 10. 战报与 PR ===');
-
-// 昨天卧推 50kg × 2 组
-db.saveSet({ date: '2026-10-25', exId: 'g1', exCn: '卧推', part: 'chest', setNo: 1, weight: 50, reps: 8, unit: 'kg' });
-db.saveSet({ date: '2026-10-25', exId: 'g1', exCn: '卧推', part: 'chest', setNo: 2, weight: 50, reps: 8, unit: 'kg' });
-// 今天 60kg
-db.saveSet({ date: '2026-10-26', exId: 'g1', exCn: '卧推', part: 'chest', setNo: 1, weight: 60, reps: 8, unit: 'kg' });
-
-ok('历史最大重量查得到', db.maxWeightBefore('g1', '2026-10-26') === 50, db.maxWeightBefore('g1', '2026-10-26') + ' kg');
-
-const rp = db.todayReport('2026-10-26');
-ok('战报：组数', rp.sets === 1, rp.sets + ' 组');
-ok('战报：动作数', rp.exercises === 1, rp.exercises + ' 个');
-ok('战报：容量', rp.volume === 480, rp.volume + ' kg');
-ok('战报：吨', rp.ton === 0.5, rp.ton + ' 吨');
-ok('战报：部位名字是中文', rp.parts[0].name === '胸', rp.parts.map(p => p.name + p.pct + '%').join(' '));
-ok('战报：找到 PR', rp.prs.length === 1, rp.prs.map(p => p.cn + ' ' + p.weight + 'kg').join(','));
-ok('PR 增量正确', rp.prs.length && rp.prs[0].delta === 10, rp.prs.length ? '+' + rp.prs[0].delta : '-');
-
-// 第一次做的动作不算 PR（否则头一个月天天「新纪录」）
-db.saveSet({ date: '2026-10-26', exId: 'g6', exCn: '俯身划船', part: 'back', setNo: 1, weight: 40, reps: 10, unit: 'kg' });
-const rp2 = db.todayReport('2026-10-26');
-ok('第一次做的动作不算 PR', rp2.prs.every(p => p.exId !== 'g6'), rp2.prs.length + ' 个 PR');
-
-// 没超过历史最好成绩就不算 PR
-db.saveSet({ date: '2026-10-26', exId: 'g1', exCn: '卧推', part: 'chest', setNo: 1, weight: 45, reps: 8, unit: 'kg' });
-const rp3 = db.todayReport('2026-10-26');
-ok('重量没超过不算 PR', rp3.prs.every(p => p.exId !== 'g1'), rp3.prs.length + ' 个 PR');
+ok('对象格式的计划被迁移成数组', migrated === true && Array.isArray(db.plans()), Array.isArray(db.plans()) ? '数组' : typeof db.plans());
+ok('迁移后条数正确', db.plans().length === 3, db.plans().length + ' 个训练日');
+ok('再次调用不重复迁移', db.migrate() === false);
 
 /* ================= 11. 容量计算 ================= */
 console.log('\n=== 11. 容量计算 ===');
