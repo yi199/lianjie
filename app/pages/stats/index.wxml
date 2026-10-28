@@ -55,6 +55,7 @@
       <view class="et">练一次，这里就有东西了。</view>
       <view class="ed">每次训练会自动记下：练了哪几天、练了哪些部位、哪些动作。</view>
       <view class="ebtn" bindtap="gotoToday">去训练 →</view>
+      <view class="ebtn ghost" bindtap="loadDemo">先看看示例数据</view>
     </view>
   </block>
 

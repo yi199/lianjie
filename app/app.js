@@ -1,5 +1,3 @@
-const db = require('./utils/db');
-
 App({
   globalData: {
     // 自定义导航栏需要自己让出状态栏高度
@@ -13,7 +11,7 @@ App({
     } catch (e) {
       // 低版本基础库没有 getWindowInfo，退回 20
     }
-    // 首次启动写入动作字典、周计划与示例记录
-    db.initSeed();
+    // 这里不再写入任何数据。
+    // 动作库是静态的（data/exercises.js），周计划在用户走完引导后生成。
   }
 });

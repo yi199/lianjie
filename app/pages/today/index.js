@@ -9,7 +9,8 @@ Page({
     plan: { rest: true },
     items: [],
     doneCount: 0,
-    lastText: ''
+    lastText: '',
+    profileText: ''
   },
 
   onLoad() {
@@ -18,6 +19,11 @@ Page({
   },
 
   onShow() {
+    // 没走完引导不该出现在这里
+    if (!db.hasOnboarded()) {
+      wx.reLaunch({ url: '/pages/welcome/index' });
+      return;
+    }
     this.refresh();
   },
 
@@ -34,7 +40,8 @@ Page({
         plan: plan,
         items: [],
         doneCount: 0,
-        lastText: ''
+        lastText: '',
+        profileText: db.profileText()
       });
       return;
     }
@@ -62,8 +69,9 @@ Page({
       items: items,
       doneCount: doneCount,
       lastText: last
-        ? '上次' + plan.name + ' · ' + last.daysAgo + ' 天前'
-        : '第一次练这个计划'
+        ? '上次练这个动作 · ' + last.daysAgo + ' 天前'
+        : '第一次练这个动作',
+      profileText: db.profileText()
     });
   },
 

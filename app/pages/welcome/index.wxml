@@ -1,0 +1,87 @@
+<view class="page" style="padding-top:{{sbh + 24}}px">
+
+  <!-- ① 品牌 -->
+  <block wx:if="{{step === 0}}">
+    <view class="hero">
+      <view class="mark">练界</view>
+      <view class="rule"></view>
+      <view class="slogan">把每一次训练</view>
+      <view class="slogan">留在身体上</view>
+      <view class="en">TRAIN · RECORD · SEE IT GROW</view>
+    </view>
+
+    <view class="foot">
+      <view class="btn main" bindtap="start">开始</view>
+      <view class="hint">先花 30 秒，告诉我们你的情况</view>
+    </view>
+  </block>
+
+  <!-- ② 你练了多久 -->
+  <block wx:elif="{{step === 1}}">
+    <view class="qhead">
+      <text class="qno">01</text>
+      <view class="qtitle">你练了多久？</view>
+      <view class="qsub">这决定你的组数和起始重量</view>
+    </view>
+
+    <view class="opts">
+      <view class="opt {{level === 'new' ? 'on' : ''}}" data-v="new" bindtap="pickLevel">
+        <view class="ot">刚开始</view>
+        <view class="od">还没摸过铁，先把动作学对</view>
+      </view>
+      <view class="opt {{level === 'some' ? 'on' : ''}}" data-v="some" bindtap="pickLevel">
+        <view class="ot">练过一阵</view>
+        <view class="od">断断续续练过，想重新规律起来</view>
+      </view>
+      <view class="opt {{level === 'trained' ? 'on' : ''}}" data-v="trained" bindtap="pickLevel">
+        <view class="ot">一直在练</view>
+        <view class="od">有基础，想练得更系统</view>
+      </view>
+    </view>
+
+    <view class="foot">
+      <view class="back" bindtap="back">← 返回</view>
+    </view>
+  </block>
+
+  <!-- ③ 频率 + 场所 -->
+  <block wx:elif="{{step === 2}}">
+    <view class="qhead">
+      <text class="qno">02</text>
+      <view class="qtitle">一周练几次？</view>
+    </view>
+
+    <view class="chips">
+      <view class="chip {{days === 2 ? 'on' : ''}}" data-v="2" bindtap="pickDays">2 天</view>
+      <view class="chip {{days === 3 ? 'on' : ''}}" data-v="3" bindtap="pickDays">3 天</view>
+      <view class="chip {{days === 4 ? 'on' : ''}}" data-v="4" bindtap="pickDays">4 天</view>
+    </view>
+
+    <view class="qhead mt">
+      <view class="qtitle">在哪练？</view>
+    </view>
+
+    <view class="chips">
+      <view class="chip {{place === 'gym' ? 'on' : ''}}" data-v="gym" bindtap="pickPlace">健身房</view>
+      <view class="chip {{place === 'home' ? 'on' : ''}}" data-v="home" bindtap="pickPlace">家里</view>
+    </view>
+
+    <view class="preview" wx:if="{{summary}}">
+      <view class="pv-label">你的计划</view>
+      <view class="pv-text">{{summary}}</view>
+      <view class="pv-note">之后可以在「我的」里改</view>
+    </view>
+
+    <view class="foot">
+      <view class="btn main {{canFinish ? '' : 'off'}}" bindtap="finish">开始训练</view>
+      <view class="back" bindtap="back">← 返回</view>
+    </view>
+  </block>
+
+  <!-- 进度点 -->
+  <view class="dots" wx:if="{{step > 0}}">
+    <view class="dot {{step >= 1 ? 'on' : ''}}"></view>
+    <view class="dot {{step >= 2 ? 'on' : ''}}"></view>
+  </view>
+
+</view>

@@ -171,3 +171,9 @@
   font-size: 25rpx;
   color: var(--green);
 }
+
+.ebtn.ghost {
+  margin-top: 22rpx;
+  font-size: 23rpx;
+  color: var(--muted2, #A9A79A);
+}

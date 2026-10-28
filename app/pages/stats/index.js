@@ -1,6 +1,5 @@
 const db = require('../../utils/db');
 const D = require('../../utils/date');
-const store = require('../../store/index');
 
 Page({
   data: {
@@ -21,10 +20,13 @@ Page({
   onLoad() {
     const app = getApp();
     this.setData({ sbh: app.globalData.statusBarHeight });
-    this.refresh();
   },
 
   onShow() {
+    if (!db.hasOnboarded()) {
+      wx.reLaunch({ url: '/pages/welcome/index' });
+      return;
+    }
     this.refresh();
   },
 
@@ -49,6 +51,17 @@ Page({
       top: s.top,
       empty: s.days === 0
     });
+  },
+
+  /** 空态时用来「先看看长什么样」，不是真实数据 */
+  loadDemo() {
+    const n = db.loadDemo();
+    if (!n) {
+      wx.showToast({ title: '还没有计划', icon: 'none' });
+      return;
+    }
+    wx.showToast({ title: '已填入 ' + n + ' 条示例', icon: 'none' });
+    this.refresh();
   },
 
   gotoToday() {

@@ -1,44 +1,74 @@
 /**
  * 数据层（第一版：微信本地存储）
  *
- * 为什么要单独一层：以后换成云开发，只改这个文件，
+ * 为什么单独一层：以后换成云开发，只改这个文件，
  * 页面调用的方法签名不变（都是同步返回，后续换云时再改 Promise）。
+ *
+ * 存储键：
+ *   lj.onboarded  是否走完首次引导
+ *   lj.profile    引导时的选择 { level, days, place }
+ *   lj.plans      由 profile 生成的周计划
+ *   lj.sets       组记录
  */
 
-const seed = require('../data/seed');
+const EX = require('../data/exercises');
+const P = require('../data/plan');
 const D = require('../utils/date');
 const V = require('../utils/volume');
 
-const K_EX = 'lj.exercises';
+const K_ONBOARDED = 'lj.onboarded';
+const K_PROFILE = 'lj.profile';
 const K_PLAN = 'lj.plans';
 const K_SETS = 'lj.sets';
-const K_SEEDED = 'lj.seeded';
 
-/* ---------------- 初始化 ---------------- */
+/* ---------------- 引导 / 用户设置 ---------------- */
 
-function initSeed() {
-  if (wx.getStorageSync(K_SEEDED)) return;
-  wx.setStorageSync(K_EX, seed.EXERCISES);
-  wx.setStorageSync(K_PLAN, seed.PLANS);
-  wx.setStorageSync(K_SETS, seed.makeDemoSets());
-  wx.setStorageSync(K_SEEDED, 1);
+function hasOnboarded() {
+  return !!wx.getStorageSync(K_ONBOARDED);
 }
 
-/** 清空所有数据（调试用） */
-function resetAll() {
-  wx.removeStorageSync(K_SEEDED);
-  wx.removeStorageSync(K_SETS);
-  initSeed();
+function profile() {
+  return wx.getStorageSync(K_PROFILE) || null;
 }
 
-/* ---------------- 动作 / 计划 ---------------- */
+/** 生成并保存计划（改设置时也走这里） */
+function saveProfile(p) {
+  const prof = {
+    level: p.level || 'some',
+    days: Number(p.days) || 3,
+    place: p.place === 'home' ? 'home' : 'gym'
+  };
+  const plans = P.buildPlan(prof.days, prof.place, prof.level);
+  wx.setStorageSync(K_PROFILE, prof);
+  wx.setStorageSync(K_PLAN, plans);
+  return plans;
+}
+
+/** 走完引导（第一次进入时调用） */
+function finishOnboarding(p) {
+  saveProfile(p);
+  wx.setStorageSync(K_ONBOARDED, true);
+}
+
+function profileText() {
+  const p = profile();
+  return p ? P.describe(p) : '';
+}
+
+/* ---------------- 动作 ---------------- */
 
 function exercises() {
-  return wx.getStorageSync(K_EX) || seed.EXERCISES;
+  return EX.EXERCISES;
 }
 
 function exerciseById(id) {
-  return exercises().filter(function (e) { return e.id === id; })[0] || null;
+  return EX.byId(id);
+}
+
+/* ---------------- 计划 ---------------- */
+
+function plans() {
+  return wx.getStorageSync(K_PLAN) || {};
 }
 
 /**
@@ -48,8 +78,7 @@ function exerciseById(id) {
 function todayPlan(date) {
   const day = date || D.today();
   const wd = D.weekdayMon(new Date(day + 'T00:00:00'));
-  const plans = wx.getStorageSync(K_PLAN) || seed.PLANS;
-  const plan = plans[wd];
+  const plan = plans()[wd];
   if (!plan) return { rest: true, weekday: wd };
 
   const items = plan.items.map(function (it) {
@@ -67,24 +96,6 @@ function todayPlan(date) {
   });
 
   return { rest: false, name: plan.name, en: plan.en, weekday: wd, items: items };
-}
-
-/** 上次练这个动作是什么时候、多少重量 */
-function lastRecord(exId, beforeDate) {
-  const all = allSets().filter(function (s) {
-    return s.exId === exId && s.done && s.date < (beforeDate || D.today());
-  });
-  if (!all.length) return null;
-
-  const lastDay = all.reduce(function (a, b) { return a.date > b.date ? a : b; }).date;
-  const daySets = all.filter(function (s) { return s.date === lastDay; });
-  return {
-    date: lastDay,
-    weight: daySets[0].weight,
-    reps: daySets[0].reps,
-    sets: daySets.length,
-    daysAgo: D.diffDays(beforeDate || D.today(), lastDay)
-  };
 }
 
 /* ---------------- 记录 ---------------- */
@@ -115,6 +126,62 @@ function saveSet(rec) {
   return row;
 }
 
+/** 今天的记录 */
+function todaySets(date) {
+  const day = date || D.today();
+  return allSets().filter(function (s) { return s.date === day && s.done; });
+}
+
+/** 有没有练过（判断首页空态用） */
+function hasAnyRecord() {
+  return allSets().some(function (s) { return s.done; });
+}
+
+/** 上次练这个动作是什么时候、多少重量 */
+function lastRecord(exId, beforeDate) {
+  const before = beforeDate || D.today();
+  const all = allSets().filter(function (s) {
+    return s.exId === exId && s.done && s.date < before;
+  });
+  if (!all.length) return null;
+
+  const lastDay = all.reduce(function (a, b) { return a.date > b.date ? a : b; }).date;
+  const daySets = all.filter(function (s) { return s.date === lastDay; });
+  return {
+    date: lastDay,
+    weight: daySets[0].weight,
+    reps: daySets[0].reps,
+    sets: daySets.length,
+    daysAgo: D.diffDays(before, lastDay)
+  };
+}
+
+/* ---------------- 示例数据 ---------------- */
+
+/**
+ * 造一份示例记录。只在用户主动点「先看看长什么样」时调用。
+ * 按用户自己的计划生成，所以看起来就是他练的。
+ */
+function loadDemo() {
+  const p = plans();
+  if (!Object.keys(p).length) return 0;
+  const rows = P.makeDemoSets(p);
+  wx.setStorageSync(K_SETS, rows);
+  return rows.length;
+}
+
+function clearSets() {
+  wx.setStorageSync(K_SETS, []);
+}
+
+/** 彻底清空（重走引导用，调试也有用） */
+function resetAll() {
+  wx.removeStorageSync(K_ONBOARDED);
+  wx.removeStorageSync(K_PROFILE);
+  wx.removeStorageSync(K_PLAN);
+  wx.removeStorageSync(K_SETS);
+}
+
 /* ---------------- 统计 ---------------- */
 
 /**
@@ -134,10 +201,7 @@ function weeklyProgress() {
     if (daySet[D.shift(monday, i)]) done++;
   }
 
-  const plans = wx.getStorageSync(K_PLAN) || seed.PLANS;
-  const planned = Object.keys(plans).length;
-
-  return { done: done, planned: planned };
+  return { done: done, planned: Object.keys(plans()).length };
 }
 
 /**
@@ -186,7 +250,7 @@ function monthlyStats(y, m) {
   const totalSets = Object.keys(partSets).reduce(function (a, k) { return a + partSets[k]; }, 0) || 1;
   const parts = Object.keys(partSets)
     .map(function (k) {
-      return { key: k, name: seed.PART_CN[k] || k, pct: Math.round(partSets[k] / totalSets * 100) };
+      return { key: k, name: EX.PART_CN[k] || k, pct: Math.round(partSets[k] / totalSets * 100) };
     })
     .sort(function (a, b) { return b.pct - a.pct; });
 
@@ -207,15 +271,15 @@ function monthlyStats(y, m) {
   return { days: days, streak: streak, ton: ton, calendar: calendar, parts: parts, top: top };
 }
 
-/** 今天的记录（用于返回今日页时显示已完成） */
-function todaySets(date) {
-  const day = date || D.today();
-  return allSets().filter(function (s) { return s.date === day && s.done; });
-}
-
 module.exports = {
-  initSeed, resetAll,
-  exercises, exerciseById, todayPlan, lastRecord,
-  allSets, saveSet, todaySets,
+  /* 引导 */
+  hasOnboarded, profile, saveProfile, finishOnboarding, profileText, resetAll,
+  /* 动作 */
+  exercises, exerciseById,
+  /* 计划 */
+  plans, todayPlan,
+  /* 记录 */
+  allSets, saveSet, todaySets, hasAnyRecord, lastRecord, clearSets, loadDemo,
+  /* 统计 */
   monthlyStats, weeklyProgress
 };
