@@ -16,6 +16,9 @@ Page({
     const app = getApp();
     this.setData({ sbh: app.globalData.statusBarHeight });
 
+    // 从旧版本升级上来的，先清掉老的假数据
+    db.migrate();
+
     // 已经走过引导，直接进首页（不重复打扰）
     if (db.hasOnboarded()) {
       wx.reLaunch({ url: '/pages/today/index' });

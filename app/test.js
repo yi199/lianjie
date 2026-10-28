@@ -136,8 +136,25 @@ db.resetAll();
 ok('resetAll 后回到未引导状态', !db.hasOnboarded());
 ok('resetAll 后没有计划', Object.keys(db.plans()).length === 0);
 
-/* ================= 9. 容量计算 ================= */
-console.log('\n=== 9. 容量计算 ===');
+/* ================= 9. 旧版本数据迁移 ================= */
+console.log('\n=== 9. 旧版本数据迁移 ===');
+store['lj.seeded'] = 1;
+store['lj.sets'] = [{
+  id: 'old-1', date: '2026-01-01', exId: 'g1', exCn: '旧记录', part: 'chest',
+  setNo: 1, weight: 24, reps: 12, unit: 'kg', done: true
+}];
+store['lj.plans'] = { 0: { name: '旧计划', en: 'Old', items: [] } };
+delete store['lj.onboarded'];
+
+const migrated = db.migrate();
+ok('检测到旧版本存储', migrated === true);
+ok('旧记录已清除', !db.hasAnyRecord());
+ok('旧计划已清除', Object.keys(db.plans()).length === 0);
+ok('旧标记已删除', store['lj.seeded'] === undefined);
+ok('再次调用不重复清理', db.migrate() === false);
+
+/* ================= 10. 容量计算 ================= */
+console.log('\n=== 10. 容量计算 ===');
 ok('单组容量', V.setVolume({ weight: 24, reps: 12 }) === 288, V.setVolume({ weight: 24, reps: 12 }));
 ok('吨换算', V.toTon(1240) === 1.2, V.toTon(1240));
 

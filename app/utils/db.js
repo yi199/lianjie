@@ -50,6 +50,23 @@ function finishOnboarding(p) {
   wx.setStorageSync(K_ONBOARDED, true);
 }
 
+/**
+ * 兼容旧版本存储。
+ * 老版本没有引导，启动就写入写死的计划 + 126 条假记录（键 lj.seeded）。
+ * 升级上来的人如果不清掉，走完引导后数据页还是旧的假数据。
+ *
+ * @returns {boolean} 是否清理过
+ */
+function migrate() {
+  if (wx.getStorageSync('lj.seeded') && !hasOnboarded()) {
+    wx.removeStorageSync(K_SETS);
+    wx.removeStorageSync(K_PLAN);
+    wx.removeStorageSync('lj.seeded');
+    return true;
+  }
+  return false;
+}
+
 function profileText() {
   const p = profile();
   return p ? P.describe(p) : '';
@@ -273,7 +290,7 @@ function monthlyStats(y, m) {
 
 module.exports = {
   /* 引导 */
-  hasOnboarded, profile, saveProfile, finishOnboarding, profileText, resetAll,
+  hasOnboarded, profile, saveProfile, finishOnboarding, profileText, migrate, resetAll,
   /* 动作 */
   exercises, exerciseById,
   /* 计划 */
