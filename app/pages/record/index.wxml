@@ -33,6 +33,8 @@
       done="{{item.done}}"
       pr="{{item.pr}}"
       bind:toggle="onToggle"
+      bind:weightchange="onWeightChange"
+      bind:repschange="onRepsChange"
     />
     <view class="addset">＋ 加一组</view>
   </view>

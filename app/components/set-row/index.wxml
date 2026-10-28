@@ -1,9 +1,40 @@
 <view class="row {{done ? 'done' : ''}}">
   <text class="idx">{{no}}</text>
-  <text class="val">{{weightText}}</text>
+
+  <view class="cell">
+    <input
+      class="num"
+      type="digit"
+      value="{{wDisplay}}"
+      placeholder="{{unit === 'bw' ? '自重' : '0'}}"
+      placeholder-class="ph"
+      disabled="{{!editable}}"
+      bindblur="onWeightBlur"
+      bindconfirm="onWeightBlur"
+      cursor-spacing="30"
+    />
+    <text class="unit" wx:if="{{showKg && wDisplay}}">kg</text>
+  </view>
+
   <text class="x">×</text>
-  <text class="rng">{{repsText}}</text>
+
+  <view class="cell">
+    <input
+      class="num"
+      type="number"
+      value="{{rDisplay}}"
+      placeholder="0"
+      placeholder-class="ph"
+      disabled="{{!editable}}"
+      bindblur="onRepsBlur"
+      bindconfirm="onRepsBlur"
+      cursor-spacing="30"
+    />
+    <text class="unit" wx:if="{{repsSuffix}}">{{repsSuffix}}</text>
+  </view>
+
   <text class="tag" wx:if="{{pr}}">PR</text>
+
   <view class="chk" bindtap="onToggle">
     <text wx:if="{{done}}" class="ck">✓</text>
   </view>

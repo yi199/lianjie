@@ -94,22 +94,55 @@ Page({
     if (!target) return;
 
     if (target.done) {
-      db.saveSet({
-        date: this.date,
-        exId: this.data.ex.exId,
-        exCn: this.data.ex.cn,
-        part: this.data.ex.part,
-        setNo: no,
-        weight: target.weight,
-        reps: target.reps,
-        unit: target.unit
-      });
-      store.touchSets();
+      this.persist(target);
       this.startRest();
       try { wx.vibrateShort({ type: 'light' }); } catch (err) { /* 忽略 */ }
     } else {
       this.stopRest();
     }
+  },
+
+  /* ---------- 改重量 / 改次数 ---------- */
+  onWeightChange(e) {
+    this.applySetChange(e.detail.no, { weight: e.detail.value });
+  },
+
+  onRepsChange(e) {
+    this.applySetChange(e.detail.no, { reps: e.detail.value });
+  },
+
+  /**
+   * 改某一组的数值。
+   * 已勾选的组立刻落库（否则统计还是旧数字）；
+   * 没勾选的只改页面上的值，等勾选时一起存。
+   */
+  applySetChange(no, patch) {
+    let target = null;
+    const sets = this.data.sets.map(function (s) {
+      if (s.no === no) {
+        target = Object.assign({}, s, patch);
+        return target;
+      }
+      return s;
+    });
+    this.setData({ sets: sets });
+
+    if (target && target.done) this.persist(target);
+  },
+
+  /** 写入一条组记录（勾选和改数值共用） */
+  persist(row) {
+    db.saveSet({
+      date: this.date,
+      exId: this.data.ex.exId,
+      exCn: this.data.ex.cn,
+      part: this.data.ex.part,
+      setNo: row.no,
+      weight: row.weight,
+      reps: row.reps,
+      unit: row.unit
+    });
+    store.touchSets();
   },
 
   /* ---------- 休息倒计时 ---------- */

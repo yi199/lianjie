@@ -82,7 +82,44 @@ if (!plan.rest) {
   ok('同组号覆盖而非重复', again.length === 1 && again[0].weight === 32, again.length + ' 条，重量 ' + again[0].weight);
 }
 
-console.log('\n=== 6. 容量计算 ===');
+console.log('\n=== 6. 改重量后统计要跟着变 ===');
+if (!plan.rest) {
+  const exId = plan.items[0].exId;
+  const beforeTon = db.monthlyStats(D.thisMonth().y, D.thisMonth().m).ton;
+
+  // 把今天这组从 32kg 改成 60kg
+  db.saveSet({
+    date: D.today(),
+    exId: exId,
+    exCn: plan.items[0].cn,
+    part: plan.items[0].part,
+    setNo: 1,
+    weight: 60,
+    reps: 10,
+    unit: 'kg'
+  });
+  const row = db.todaySets().filter(s => s.exId === exId && s.setNo === 1)[0];
+  const afterTon = db.monthlyStats(D.thisMonth().y, D.thisMonth().m).ton;
+
+  ok('改重量生效', row && row.weight === 60, row ? row.weight + ' kg' : '未找到');
+  ok('累计吨数随之增加', afterTon >= beforeTon, beforeTon + ' → ' + afterTon + ' 吨');
+
+  // 改次数同理
+  db.saveSet({
+    date: D.today(),
+    exId: exId,
+    exCn: plan.items[0].cn,
+    part: plan.items[0].part,
+    setNo: 1,
+    weight: 60,
+    reps: 3,
+    unit: 'kg'
+  });
+  const row2 = db.todaySets().filter(s => s.exId === exId && s.setNo === 1)[0];
+  ok('改次数生效', row2 && row2.reps === 3, row2 ? row2.reps + ' 次' : '未找到');
+}
+
+console.log('\n=== 7. 容量计算 ===');
 ok('单组容量', V.setVolume({ weight: 24, reps: 12 }) === 288, V.setVolume({ weight: 24, reps: 12 }));
 ok('吨换算', V.toTon(1240) === 1.2, V.toTon(1240));
 
