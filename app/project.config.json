@@ -1,5 +1,5 @@
 {
-  "description": "练间 · 训练记录（最小版）",
+  "description": "练界 · 训练记录（最小版）",
   "packOptions": {
     "ignore": [],
     "include": []
@@ -28,7 +28,7 @@
   "compileType": "miniprogram",
   "libVersion": "3.17.5",
   "appid": "wxfbe33a79e7898c0a",
-  "projectname": "lianjian",
+  "projectname": "lianjie",
   "condition": {},
   "editorSetting": {
     "tabIndent": "insertSpaces",
