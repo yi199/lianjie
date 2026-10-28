@@ -20,6 +20,7 @@ const K_ONBOARDED = 'lj.onboarded';
 const K_PROFILE = 'lj.profile';
 const K_PLAN = 'lj.plans';
 const K_SETS = 'lj.sets';
+const K_SWAPS = 'lj.swaps';   // 训练日里「第几个动作 → 换成哪个」，跟着计划走
 
 /* ---------------- 引导 / 用户设置 ---------------- */
 
@@ -38,9 +39,14 @@ function saveProfile(p) {
     days: Number(p.days) || 3,
     place: p.place === 'home' ? 'home' : 'gym'
   };
+  const oldSig = planSig();
   const plans = P.buildPlan(prof.days, prof.place, prof.level);
   wx.setStorageSync(K_PROFILE, prof);
   wx.setStorageSync(K_PLAN, plans);
+
+  // 训练日编号的含义变了（A 从「推日」变「上肢 A」），旧的换动作记录不能再用
+  if (oldSig && oldSig !== planSig()) wx.removeStorageSync(K_SWAPS);
+
   return plans;
 }
 
@@ -94,6 +100,11 @@ function exerciseById(id) {
   return EX.byId(id);
 }
 
+/** 这个动作第一次做该上多重（按用户当前水平算） */
+function initialWeight(exId) {
+  return P.initialWeight(exId, (profile() || {}).level);
+}
+
 /** 同部位、同场所的其它动作（换动作用）。场所跟着动作本身走，不看用户设置 */
 function alternatives(exId) {
   const ex = EX.byId(exId);
@@ -109,23 +120,64 @@ function plans() {
   return Array.isArray(p) ? p : [];
 }
 
-/** 把模板里的动作 id 展开成完整动作 */
+/* ---------------- 换动作（训练日里永久替换） ---------------- */
+
+/**
+ * 换过的动作。
+ * 存的是「训练日 key + 第几个动作」→ 新动作 id，不按日期，
+ * 所以换一次以后这个训练日一直是新动作，不用每天重换。
+ */
+function swaps() {
+  return wx.getStorageSync(K_SWAPS) || {};
+}
+
+function setSwap(planKey, slot, exId) {
+  const sw = swaps();
+  const list = plans();
+  const p = list.filter(function (x) { return x.key === planKey; })[0];
+  const origin = p && p.items[slot] ? p.items[slot].exId : '';
+
+  // 换回原动作等于没换，别留一条「换成同一个动作」的脏记录
+  if (origin && origin === exId) delete sw[planKey + ':' + slot];
+  else sw[planKey + ':' + slot] = exId;
+
+  wx.setStorageSync(K_SWAPS, sw);
+  return sw;
+}
+
+function clearSwap(planKey, slot) {
+  const sw = swaps();
+  delete sw[planKey + ':' + slot];
+  wx.setStorageSync(K_SWAPS, sw);
+  return sw;
+}
+
+/** 把模板里的动作 id 展开成完整动作，并应用换过的动作 */
 function decorate(p) {
+  const sw = swaps();
   return {
     key: p.key,
     name: p.name,
     en: p.en,
-    items: p.items.map(function (it) {
-      const ex = EX.byId(it.exId) || { cn: it.exId, en: '', part: 'legs' };
+    items: p.items.map(function (it, i) {
+      const altId = sw[p.key + ':' + i];
+      const useAlt = !!(altId && EX.byId(altId));
+      const exId = useAlt ? altId : it.exId;
+      const ex = EX.byId(exId) || { cn: exId, en: '', part: 'legs', unit: 'kg' };
+      const origin = EX.byId(it.exId);
+
       return {
-        exId: it.exId,
+        exId: exId,
         cn: ex.cn,
         en: ex.en,
         part: ex.part,
+        slot: i,
         sets: it.sets,
         reps: it.reps,
-        weight: it.weight,
-        unit: it.unit || 'kg'
+        weight: useAlt ? P.initialWeight(exId, (profile() || {}).level) : it.weight,
+        unit: ex.unit || it.unit || 'kg',
+        swapped: useAlt,
+        originCn: useAlt && origin ? origin.cn : ''
       };
     })
   };
@@ -141,15 +193,85 @@ function weekDates(date) {
   return out;
 }
 
+/* ---------------- 训练日轮转 ---------------- */
+
+/** 当前计划签名（设置变了，旧记录就不再对应现在的 A/B/C） */
+function planSig() {
+  return P.planSig(profile());
+}
+
+/**
+ * 某一天的记录属于哪个训练日。
+ * 优先看记录里的 planKey；老记录没带 planKey 的，用「做过哪些动作」反推最像的那个。
+ */
+function dayKey(rows) {
+  const cnt = {};
+  rows.forEach(function (s) {
+    if (!s.planKey) return;
+    cnt[s.planKey] = (cnt[s.planKey] || 0) + 1;
+  });
+  const keys = Object.keys(cnt);
+  if (keys.length) {
+    return keys.sort(function (a, b) { return cnt[b] - cnt[a]; })[0];
+  }
+
+  const list = plans();
+  const exIds = {};
+  rows.forEach(function (s) { exIds[s.exId] = true; });
+  let best = '';
+  let bestHit = 0;
+  list.forEach(function (p) {
+    const hit = p.items.filter(function (it) { return exIds[it.exId]; }).length;
+    if (hit > bestHit) { bestHit = hit; best = p.key; }
+  });
+  return best;
+}
+
+/**
+ * 已经练过的训练日序列（按日期升序），只认当前计划签名、且日期早于 beforeDate 的记录。
+ */
+function sessionDays(beforeDate) {
+  const sig = planSig();
+  const byDate = {};
+  allSets().forEach(function (s) {
+    if (!s.done) return;
+    if (s.sig && s.sig !== sig) return;          // 改设置之前的老记录，不参与轮转
+    if (beforeDate && s.date >= beforeDate) return;
+    if (!byDate[s.date]) byDate[s.date] = [];
+    byDate[s.date].push(s);
+  });
+  return Object.keys(byDate).sort().map(function (d) {
+    return { date: d, key: dayKey(byDate[d]) };
+  });
+}
+
+/**
+ * 下一个该练的训练日。
+ *
+ * 关键是「接着上一次练的那天往下排」，不是「本周练了几次 % 模板数」——
+ * 后者只要一周没练满目标次数，就会永远在 A/B 之间打转，C 一辈子轮不到。
+ */
+function nextKey(beforeDate) {
+  const list = plans();
+  if (!list.length) return null;
+
+  const days = sessionDays(beforeDate);
+  if (!days.length) return list[0];
+
+  const lastKey = days[days.length - 1].key;
+  const idx = list.findIndex(function (p) { return p.key === lastKey; });
+  if (idx < 0) return list[0];
+  return list[(idx + 1) % list.length];
+}
+
 /**
  * 今天该练什么。
  *
- * 不按星期排，按「本周第几次」排队：
  *   今天已经练过 → 继续当天那个训练日
- *   否则 → 本周还没练的下一个模板
- *   本周达标 → finished，但仍给一个模板，允许加练
+ *   否则 → 接着上一次训练往下排（跨周连续，不会漏掉某个训练日）
+ *   本周达标 → finished，但仍给下一个模板，允许加练
  *
- * @returns {{ finished, resumed, plan, week:{done,target}, list }}
+ * @returns {{ finished, resumed, plan, week:{done,target}, today:{doneEx,totalEx,complete,rows}, list }}
  */
 function todaySession(date) {
   const list = plans();
@@ -157,42 +279,49 @@ function todaySession(date) {
   const target = Number(prof.days) || list.length || 3;
   const today = date || D.today();
   const week = weekDates(today);
-  const all = allSets().filter(function (s) { return s.done; });
 
-  // 今天有没有练过
-  const todayRows = all.filter(function (s) { return s.date === today; });
+  const rows = allSets().filter(function (s) { return s.done; });
+  const todayRows = rows.filter(function (s) { return s.date === today; });
   const hasToday = todayRows.length > 0;
-  const todayKey = hasToday ? (todayRows[0].planKey || '') : null;
 
-  // 本周其它哪天练过（按日期去重）
-  const otherDays = [];
-  all.forEach(function (s) {
-    if (s.date === today) return;
-    if (week.indexOf(s.date) < 0) return;
-    if (otherDays.indexOf(s.date) < 0) otherDays.push(s.date);
+  // 本周进度：按「练了几天」算，一天练两次也只算一次
+  const daySet = {};
+  rows.forEach(function (s) {
+    if (week.indexOf(s.date) >= 0) daySet[s.date] = true;
   });
-  otherDays.sort();
-
-  const done = otherDays.length + (hasToday ? 1 : 0);
+  const done = Object.keys(daySet).length;
   const finished = done >= target;
-  const len = list.length || 1;
 
+  // 今天练的是哪个训练日：先认记录，认不出来再接着排队
   let raw = null;
   if (hasToday) {
-    raw = list.filter(function (p) { return p.key === todayKey; })[0]
-      || list[otherDays.length % len]
-      || null;
-  } else if (finished) {
-    raw = list[done % len] || list[0] || null;   // 达标了还给一个，允许加练
-  } else {
-    raw = list[otherDays.length % len] || null;
+    const k = dayKey(todayRows);
+    raw = list.filter(function (p) { return p.key === k; })[0] || null;
   }
+  if (!raw) raw = nextKey(today);
+  if (!raw && list.length) raw = list[0];
+
+  const plan = raw ? decorate(raw) : null;
+
+  // 今天做到哪了：按当前训练日的动作逐个对，换过动作也算
+  const doneEx = {};
+  todayRows.forEach(function (s) { doneEx[s.exId] = true; });
+  const totalEx = plan ? plan.items.length : 0;
+  const hitEx = plan
+    ? plan.items.filter(function (it) { return doneEx[it.exId]; }).length
+    : 0;
 
   return {
     finished: finished,
     resumed: hasToday,
-    plan: raw ? decorate(raw) : null,
+    plan: plan,
     week: { done: done, target: target },
+    today: {
+      doneEx: hitEx,
+      totalEx: totalEx,
+      complete: hasToday && totalEx > 0 && hitEx >= totalEx,
+      rows: todayRows.length
+    },
     list: list
   };
 }
@@ -202,40 +331,62 @@ function todaySession(date) {
 /**
  * 建议今天这个动作练多重。
  *
- * 规则：上次同一动作，所有组的次数都达标 → 加一档；没达标 → 保持。
+ * 规则：上次同一动作，「组数做够」且「每组次数都达标」→ 加一档；否则保持。
  *   下肢 +5kg，其它 +2.5kg（取 2.5 的整数倍）
  *
- * @returns {{weight, reason:'first'|'up'|'keep', prev, step, date}}
+ * 两个坑专门防住：
+ *   1) 只勾了 1 组就退出，不能算「全部完成」——必须组数也够；
+ *   2) 基准取当天最重的一组，用户中途减重不该把下次的起点拉低。
+ *
+ * @param {string} exId
+ * @param {number} planReps 计划次数
+ * @param {number} planSets 计划组数
+ * @param {string} [date]
+ * @returns {{weight, reason:'first'|'up'|'keep', prev, step, date, sets, enoughSets}}
  */
-function suggestWeight(exId, planReps, date) {
+function suggestWeight(exId, planReps, planSets, date) {
   const day = date || D.today();
   const ex = EX.byId(exId);
 
   const rows = allSets().filter(function (s) {
     return s.done && s.exId === exId && s.date < day && s.unit === 'kg' && s.weight > 0;
   });
-  if (!rows.length) return { weight: 0, reason: 'first', prev: 0, step: 0, date: '' };
+  if (!rows.length) {
+    return { weight: 0, reason: 'first', prev: 0, step: 0, date: '', sets: 0, enoughSets: false };
+  }
 
   const lastDay = rows.reduce(function (a, b) { return a.date > b.date ? a : b; }).date;
   const lastRows = rows.filter(function (s) { return s.date === lastDay; });
 
-  // 以最后一组为基准（用户可能中途减过重）
-  const lastSet = lastRows.reduce(function (a, b) { return a.setNo > b.setNo ? a : b; });
-  const base = lastSet.weight;
+  const base = lastRows.reduce(function (a, b) {
+    return b.weight > a.weight ? b : a;
+  }).weight;
 
+  const needSets = Number(planSets) || 0;
+  const enoughSets = lastRows.length >= needSets;
   const allHit = lastRows.every(function (s) { return s.reps >= (planReps || 0); });
   const step = (ex && ex.part === 'legs') ? 5 : 2.5;
 
-  if (allHit) {
+  if (enoughSets && allHit) {
     return {
       weight: P.roundWeight(base + step),
       reason: 'up',
       prev: base,
       step: step,
-      date: lastDay
+      date: lastDay,
+      sets: lastRows.length,
+      enoughSets: true
     };
   }
-  return { weight: base, reason: 'keep', prev: base, step: 0, date: lastDay };
+  return {
+    weight: base,
+    reason: 'keep',
+    prev: base,
+    step: 0,
+    date: lastDay,
+    sets: lastRows.length,
+    enoughSets: enoughSets
+  };
 }
 
 /* ---------------- 记录 ---------------- */
@@ -256,6 +407,7 @@ function saveSet(rec) {
     exCn: rec.exCn,
     part: rec.part,
     planKey: rec.planKey || '',
+    sig: planSig(),
     setNo: rec.setNo,
     weight: Number(rec.weight) || 0,
     reps: Number(rec.reps) || 0,
@@ -314,11 +466,15 @@ function maxWeightBefore(exId, beforeDate) {
 /**
  * 造一份示例记录。只在用户主动点「先看看长什么样」时调用。
  * 按用户自己的计划生成，所以看起来就是他练的。
+ *
+ * 已经练过的用户不给覆盖 —— 示例数据把真实记录冲掉是不可接受的。
+ * @returns {number} 生成的条数；-1 表示已有真实记录，没动
  */
 function loadDemo() {
   const list = plans();
   const prof = profile() || {};
   if (!list.length) return 0;
+  if (hasAnyRecord()) return -1;
   const rows = P.makeDemoSets(list, Number(prof.days) || list.length);
   wx.setStorageSync(K_SETS, rows);
   return rows.length;
@@ -334,6 +490,7 @@ function resetAll() {
   wx.removeStorageSync(K_PROFILE);
   wx.removeStorageSync(K_PLAN);
   wx.removeStorageSync(K_SETS);
+  wx.removeStorageSync(K_SWAPS);
 }
 
 /* ---------------- 训练战报 ---------------- */
@@ -513,9 +670,11 @@ module.exports = {
   /* 引导 */
   hasOnboarded, profile, saveProfile, finishOnboarding, profileText, migrate, resetAll,
   /* 动作 */
-  exercises, exerciseById, alternatives,
+  exercises, exerciseById, alternatives, initialWeight,
   /* 计划 */
-  plans, todaySession, suggestWeight,
+  plans, todaySession, suggestWeight, planSig,
+  /* 换动作 */
+  swaps, setSwap, clearSwap,
   /* 记录 */
   allSets, saveSet, todaySets, hasAnyRecord, lastRecord, maxWeightBefore, clearSets, loadDemo,
   /* 战报 */

@@ -101,24 +101,25 @@ ok('下周一重新从 A 开始', nextWeek.plan.key === 'A' && nextWeek.week.don
 
 /* ================= 5. 重量建议（渐进超负荷） ================= */
 console.log('\n=== 5. 重量建议 ===');
-ok('从没练过 → first', db.suggestWeight('g21', 10, '2026-10-20').reason === 'first');
+ok('从没练过 → first', db.suggestWeight('g21', 10, 3, '2026-10-20').reason === 'first');
 
 // 10-19 卧推 50kg × 10 次 × 3 组，全部达标
 set('2026-10-19', 'g1', 'A', 1, 50, 10);
 set('2026-10-19', 'g1', 'A', 2, 50, 10);
 set('2026-10-19', 'g1', 'A', 3, 50, 10);
-const sugUp = db.suggestWeight('g1', 10, '2026-10-20');
+const sugUp = db.suggestWeight('g1', 10, 3, '2026-10-20');
 ok('全部做满 → 加重', sugUp.reason === 'up' && sugUp.weight === 52.5, sugUp.prev + ' → ' + sugUp.weight + ' kg');
 
 // 下肢加 5kg
 set('2026-10-19', 'g9', 'C', 1, 24, 10);
 set('2026-10-19', 'g9', 'C', 2, 24, 10);
-const sugLeg = db.suggestWeight('g9', 10, '2026-10-20');
+set('2026-10-19', 'g9', 'C', 3, 24, 10);
+const sugLeg = db.suggestWeight('g9', 10, 3, '2026-10-20');
 ok('下肢加 5kg（并取到 2.5 的倍数）', sugLeg.weight === 30, sugLeg.prev + ' + 5 → 29 → 取整 ' + sugLeg.weight + ' kg');
 
 // 没做满 → 保持
 set('2026-10-21', 'g6', 'B', 1, 40, 6);
-const sugKeep = db.suggestWeight('g6', 10, '2026-10-22');
+const sugKeep = db.suggestWeight('g6', 10, 3, '2026-10-22');
 ok('没做满 → 保持原重量', sugKeep.reason === 'keep' && sugKeep.weight === 40, sugKeep.weight + ' kg');
 
 /* ================= 6. 换动作 ================= */
@@ -183,5 +184,92 @@ ok('再次调用不重复迁移', db.migrate() === false);
 console.log('\n=== 11. 容量计算 ===');
 ok('单组容量', V.setVolume({ weight: 24, reps: 12 }) === 288, V.setVolume({ weight: 24, reps: 12 }));
 ok('吨换算', V.toTon(1240) === 1.2, V.toTon(1240));
+
+/* ================= 12. 训练日轮转（跨周不漏训练日） ================= */
+console.log('\n=== 12. 训练日轮转 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+// 第一周只练 2 次：周一 A、周三 B，没练满 3 次
+set('2026-10-26', 'g1', 'A', 1, 50, 10);
+set('2026-10-28', 'g5', 'B', 1, 0, 6);
+
+const w2 = db.todaySession('2026-11-02');   // 下周一
+ok('一周只练 2 次，下周接着排到 C（旧版会回到 A）', w2.plan && w2.plan.key === 'C', w2.plan ? w2.plan.key + ' ' + w2.plan.name : '无');
+ok('本周进度按周重置', w2.week.done === 0 && w2.week.target === 3, w2.week.done + '/' + w2.week.target);
+
+set('2026-11-02', 'g9', 'C', 1, 24, 10);
+ok('练完 C 之后回到 A', db.todaySession('2026-11-03').plan.key === 'A');
+ok('同一天再查还是 C（不跳）', db.todaySession('2026-11-02').plan.key === 'C');
+ok('停练两个月也接着上次往下排', db.todaySession('2027-01-05').plan.key === 'A');
+
+/* ================= 13. 重量建议的边界 ================= */
+console.log('\n=== 13. 重量建议的边界 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+set('2026-10-19', 'g1', 'A', 1, 50, 10);          // 只勾了 1 组
+const onlyOne = db.suggestWeight('g1', 10, 3, '2026-10-20');
+ok('只做 1/3 组 → 不算全部完成，不加重量', onlyOne.reason === 'keep' && onlyOne.weight === 50, onlyOne.reason + ' ' + onlyOne.weight + 'kg');
+ok('并标出组数不够', onlyOne.enoughSets === false);
+
+const oneSetPlan = db.suggestWeight('g1', 10, 1, '2026-10-20');
+ok('计划本来就 1 组 → 达标就加', oneSetPlan.reason === 'up' && oneSetPlan.weight === 52.5, oneSetPlan.weight + 'kg');
+
+// 中途减重：最后一组降到 40，下次起点不能被拉低
+set('2026-10-21', 'g1', 'A', 1, 55, 10);
+set('2026-10-21', 'g1', 'A', 2, 55, 10);
+set('2026-10-21', 'g1', 'A', 3, 40, 10);
+const drop = db.suggestWeight('g1', 10, 3, '2026-10-22');
+ok('基准取最重一组（55 → 57.5），不按最后一组', drop.prev === 55 && drop.weight === 57.5, drop.prev + ' → ' + drop.weight + ' kg');
+
+/* ================= 14. 换动作 ================= */
+console.log('\n=== 14. 换动作持久化 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+const aPlan = db.todaySession('2026-10-26').plan;
+ok('A 日第一个动作是卧推', aPlan.items[0].exId === 'g1', aPlan.items[0].cn);
+
+db.setSwap('A', 0, 'g15');
+const swapped = db.todaySession('2026-10-26').plan;
+ok('换过之后计划里就是上斜卧推（不用每天重换）', swapped.items[0].exId === 'g15', swapped.items[0].cn);
+ok('记住原动作名', swapped.items[0].originCn === '卧推', swapped.items[0].originCn);
+ok('换到的动作第一次重量按它自己的基线算', swapped.items[0].weight === db.initialWeight('g15') && swapped.items[0].weight > 0, swapped.items[0].weight + 'kg');
+
+db.clearSwap('A', 0);
+ok('可以恢复原动作', db.todaySession('2026-10-26').plan.items[0].exId === 'g1');
+
+// 腿日换成罗马尼亚硬拉：重量不能还是 20kg
+set('2026-11-02', 'g1', 'A', 1, 50, 10);
+set('2026-11-04', 'g5', 'B', 1, 0, 6);
+db.setSwap('C', 0, 'g21');
+const swapLeg = db.todaySession('2026-11-06').plan;
+ok('换到腿日动作时重量按基线算，不是死 20kg',
+  swapLeg.items[0].exId === 'g21' && swapLeg.items[0].weight === db.initialWeight('g21') && swapLeg.items[0].weight !== 20,
+  swapLeg.items[0].cn + ' ' + swapLeg.items[0].weight + 'kg');
+
+/* ================= 15. 今日完成度 ================= */
+console.log('\n=== 15. 今日完成度 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+const todayPlan = db.todaySession('2026-10-26').plan;
+todayPlan.items.slice(0, 2).forEach(function (it) {
+  set('2026-10-26', it.exId, 'A', 1, it.weight || 0, it.reps);
+});
+const half = db.todaySession('2026-10-26');
+ok('只做 2/4 个动作 → 未完成', half.today.doneEx === 2 && half.today.complete === false, half.today.doneEx + '/' + half.today.totalEx);
+
+todayPlan.items.forEach(function (it) {
+  set('2026-10-26', it.exId, 'A', 1, it.weight || 0, it.reps);
+});
+const full = db.todaySession('2026-10-26');
+ok('4 个动作都做过 → 完成', full.today.complete === true, full.today.doneEx + '/' + full.today.totalEx);
+ok('练完还是当天那个训练日（不跳到下一个）', full.plan.key === 'A', full.plan.key);
+
+/* ================= 16. 示例数据不覆盖真实记录 ================= */
+console.log('\n=== 16. 示例数据保护 ===');
+ok('已有记录时拒绝覆盖', db.loadDemo() === -1);
 
 console.log('\n' + (process.exitCode ? '有失败项' : '全部通过') + '\n');

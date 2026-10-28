@@ -56,6 +56,10 @@ Page({
   /** 空态时用来「先看看长什么样」，不是真实数据 */
   loadDemo() {
     const n = db.loadDemo();
+    if (n === -1) {
+      wx.showToast({ title: '已经有记录了，示例不会覆盖', icon: 'none' });
+      return;
+    }
     if (!n) {
       wx.showToast({ title: '还没有计划', icon: 'none' });
       return;

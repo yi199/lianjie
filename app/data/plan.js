@@ -128,6 +128,32 @@ function describe(profile) {
   return '一周 ' + profile.days + ' 练 · ' + (profile.place === 'home' ? '居家' : '健身房');
 }
 
+/**
+ * 计划签名。
+ * 设置一变（水平/频率/场所），旧记录里的 A/B/C 就不再指同一套动作了，
+ * 所以记录要带上签名，推进训练日时只认当前这套。
+ */
+function planSig(profile) {
+  if (!profile) {
+    profile = {};
+  }
+  return (profile.level || 'some') + '|' +
+    (Number(profile.days) || 3) + '|' +
+    (profile.place === 'home' ? 'home' : 'gym');
+}
+
+/**
+ * 某个动作「第一次做」该上多重。
+ * 换动作时必须用它，不能一律给 20kg（腿举和弯举的起点差 4 倍）。
+ */
+function initialWeight(exId, level) {
+  const ex = EX.byId(exId);
+  if (!ex || ex.unit !== 'kg') return 0;
+  const lv = LEVEL[level] || LEVEL.some;
+  const base = BASE_WEIGHT[exId] || 20;
+  return roundWeight(base * lv.wf);
+}
+
 /* ---------------- 示例数据（用户主动点了才生成） ---------------- */
 
 /**
@@ -185,5 +211,6 @@ function makeDemoSets(plans, target) {
 
 module.exports = {
   LEVEL, BASE_WEIGHT, SCHEDULE, DAY_TYPES,
-  buildPlan, describe, makeDemoSets, roundWeight
+  buildPlan, describe, makeDemoSets, roundWeight,
+  planSig, initialWeight
 };

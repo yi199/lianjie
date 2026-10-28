@@ -82,6 +82,17 @@
   font-size: 24rpx;
   margin-left: 12rpx;
 }
+.pitem-hover {
+  background: #F2F0E6;
+}
+.pitem .sw {
+  font-size: 18rpx;
+  color: var(--clay, #B4795A);
+  border: 1rpx solid var(--clay, #B4795A);
+  border-radius: 4rpx;
+  padding: 0 6rpx;
+  line-height: 1.6;
+}
 
 /* 休息日 */
 .restcard {

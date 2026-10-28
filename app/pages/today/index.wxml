@@ -20,32 +20,25 @@
     <view class="todaybig">
       <view class="day">{{plan.key}} · {{plan.en}}</view>
       <view class="tt">{{plan.name}}</view>
-      <view class="meta">{{items.length}} 个动作 · 约 45 分钟</view>
+      <view class="meta">{{items.length}} 个动作 · 约 {{minutes}} 分钟</view>
       <view class="last">{{lastText}}</view>
     </view>
 
     <view class="plist">
       <view class="ph">动作清单</view>
-      <view class="pitem" wx:for="{{items}}" wx:key="exId">
+      <view class="pitem" wx:for="{{items}}" wx:key="exId" data-i="{{index}}" bindtap="openEx" hover-class="pitem-hover">
         <text class="no">{{item.no}}</text>
         <view class="nm">
           <text>{{item.cn}}</text>
           <text class="en">{{item.en}}</text>
         </view>
+        <text class="sw" wx:if="{{item.swapped}}">已换</text>
         <text class="ss">{{item.label}}</text>
         <text class="tick" wx:if="{{item.done}}">✓</text>
       </view>
     </view>
 
-    <view class="tip" wx:if="{{finished}}">
-      这周的目标已经完成。想再练一次也没问题，肌肉不嫌多。
-    </view>
-    <view class="tip" wx:elif="{{resumed}}">
-      今天已经练过了，接着练剩下的就行。
-    </view>
-    <view class="tip" wx:else>
-      今天没时间也没关系，第二天打开还是这个训练日，不会跳过。
-    </view>
+    <view class="tip">{{tip}}</view>
   </block>
 
   <block wx:else>
@@ -58,8 +51,8 @@
 </view>
 
 <view class="footbar">
-  <view wx:if="{{plan}}" class="btn" hover-class="btn-hover" bindtap="start">
-    {{finished ? '再练一次 →' : (resumed ? '继续训练 →' : '开始训练 →')}}
+  <view wx:if="{{plan}}" class="btn" hover-class="btn-hover" bindtap="mainAction">
+    {{allDone ? '看今日战报 →' : (finished ? '再练一次 →' : (resumed ? '继续训练 →' : '开始训练 →'))}}
   </view>
   <view wx:else class="btn btn-ghost" hover-class="btn-hover" bindtap="gotoStats">去看数据</view>
 </view>

@@ -25,6 +25,7 @@
     <view class="swap" bindtap="changeEx" hover-class="swap-hover">换一个</view>
   </view>
 
+  <view class="last" wx:if="{{ex.swapped}}">已换成 {{ex.cn}} · 原动作 {{ex.originCn}}</view>
   <view class="last" wx:if="{{lastText}}">{{lastText}}</view>
   <view class="sug" wx:if="{{sugHint}}">{{sugHint}}</view>
 

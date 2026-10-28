@@ -5,6 +5,14 @@ const store = require('../../store/index');
 const REST_SECONDS = 90;
 const BREATH_CYCLE = 8;   // 4 秒吸气 + 4 秒呼气
 
+/** 「上次 50 kg × 10 × 3 组」/「上次 12 次 × 3 组」/「上次 30 秒 × 3 组」 */
+function describeLast(lr, unit) {
+  if (!lr) return '';
+  if (unit === 'sec') return '上次 ' + lr.reps + ' 秒 × ' + lr.sets + ' 组';
+  if (unit === 'bw') return '上次 ' + lr.reps + ' 次 × ' + lr.sets + ' 组';
+  return '上次 ' + lr.weight + ' kg × ' + lr.reps + ' × ' + lr.sets + ' 组';
+}
+
 Page({
   data: {
     sbh: 20,
@@ -26,7 +34,7 @@ Page({
     restPhase: '吸气'
   },
 
-  onLoad() {
+  onLoad(opts) {
     const app = getApp();
     this.date = D.today();
     this.timer = null;
@@ -50,7 +58,23 @@ Page({
       planKey: s.plan.key,
       total: s.plan.items.length
     });
-    this.loadEx(0);
+
+    // 从首页点某个动作进来 → 直接到那个动作；
+    // 否则接着上次没做完的地方开始（中途退出不会又从第一个动作重来）
+    const doneEx = {};
+    db.todaySets(this.date).forEach(function (x) { doneEx[x.exId] = true; });
+
+    const want = opts && opts.i !== undefined ? Number(opts.i) : NaN;
+    let start = 0;
+    if (!isNaN(want) && want >= 0 && want < s.plan.items.length) {
+      start = want;
+    } else {
+      for (let k = 0; k < s.plan.items.length; k++) {
+        if (!doneEx[s.plan.items[k].exId]) { start = k; break; }
+      }
+    }
+
+    this.loadEx(start);
   },
 
   onUnload() {
@@ -62,18 +86,25 @@ Page({
     const it = this.plan.items[i];
     this.maxBefore = db.maxWeightBefore(it.exId, this.date);
 
-    // 渐进超负荷：上次全部达标就加一档
-    const sug = db.suggestWeight(it.exId, it.reps, this.date);
+    // 渐进超负荷：上次做够组数、且每组都达标，才加一档
+    const sug = db.suggestWeight(it.exId, it.reps, it.sets, this.date);
     const weight = sug.reason === 'first' ? it.weight : sug.weight;
 
+    // 今天已经勾过的组必须还原：否则中途退出再进来，全变回未勾选，用户会以为白练了
+    const prevRows = db.todaySets(this.date).filter(function (s) { return s.exId === it.exId; });
+    const byNo = {};
+    prevRows.forEach(function (s) { byNo[s.setNo] = s; });
+
+    const totalSets = Math.max(it.sets, prevRows.length);
     const sets = [];
-    for (let k = 0; k < it.sets; k++) {
+    for (let k = 0; k < totalSets; k++) {
+      const rec = byNo[k + 1];
       sets.push({
         no: k + 1,
-        weight: weight,
-        reps: it.reps,
+        weight: rec ? rec.weight : weight,
+        reps: rec ? rec.reps : it.reps,
         unit: it.unit || 'kg',
-        done: false,
+        done: !!rec,
         pr: false
       });
     }
@@ -81,11 +112,16 @@ Page({
     let lastText = '第一次做这个动作';
     let sugHint = '';
     if (sug.reason === 'up') {
-      lastText = '上次 ' + sug.prev + ' kg × ' + it.reps + ' × ' + it.sets;
+      lastText = '上次 ' + sug.prev + ' kg × ' + it.reps + ' × ' + sug.sets + ' 组';
       sugHint = '全部完成，今天加 ' + sug.step + ' kg';
     } else if (sug.reason === 'keep') {
-      lastText = '上次 ' + sug.prev + ' kg × ' + it.reps + ' × ' + it.sets;
-      sugHint = '上次没做满，今天保持';
+      lastText = '上次 ' + sug.prev + ' kg × ' + it.reps + ' × ' + sug.sets + ' 组';
+      sugHint = sug.enoughSets
+        ? '上次没做满，今天保持'
+        : '上次只做了 ' + sug.sets + ' 组（计划 ' + it.sets + ' 组），今天保持';
+    } else if (it.unit !== 'kg') {
+      // 自重 / 计时动作没有重量可建议，就只说上次做了多少
+      lastText = describeLast(db.lastRecord(it.exId, this.date), it.unit) || '第一次做这个动作';
     }
 
     this.clearTimer();
@@ -142,45 +178,78 @@ Page({
     });
   },
 
-  /** 换掉当前动作，组数不变，重量按新动作重新建议 */
+  /** 换掉当前动作：记住这次替换，重量按新动作自己的基线算 */
   swapEx(pick) {
     const cur = this.data.ex;
+    const i = this.data.idx;
+    const slot = (cur.slot === undefined) ? i : cur.slot;
     const n = this.data.sets.length || cur.sets;
-    const sug = db.suggestWeight(pick.id, cur.reps, this.date);
+    const planSets = cur.sets || n;
+
+    // 记住替换：下次进这个训练日还是它，不用每天重换一遍
+    db.setSwap(this.planKey, slot, pick.id);
+
+    const sug = db.suggestWeight(pick.id, cur.reps, planSets, this.date);
 
     let weight = 0;
     if (pick.unit === 'kg') {
-      weight = sug.reason === 'first' ? 20 : sug.weight;
+      // 第一次做这个动作，用它的基线重量，不能一律给 20kg
+      weight = sug.reason === 'first' ? db.initialWeight(pick.id) : sug.weight;
     }
 
+    const prevRows = db.todaySets(this.date).filter(function (s) { return s.exId === pick.id; });
+    const byNo = {};
+    prevRows.forEach(function (s) { byNo[s.setNo] = s; });
+
+    const totalSets = Math.max(n, prevRows.length);
     const sets = [];
-    for (let k = 0; k < n; k++) {
+    for (let k = 0; k < totalSets; k++) {
+      const rec = byNo[k + 1];
       sets.push({
         no: k + 1,
-        weight: weight,
-        reps: cur.reps,
+        weight: rec ? rec.weight : weight,
+        reps: rec ? rec.reps : cur.reps,
         unit: pick.unit,
-        done: false,
+        done: !!rec,
         pr: false
       });
     }
 
     this.maxBefore = db.maxWeightBefore(pick.id, this.date);
 
+    const originCn = cur.swapped ? cur.originCn : cur.cn;
+    const newItem = {
+      exId: pick.id,
+      cn: pick.cn,
+      en: pick.en,
+      part: pick.part,
+      slot: slot,
+      sets: n,
+      reps: cur.reps,
+      weight: weight,
+      unit: pick.unit,
+      swapped: !!originCn && originCn !== pick.cn,
+      originCn: originCn
+    };
+    this.plan.items[i] = newItem;
+
+    let lastText = '第一次做这个动作';
+    let sugHint = '';
+    if (sug.reason === 'up') {
+      lastText = '上次 ' + sug.prev + ' kg × ' + cur.reps + ' × ' + sug.sets + ' 组';
+      sugHint = '全部完成，今天加 ' + sug.step + ' kg';
+    } else if (sug.reason === 'keep') {
+      lastText = '上次 ' + sug.prev + ' kg × ' + cur.reps + ' × ' + sug.sets + ' 组';
+      sugHint = sug.enoughSets ? '上次没做满，今天保持' : '上次只做了 ' + sug.sets + ' 组，今天保持';
+    } else if (pick.unit !== 'kg') {
+      lastText = describeLast(db.lastRecord(pick.id, this.date), pick.unit) || '第一次做这个动作';
+    }
+
     this.setData({
-      ex: {
-        exId: pick.id,
-        cn: pick.cn,
-        en: pick.en,
-        part: pick.part,
-        sets: n,
-        reps: cur.reps,
-        weight: weight,
-        unit: pick.unit
-      },
+      ex: newItem,
       sets: sets,
-      lastText: sug.reason === 'first' ? '第一次做这个动作' : '上次 ' + sug.prev + ' kg',
-      sugHint: sug.reason === 'up' ? '全部完成，今天加 ' + sug.step + ' kg' : ''
+      lastText: lastText,
+      sugHint: sugHint
     });
 
     this.refreshPlates();
