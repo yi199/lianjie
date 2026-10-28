@@ -153,8 +153,38 @@ ok('旧计划已清除', Object.keys(db.plans()).length === 0);
 ok('旧标记已删除', store['lj.seeded'] === undefined);
 ok('再次调用不重复清理', db.migrate() === false);
 
-/* ================= 10. 容量计算 ================= */
-console.log('\n=== 10. 容量计算 ===');
+/* ================= 10. 战报与 PR ================= */
+console.log('\n=== 10. 战报与 PR ===');
+
+// 昨天卧推 50kg × 2 组
+db.saveSet({ date: '2026-10-25', exId: 'g1', exCn: '卧推', part: 'chest', setNo: 1, weight: 50, reps: 8, unit: 'kg' });
+db.saveSet({ date: '2026-10-25', exId: 'g1', exCn: '卧推', part: 'chest', setNo: 2, weight: 50, reps: 8, unit: 'kg' });
+// 今天 60kg
+db.saveSet({ date: '2026-10-26', exId: 'g1', exCn: '卧推', part: 'chest', setNo: 1, weight: 60, reps: 8, unit: 'kg' });
+
+ok('历史最大重量查得到', db.maxWeightBefore('g1', '2026-10-26') === 50, db.maxWeightBefore('g1', '2026-10-26') + ' kg');
+
+const rp = db.todayReport('2026-10-26');
+ok('战报：组数', rp.sets === 1, rp.sets + ' 组');
+ok('战报：动作数', rp.exercises === 1, rp.exercises + ' 个');
+ok('战报：容量', rp.volume === 480, rp.volume + ' kg');
+ok('战报：吨', rp.ton === 0.5, rp.ton + ' 吨');
+ok('战报：部位名字是中文', rp.parts[0].name === '胸', rp.parts.map(p => p.name + p.pct + '%').join(' '));
+ok('战报：找到 PR', rp.prs.length === 1, rp.prs.map(p => p.cn + ' ' + p.weight + 'kg').join(','));
+ok('PR 增量正确', rp.prs.length && rp.prs[0].delta === 10, rp.prs.length ? '+' + rp.prs[0].delta : '-');
+
+// 第一次做的动作不算 PR（否则头一个月天天「新纪录」）
+db.saveSet({ date: '2026-10-26', exId: 'g6', exCn: '俯身划船', part: 'back', setNo: 1, weight: 40, reps: 10, unit: 'kg' });
+const rp2 = db.todayReport('2026-10-26');
+ok('第一次做的动作不算 PR', rp2.prs.every(p => p.exId !== 'g6'), rp2.prs.length + ' 个 PR');
+
+// 没超过历史最好成绩就不算 PR
+db.saveSet({ date: '2026-10-26', exId: 'g1', exCn: '卧推', part: 'chest', setNo: 1, weight: 45, reps: 8, unit: 'kg' });
+const rp3 = db.todayReport('2026-10-26');
+ok('重量没超过不算 PR', rp3.prs.every(p => p.exId !== 'g1'), rp3.prs.length + ' 个 PR');
+
+/* ================= 11. 容量计算 ================= */
+console.log('\n=== 11. 容量计算 ===');
 ok('单组容量', V.setVolume({ weight: 24, reps: 12 }) === 288, V.setVolume({ weight: 24, reps: 12 }));
 ok('吨换算', V.toTon(1240) === 1.2, V.toTon(1240));
 

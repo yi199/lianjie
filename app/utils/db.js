@@ -173,6 +173,18 @@ function lastRecord(exId, beforeDate) {
   };
 }
 
+/** 某动作在今天之前的最大重量（判断 PR 用）；没练过返回 0 */
+function maxWeightBefore(exId, beforeDate) {
+  const before = beforeDate || D.today();
+  let max = 0;
+  allSets().forEach(function (s) {
+    if (s.exId !== exId || !s.done || s.date >= before) return;
+    if (s.unit !== 'kg' || !(s.weight > max)) return;
+    max = s.weight;
+  });
+  return max;
+}
+
 /* ---------------- 示例数据 ---------------- */
 
 /**
@@ -197,6 +209,88 @@ function resetAll() {
   wx.removeStorageSync(K_PROFILE);
   wx.removeStorageSync(K_PLAN);
   wx.removeStorageSync(K_SETS);
+}
+
+/* ---------------- 训练战报 ---------------- */
+
+/**
+ * 找今天的 PR（只算负重动作）。
+ * 第一次做的动作不算 PR —— 否则头一个月什么都没干，天天「新纪录」，就不值钱了。
+ */
+function detectPRs(date) {
+  const day = date || D.today();
+  const rows = allSets().filter(function (s) { return s.date === day && s.done; });
+
+  // 今天每个动作的最大重量
+  const cur = {};
+  rows.forEach(function (s) {
+    if (s.unit !== 'kg' || !(s.weight > 0)) return;
+    if (!cur[s.exId] || s.weight > cur[s.exId].weight) {
+      cur[s.exId] = { cn: s.exCn, weight: s.weight };
+    }
+  });
+
+  // 历史上（今天之前）每个动作的最大重量
+  const hist = {};
+  allSets().forEach(function (s) {
+    if (!s.done || s.date >= day) return;
+    if (s.unit !== 'kg' || !(s.weight > 0)) return;
+    if (!hist[s.exId] || s.weight > hist[s.exId]) hist[s.exId] = s.weight;
+  });
+
+  const prs = [];
+  Object.keys(cur).forEach(function (id) {
+    const old = hist[id];
+    if (old === undefined) return;                 // 第一次做，不算
+    if (cur[id].weight > old) {
+      prs.push({
+        exId: id,
+        cn: cur[id].cn,
+        weight: cur[id].weight,
+        prev: old,
+        delta: Math.round((cur[id].weight - old) * 10) / 10
+      });
+    }
+  });
+
+  return prs.sort(function (a, b) { return b.delta - a.delta; });
+}
+
+/** 今天这次训练的汇总，给战报页用 */
+function todayReport(date) {
+  const day = date || D.today();
+  const rows = allSets().filter(function (s) { return s.date === day && s.done; });
+  const plan = todayPlan(day);
+
+  const exSeen = {};
+  const partSets = {};
+  rows.forEach(function (s) {
+    exSeen[s.exId] = true;
+    partSets[s.part] = (partSets[s.part] || 0) + 1;
+  });
+
+  const totalSets = rows.length || 1;
+  const parts = Object.keys(partSets).map(function (k) {
+    return { key: k, name: EX.PART_CN[k] || k, pct: Math.round(partSets[k] / totalSets * 100) };
+  }).sort(function (a, b) { return b.pct - a.pct; });
+
+  const volume = V.totalVolume(rows);
+  const plannedSets = plan.rest
+    ? 0
+    : plan.items.reduce(function (a, it) { return a + it.sets; }, 0);
+
+  return {
+    date: day,
+    planName: plan.rest ? '自由训练' : plan.name,
+    sets: rows.length,
+    plannedSets: plannedSets,
+    exercises: Object.keys(exSeen).length,
+    volume: volume,
+    ton: V.toTon(volume),
+    parts: parts,
+    prs: detectPRs(day),
+    week: weeklyProgress()
+  };
 }
 
 /* ---------------- 统计 ---------------- */
@@ -296,7 +390,9 @@ module.exports = {
   /* 计划 */
   plans, todayPlan,
   /* 记录 */
-  allSets, saveSet, todaySets, hasAnyRecord, lastRecord, clearSets, loadDemo,
+  allSets, saveSet, todaySets, hasAnyRecord, lastRecord, maxWeightBefore, clearSets, loadDemo,
+  /* 战报 */
+  todayReport, detectPRs,
   /* 统计 */
   monthlyStats, weeklyProgress
 };

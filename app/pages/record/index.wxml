@@ -22,6 +22,16 @@
     <view class="last">{{lastText}}</view>
   </view>
 
+  <!-- 杠铃片：一组一片，完成的点亮；超过历史最好成绩的那组是陶土色 -->
+  <view class="plates">
+    <view
+      class="plate {{item.on ? 'on' : ''}} {{item.pr ? 'pr' : ''}}"
+      wx:for="{{plates}}"
+      wx:key="no"
+    ></view>
+    <text class="plate-ct">{{sets.length}} 组</text>
+  </view>
+
   <view class="sets">
     <set-row
       wx:for="{{sets}}"
@@ -36,16 +46,24 @@
       bind:weightchange="onWeightChange"
       bind:repschange="onRepsChange"
     />
-    <view class="addset">＋ 加一组</view>
+    <view class="addset" bindtap="addSet">＋ 加一组</view>
   </view>
 
+  <!-- 组间休息：呼吸环 -->
   <view class="rest" wx:if="{{resting}}">
-    <text class="tm">{{restText}}</text>
-    <view class="bar"><view class="fill" style="width:{{restPct}}%"></view></view>
-    <text class="sk" bindtap="stopRest">跳过</text>
+    <view class="breath">
+      <view class="ring" style="background: conic-gradient(#3C4A32 {{restPct}}%, #E4E1D3 0)"></view>
+      <view class="core">
+        <text class="tm">{{restText}}</text>
+        <text class="ph">{{restPhase}}</text>
+      </view>
+    </view>
+    <text class="sk" bindtap="stopRest">跳过休息</text>
   </view>
 </view>
 
 <view class="footbar">
-  <view class="btn" hover-class="btn-hover" bindtap="nextEx">完成 · 下一个动作 →</view>
+  <view class="btn" hover-class="btn-hover" bindtap="nextEx">
+    {{isLast ? '完成训练 →' : '完成 · 下一个动作 →'}}
+  </view>
 </view>

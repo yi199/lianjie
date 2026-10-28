@@ -1,0 +1,48 @@
+const db = require('../../utils/db');
+const D = require('../../utils/date');
+
+Page({
+  data: {
+    sbh: 20,
+    dateText: '',
+    r: {
+      planName: '', sets: 0, plannedSets: 0, exercises: 0,
+      ton: 0, parts: [], prs: []
+    },
+    comment: ''
+  },
+
+  onLoad(query) {
+    const app = getApp();
+    const date = (query && query.date) || D.today();
+
+    const r = db.todayReport(date);
+
+    let comment;
+    if (!r.sets) {
+      comment = '今天还没有记录。练一组，这里就有东西了。';
+    } else if (r.plannedSets && r.sets >= r.plannedSets) {
+      comment = '计划全部完成。好好吃一顿，好好睡。';
+    } else if (r.plannedSets) {
+      comment = '计划 ' + r.plannedSets + ' 组，完成 ' + r.sets + ' 组。留点力气给下次也好。';
+    } else {
+      comment = '今天练了 ' + r.sets + ' 组。';
+    }
+
+    this.setData({
+      sbh: app.globalData.statusBarHeight,
+      dateText: D.weekdayCN(new Date(date + 'T00:00:00')) + ' · ' + date.replace(/-/g, '.'),
+      r: r,
+      comment: comment
+    });
+
+    // 破纪录时轻微震动一下，只一次
+    if (r.prs.length) {
+      try { wx.vibrateShort({ type: 'medium' }); } catch (e) { /* 忽略 */ }
+    }
+  },
+
+  done() {
+    wx.switchTab({ url: '/pages/today/index' });
+  }
+});

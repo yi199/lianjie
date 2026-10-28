@@ -3,6 +3,7 @@
     "pages/welcome/index",
     "pages/today/index",
     "pages/record/index",
+    "pages/report/index",
     "pages/stats/index"
   ],
   "window": {

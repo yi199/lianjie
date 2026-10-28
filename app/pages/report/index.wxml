@@ -1,0 +1,56 @@
+<view class="sb" style="height:{{sbh + 28}}px"></view>
+
+<view class="wrap">
+
+  <view class="head rise d1">
+    <view class="kicker">{{dateText}}</view>
+    <view class="h1">今天练完了。</view>
+    <view class="plan">{{r.planName}}</view>
+  </view>
+
+  <!-- 三个数字 -->
+  <view class="nums rise d2">
+    <view class="n">
+      <view class="v">{{r.sets}}</view>
+      <view class="k">组</view>
+    </view>
+    <view class="n">
+      <view class="v">{{r.ton}}</view>
+      <view class="k">吨</view>
+    </view>
+    <view class="n">
+      <view class="v">{{r.exercises}}</view>
+      <view class="k">个动作</view>
+    </view>
+  </view>
+
+  <!-- PR -->
+  <view class="prbox rise d3" wx:if="{{r.prs.length}}">
+    <view class="prhead">
+      <text class="prdot"></text>
+      <text class="prtitle">今天破了 {{r.prs.length}} 个纪录</text>
+    </view>
+    <view class="prrow" wx:for="{{r.prs}}" wx:key="exId">
+      <text class="prcn">{{item.cn}}</text>
+      <text class="prw">{{item.weight}}kg</text>
+      <text class="prd">+{{item.delta}}</text>
+    </view>
+  </view>
+
+  <!-- 部位 -->
+  <view class="block rise d4" wx:if="{{r.parts.length}}">
+    <view class="bh">今天练了</view>
+    <view class="prow" wx:for="{{r.parts}}" wx:key="key">
+      <text class="nm">{{item.name}}</text>
+      <view class="bw"><view class="bf" style="width:{{item.pct}}%"></view></view>
+      <text class="pc">{{item.pct}}%</text>
+    </view>
+  </view>
+
+  <view class="comment rise d5">{{comment}}</view>
+
+</view>
+
+<view class="footbar rise d6">
+  <view class="btn" hover-class="btn-hover" bindtap="done">完成</view>
+</view>
