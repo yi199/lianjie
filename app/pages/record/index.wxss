@@ -1,0 +1,118 @@
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 16rpx 32rpx 0;
+}
+.back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44rpx;
+  color: #43473D;
+  line-height: 1;
+  margin-left: -12rpx;
+}
+.back-hover { opacity: .5; }
+.nav .tt {
+  font-size: 28rpx;
+}
+.nav .en {
+  display: block;
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: 18rpx;
+  color: var(--muted2);
+  margin-top: 4rpx;
+}
+
+/* 进度 */
+.prog {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 24rpx 44rpx 0;
+  font-size: 22rpx;
+  color: var(--muted);
+}
+.prog .pn {
+  font-family: Georgia, serif;
+  font-size: 24rpx;
+  color: var(--ink);
+}
+.pbar {
+  flex: 1;
+  height: 4rpx;
+  background: #DDDACB;
+  position: relative;
+  margin-left: 8rpx;
+}
+.pfill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--ink);
+  transition: width .3s;
+}
+
+/* 动作区 */
+.wrap { padding: 0 44rpx; }
+
+.exhead {
+  padding-top: 36rpx;
+}
+.exhead .nm {
+  font-size: 50rpx;
+  letter-spacing: .02em;
+}
+.exhead .last {
+  font-size: 21rpx;
+  color: var(--muted2);
+  margin-top: 12rpx;
+}
+
+.sets {
+  margin-top: 30rpx;
+  border-top: 1rpx solid var(--line);
+}
+.addset {
+  padding: 26rpx 0;
+  font-size: 23rpx;
+  color: var(--muted);
+}
+
+/* 休息条 */
+.rest {
+  margin-top: 24rpx;
+  border-radius: 28rpx;
+  background: #EFF2E7;
+  padding: 24rpx 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+.rest .tm {
+  font-family: Georgia, serif;
+  font-size: 34rpx;
+  color: var(--green);
+  min-width: 104rpx;
+}
+.rest .bar {
+  flex: 1;
+  height: 6rpx;
+  background: #DCE0D2;
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+.rest .fill {
+  height: 100%;
+  background: var(--green);
+  transition: width .95s linear;
+}
+.rest .sk {
+  font-size: 21rpx;
+  color: var(--green);
+}

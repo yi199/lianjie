@@ -1,0 +1,60 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid var(--line, #DFDCCE);
+}
+.idx {
+  width: 36rpx;
+  font-family: Georgia, serif;
+  font-size: 24rpx;
+  color: var(--muted2, #A9A79A);
+}
+.val {
+  font-family: Georgia, serif;
+  font-size: 34rpx;
+  min-width: 120rpx;
+  color: var(--ink, #1F231C);
+}
+.x {
+  color: var(--muted2, #A9A79A);
+  font-size: 22rpx;
+}
+.rng {
+  font-family: Georgia, serif;
+  font-size: 34rpx;
+  min-width: 64rpx;
+  color: var(--ink, #1F231C);
+}
+.tag {
+  font-size: 16rpx;
+  background: #F2E6C9;
+  color: #7A6021;
+  border-radius: 12rpx;
+  padding: 4rpx 10rpx;
+}
+.chk {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  border: 2rpx solid #CFCCBC;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .18s, border-color .18s;
+}
+.row.done .chk {
+  background: var(--green, #3C4A32);
+  border-color: var(--green, #3C4A32);
+}
+.ck {
+  color: #F6F4EA;
+  font-size: 24rpx;
+  line-height: 1;
+}
+.row.done .val,
+.row.done .rng {
+  color: var(--muted2, #A9A79A);
+}

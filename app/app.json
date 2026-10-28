@@ -1,0 +1,34 @@
+{
+  "pages": [
+    "pages/today/index",
+    "pages/record/index",
+    "pages/stats/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#F2F0E6",
+    "navigationBarTitleText": "练间",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F2F0E6",
+    "navigationStyle": "custom"
+  },
+  "tabBar": {
+    "color": "#A9A79A",
+    "selectedColor": "#1F231C",
+    "backgroundColor": "#F2F0E6",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/today/index",
+        "text": "训练"
+      },
+      {
+        "pagePath": "pages/stats/index",
+        "text": "数据"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

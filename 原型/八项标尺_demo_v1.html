@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>八项标尺 · 原型 demo</title>
+<style>
+/*
+  ⚠️ 版权说明
+  本文件所有图形（SVG 手写）、文案、配色、评分模型均为本项目原创设计，
+  未使用任何第三方图片、图标库、字体文件、品牌元素或受保护的赛制。
+  训练项目为通用基础动作组合（深蹲/卧推/硬拉/引体/平板/跳绳/农夫行走/跑步），
+  属公共领域训练方法，不涉及任何赛事品牌。
+*/
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+:root{
+  --bg:#F2F0E6; --card:#FAF9F3; --ink:#1F231C; --green:#3C4A32;
+  --soft:#E8EEDC; --line:#DFDCCE; --muted:#8B897C; --muted2:#A9A79A; --clay:#B4795A;
+  --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","STSong",SimSun,serif;
+  /* 深色 */
+  --dbg:#191B15; --dcard:#22251D; --dink:#EDEAE0; --dmut:#8B8F7E; --dline:#33362C;
+  --dgreen:#93AC7A; --dclay:#C08A65;
+}
+html,body{background:#E7E5DB;min-height:100%;}
+body{font-family:var(--serif);color:var(--ink);display:flex;flex-direction:column;align-items:center;padding:26px 0 14px;}
+
+.phone{width:375px;height:790px;background:var(--bg);border-radius:38px;position:relative;
+  overflow:hidden;box-shadow:0 24px 60px rgba(30,34,26,.22),0 0 0 1px rgba(30,34,26,.06);
+  transition:background .3s;}
+.phone.dark{background:var(--dbg);color:var(--dink);}
+.sbar{position:absolute;top:0;left:0;right:0;height:42px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 24px;font-size:11.5px;z-index:30;color:#43473D;}
+.phone.dark .sbar{color:#9AA08C;}
+.caps{position:absolute;top:46px;right:12px;z-index:30;display:flex;gap:10px;align-items:center;
+  background:rgba(255,255,255,.72);border:1px solid rgba(31,35,28,.1);border-radius:18px;
+  padding:4px 11px;font-size:10.5px;color:#43473D;}
+.phone.dark .caps{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.1);color:#B7BCA8;}
+
+.screen{position:absolute;inset:0;display:none;flex-direction:column;padding-bottom:12px;}
+#s1,#s4{padding-bottom:64px;}
+.screen.on{display:flex;animation:fi .3s ease both;}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;}
+.scroll::-webkit-scrollbar{width:0;}
+
+.kick{font-family:Georgia,serif;font-size:9px;letter-spacing:.24em;color:var(--muted2);text-transform:uppercase;}
+.phone.dark .kick{color:var(--dmut);}
+.h1{font-size:28px;line-height:1.34;letter-spacing:.02em;font-weight:400;}
+.sub{font-size:12px;line-height:1.85;color:var(--muted);}
+.phone.dark .sub{color:var(--dmut);}
+.num{font-family:Georgia,serif;font-feature-settings:"tnum";}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;height:50px;border-radius:26px;
+  background:var(--green);color:#F6F4EA;font-size:14px;letter-spacing:.06em;cursor:pointer;
+  width:100%;font-family:var(--serif);border:none;}
+.phone.dark .btn{background:var(--dgreen);color:#16180F;}
+.btn:active{transform:scale(.985);}
+.btn.ghost{background:transparent;color:var(--green);border:1px solid rgba(60,74,50,.28);}
+.phone.dark .btn.ghost{color:var(--dgreen);border-color:rgba(147,172,122,.32);}
+.btn.sm{height:42px;font-size:12.5px;border-radius:21px;}
+
+/* ============ 1 标尺首页 ============ */
+.pad{padding:74px 22px 0;}
+.modebar{display:flex;gap:5px;margin:15px 22px 0;background:#E7E5D8;border-radius:12px;padding:3px;}
+.phone.dark .modebar{background:#2A2D24;}
+.mb{flex:1;text-align:center;font-size:11.5px;padding:7px 0;border-radius:9px;color:var(--muted);cursor:pointer;transition:.2s;}
+.mb.on{background:#FBFAF3;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.phone.dark .mb.on{background:#3A3E31;color:var(--dink);}
+
+.score-hero{margin:12px 16px 0;border-radius:24px;padding:20px 18px;border:1px solid rgba(223,220,206,.9);
+  background:linear-gradient(160deg,#FDFCF6,#F0EEE2);display:flex;align-items:center;gap:16px;}
+.phone.dark .score-hero{background:var(--dcard);border-color:var(--dline);}
+.score-hero .lvl{font-family:Georgia,serif;font-size:44px;line-height:1;}
+.score-hero .lvl small{font-size:13px;color:var(--muted2);}
+.score-hero .r{flex:1;}
+.score-hero .r .n{font-size:13.5px;}
+.score-hero .r .d{font-size:10.5px;color:var(--muted2);margin-top:5px;}
+.score-hero .up{font-size:10.5px;color:var(--clay);}
+
+.marks{margin:16px 22px 0;}
+.mark{display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--line);}
+.phone.dark .mark{border-color:var(--dline);}
+.mark .no{width:14px;font-family:Georgia,serif;font-size:10px;color:var(--muted2);}
+.mark .nm{width:84px;font-size:12px;white-space:nowrap;}
+.mark .bw{flex:1;height:6px;background:#E7E5D8;border-radius:3px;overflow:hidden;position:relative;}
+.phone.dark .mark .bw{background:#2E3227;}
+.mark .bw i{display:block;height:100%;background:var(--green);border-radius:3px;width:0;
+  transition:width .8s cubic-bezier(.2,.8,.3,1);}
+.phone.dark .mark .bw i{background:var(--dgreen);}
+.mark .bw b{position:absolute;top:0;bottom:0;width:1.5px;background:var(--clay);opacity:.55;}
+.mark .v{width:56px;text-align:right;font-family:Georgia,serif;font-size:12px;}
+.mark .dl{width:30px;text-align:right;font-size:9.5px;color:var(--muted2);}
+.mark .dl.pos{color:var(--dgreen);}
+.mark .dl.neg{color:var(--clay);}
+
+/* ============ 2 测试中 ============ */
+.t-head{padding:74px 22px 0;display:flex;justify-content:space-between;align-items:baseline;}
+.t-head .pr{font-family:Georgia,serif;font-size:11px;color:var(--muted2);}
+.t-bar{margin:14px 22px 0;height:2px;background:#DDDACB;position:relative;}
+.phone.dark .t-bar{background:#2E3227;}
+.t-bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink);transition:width .3s;}
+.phone.dark .t-bar i{background:var(--dink);}
+.t-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px 0;}
+.t-body .en{font-family:Georgia,serif;font-style:italic;font-size:11px;color:var(--muted2);}
+.t-body .nm{font-size:31px;margin-top:8px;letter-spacing:.02em;}
+.t-body .val{font-family:Georgia,serif;font-size:76px;line-height:1;margin-top:22px;letter-spacing:-.01em;}
+.t-body .val small{font-size:19px;color:var(--muted2);margin-left:5px;font-family:var(--serif);}
+.t-body .rel{font-size:11.5px;color:var(--muted);margin-top:12px;}
+.t-body .tip{font-size:11.5px;color:var(--muted2);margin-top:26px;text-align:center;line-height:1.8;}
+.t-stepper{display:flex;align-items:center;gap:14px;margin-top:26px;}
+.t-stepper div{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);display:flex;
+  align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:var(--muted);}
+.phone.dark .t-stepper div{border-color:var(--dline);color:var(--dmut);}
+.t-foot{padding:0 22px 18px;}
+
+/* ============ 3 结果 ============ */
+.r-hero{padding:62px 24px 0;text-align:center;}
+.r-hero .lvl{font-family:Georgia,serif;font-size:78px;line-height:1;letter-spacing:-.02em;}
+.r-hero .sc{font-size:12px;color:var(--muted);margin-top:6px;letter-spacing:.06em;}
+.r-hero .up{display:inline-block;margin-top:12px;font-size:11.5px;color:var(--clay);
+  background:rgba(180,121,90,.1);padding:4px 12px;border-radius:12px;}
+.phone.dark .r-hero .up{background:rgba(192,138,101,.14);color:var(--dclay);}
+
+.cmp{margin:22px 22px 0;}
+.cmp .row{display:flex;align-items:center;gap:9px;padding:6px 0;}
+.cmp .row .nm{width:58px;font-size:11.5px;color:#5D6157;}
+.phone.dark .cmp .row .nm{color:var(--dmut);}
+.cmp .bars{flex:1;position:relative;height:14px;}
+.cmp .bars .prev{position:absolute;left:0;top:0;height:5px;background:#DDDACB;border-radius:3px;width:0;transition:width .9s ease;}
+.cmp .bars .now{position:absolute;left:0;bottom:0;height:5px;background:var(--green);border-radius:3px;width:0;transition:width .9s cubic-bezier(.2,.8,.3,1);}
+.phone.dark .cmp .bars .prev{background:#33362C;}
+.phone.dark .cmp .bars .now{background:var(--dgreen);}
+.cmp .row .vv{width:44px;text-align:right;font-family:Georgia,serif;font-size:11px;}
+
+.weaktip{margin:14px 22px 0;border-radius:12px;background:#F6F4EA;padding:12px 14px;
+  font-size:11.5px;color:#6C7065;line-height:1.8;border:1px solid rgba(223,220,206,.7);}
+.phone.dark .weaktip{background:var(--dcard);border-color:var(--dline);color:var(--dmut);}
+
+.hist{margin:14px 22px 0;}
+.hist svg{width:100%;height:74px;display:block;}
+.hist .lab{display:flex;justify-content:space-between;font-size:9px;color:var(--muted2);margin-top:5px;font-family:Georgia,serif;}
+
+/* ============ 4 深色月报 ============ */
+.m-pad{padding:66px 24px 0;}
+.m-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px;}
+.m-tags span{font-size:10.5px;background:rgba(147,172,122,.14);color:var(--dgreen);
+  border-radius:12px;padding:5px 11px;}
+.persona{margin:15px 0 0;border:1px solid var(--dline);border-radius:15px;padding:15px;background:var(--dcard);}
+.persona .t{font-family:Georgia,serif;font-size:9px;letter-spacing:.2em;color:var(--dmut);}
+.persona .big{font-size:26px;margin-top:10px;letter-spacing:.02em;color:var(--dink);}
+.persona .d{font-size:11.5px;color:var(--dmut);line-height:1.9;margin-top:10px;}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px;}
+.m-grid div{background:var(--dcard);border:1px solid var(--dline);border-radius:11px;padding:11px 13px;}
+.m-grid .k{font-family:Georgia,serif;font-size:8.5px;letter-spacing:.16em;color:var(--dmut);}
+.m-grid .v{font-family:Georgia,serif;font-size:21px;margin-top:6px;color:var(--dink);}
+.m-grid .x{font-size:9.5px;color:var(--dmut);margin-top:3px;}
+.m-foot{padding:18px 24px 16px;}
+
+.tabnav{position:absolute;bottom:0;left:0;right:0;height:64px;border-top:1px solid var(--line);
+  background:rgba(242,240,230,.96);display:flex;z-index:25;}
+.phone.dark .tabnav{background:rgba(25,27,21,.96);border-color:var(--dline);}
+.tabnav div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;font-size:9.5px;color:var(--muted2);cursor:pointer;}
+.phone.dark .tabnav div{color:var(--dmut);}
+.tabnav div.on{color:var(--ink);}
+.phone.dark .tabnav div.on{color:var(--dink);}
+
+.reviewbar{display:flex;gap:8px;margin-top:14px;}
+.reviewbar button{font-family:var(--serif);font-size:11.5px;padding:7px 12px;border-radius:14px;
+  border:1px solid #C9C6B6;background:transparent;color:#5D6157;cursor:pointer;}
+.reviewbar button.on{background:#3C4A32;color:#F6F4EA;border-color:#3C4A32;}
+.noanim *{transition:none!important;animation:none!important;}
+.hint{font-size:10.5px;color:#9C998C;margin-top:9px;text-align:center;max-width:375px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone">
+  <div class="sbar"><span>9:41</span><span>●●● &nbsp;⌁</span></div>
+  <div class="caps"><span>•••</span><span>—</span><span style="width:10px;height:10px;border:1.3px solid currentColor;border-radius:50%;display:inline-block"></span></div>
+
+  <!-- ================= 1 标尺首页 ================= -->
+  <section class="screen on" id="s1">
+    <div class="scroll">
+      <div class="pad">
+        <div class="kick">Eight Marks</div>
+        <div class="h1" style="margin-top:10px">你现在的<br>坐标。</div>
+        <div class="sub" style="margin-top:10px">八项基础能力，一年测四次。<br>看得见的，才算数。</div>
+      </div>
+
+      <div class="modebar">
+        <div class="mb on" data-m="gym" onclick="setMode('gym')">健身房 / 有器械</div>
+        <div class="mb" data-m="home" onclick="setMode('home')">居家 / 徒手</div>
+      </div>
+
+      <div class="score-hero">
+        <div class="lvl" id="lvlNow">L4</div>
+        <div class="r">
+          <div class="n">总分 <span class="num" id="scNow">62</span> <span style="font-size:10px;color:var(--muted2)">/ 100</span></div>
+          <div class="d">上次测试 · 3 个月前</div>
+        </div>
+        <div class="up">↑ 6</div>
+      </div>
+
+      <div class="marks" id="marks"></div>
+      <div style="height:20px"></div>
+    </div>
+    <div style="padding:0 22px 16px">
+      <div class="btn" onclick="go(2)">开始第 5 次测试 <span>→</span></div>
+    </div>
+    <nav class="tabnav">
+      <div class="on" onclick="go(1)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19V9M9.5 19V5M15 19v-7M20.5 19v-4"/></svg><span>标尺</span></div>
+      <div onclick="go(3)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 18l5-9 4 5 3-4 6 8z"/></svg><span>进步</span></div>
+      <div onclick="go(4)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4h12v16l-6-3.4L6 20z"/></svg><span>月报</span></div>
+    </nav>
+  </section>
+
+  <!-- ================= 2 测试中 ================= -->
+  <section class="screen" id="s2">
+    <div class="scroll">
+      <div class="t-head">
+        <div style="font-size:12.5px">深蹲 · 最大重量</div>
+        <div class="pr" id="stepNo">03 / 08</div>
+      </div>
+      <div class="t-bar"><i id="tfill" style="width:37.5%"></i></div>
+
+      <div class="t-body">
+        <div class="en">Back Squat</div>
+        <div class="nm">深蹲</div>
+        <div class="val" id="tval">68<small>kg</small></div>
+        <div class="rel">折合 <span class="num" id="ratio">1.35</span> × 体重（72.4kg）</div>
+
+        <div class="t-stepper">
+          <div onclick="step(-5)">−</div>
+          <div onclick="step(5)">＋</div>
+        </div>
+
+        <div class="tip">用你能标准完成 1 次的最大重量<br>不追求极限，动作变形就减重</div>
+      </div>
+    </div>
+    <div class="t-foot">
+      <div class="btn" onclick="nextItem()">下一项 <span>→</span></div>
+    </div>
+  </section>
+
+  <!-- ================= 3 结果 ================= -->
+  <section class="screen" id="s3">
+    <div class="scroll">
+      <div class="r-hero">
+        <div class="kick">Your Result</div>
+        <div class="lvl" style="margin-top:10px">L5</div>
+        <div class="sc">总分 <span class="num">68</span> / 100</div>
+        <div class="up">比上次 ↑ 6 分 · 距离 L6 还差 2 分</div>
+      </div>
+
+      <div class="cmp" id="cmp"></div>
+
+      <div class="weaktip">
+        <b style="font-weight:400;color:var(--ink)">最弱一项：引体向上</b><br>
+        6 次，低于 L5 的门槛（8 次）。<br>
+        下一个周期加 1 次负重划船，比多练 5 次引体有效。
+      </div>
+
+      <div class="hist">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">一年四次</div>
+        <svg viewBox="0 0 300 74" preserveAspectRatio="none" id="histSvg"></svg>
+        <div class="lab"><span>2025 Q4</span><span>2026 Q1</span><span>Q2</span><span>Q3</span><span>今天</span></div>
+      </div>
+      <div style="height:20px"></div>
+    </div>
+    <div style="padding:0 22px 16px;display:flex;gap:10px">
+      <div class="btn ghost" style="flex:1" onclick="go(1)">返回标尺</div>
+      <div class="btn" style="flex:1" onclick="go(4)">生成月报 <span>→</span></div>
+    </div>
+  </section>
+
+  <!-- ================= 4 深色月报 ================= -->
+  <section class="screen" id="s4">
+    <div class="scroll">
+      <div class="m-pad">
+        <div class="kick">2026 · 十月</div>
+        <div class="h1" style="margin-top:10px;color:var(--dink)">你这个月<br>是这样练的。</div>
+
+        <div class="m-tags">
+          <span>练了 14 天</span><span>连续 7 天</span><span>48.6 吨</span>
+        </div>
+
+        <div class="persona">
+          <div class="t">YOUR TYPE</div>
+          <div class="big">深夜硬拉型</div>
+          <div class="d">62% 的训练在 22 点以后开始。<br>你的下肢容量是全月最高的，<br>但肩部只占 12%——</div>
+        </div>
+
+        <div class="m-grid">
+          <div><div class="k">CAPACITY</div><div class="v">48.6</div><div class="x">吨 · 累计</div></div>
+          <div><div class="k">BEST DAY</div><div class="v">1.42</div><div class="x">吨 · 单次最高</div></div>
+          <div><div class="k">MARKS</div><div class="v">L5</div><div class="x">标尺等级 ↑</div></div>
+          <div><div class="k">STREAK</div><div class="v">7</div><div class="x">天 · 连续</div></div>
+        </div>
+      </div>
+      <div style="height:18px"></div>
+    </div>
+    <div class="m-foot">
+      <div class="btn" onclick="alert('生成分享卡（demo）')">保存这张月报</div>
+    </div>
+    <nav class="tabnav">
+      <div onclick="go(1)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19V9M9.5 19V5M15 19v-7M20.5 19v-4"/></svg><span>标尺</span></div>
+      <div onclick="go(3)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 18l5-9 4 5 3-4 6 8z"/></svg><span>进步</span></div>
+      <div class="on" onclick="go(4)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4h12v16l-6-3.4L6 20z"/></svg><span>月报</span></div>
+    </nav>
+  </section>
+</div>
+
+<div class="reviewbar">
+  <button id="rb1" class="on" onclick="go(1)">① 八项标尺</button>
+  <button id="rb2" onclick="go(2)">② 测试中</button>
+  <button id="rb3" onclick="go(3)">③ 测试结果</button>
+  <button id="rb4" onclick="go(4)">④ 深色月报</button>
+</div>
+<div class="hint">全部图形为手写 SVG，配色/文案/评分模型均为本项目原创；未使用任何第三方素材或品牌元素。</div>
+
+<script>
+/* ===== 八项定义（自研，通用动作，非任何赛事赛制）=====
+   评分：每项按体重/时长折算成 0-100，总分取加权平均 → 映射 L1-L10
+*/
+/* ===== 双模式：健身房（有器械） / 居家（徒手）=====
+   同一项能力，两种测法。用户按自己条件选，分数分开对标。
+*/
+var MODE = 'gym';
+var ITEMS = [
+  {no:'01', nm:'深蹲',     en:'Back Squat',
+   val:'1.35×',  pct:68, dl:'+0.10', dir:'pos', line:62,
+   hnm:'深蹲（30 秒）', hen:'Squat 30s',  hval:'28 次', hpct:66, hdl:'+2',  hline:58},
+  {no:'02', nm:'卧推',     en:'Bench Press',
+   val:'0.80×',  pct:54, dl:'—',     dir:'',    line:58,
+   hnm:'俯卧撑',       hen:'Push-up',     hval:'32 次', hpct:62, hdl:'+3',  hline:52},
+  {no:'03', nm:'硬拉',     en:'Deadlift',
+   val:'1.60×',  pct:76, dl:'+0.15', dir:'pos', line:66,
+   hnm:'单腿臀桥',     hen:'Single-leg Bridge', hval:'20 次', hpct:58, hdl:'+2', hline:54},
+  {no:'04', nm:'引体向上', en:'Pull-up',
+   val:'6 次',   pct:44, dl:'+1',    dir:'pos', line:56,
+   hnm:'反向划船',     hen:'Inverted Row', hval:'12 次', hpct:52, hdl:'+2', hline:48},
+  {no:'05', nm:'平板支撑', en:'Plank',
+   val:'2:10',   pct:72, dl:'+0:20', dir:'pos', line:60,
+   hnm:'平板支撑',     hen:'Plank',        hval:'2:10',  hpct:72, hdl:'+0:20', hline:60},
+  {no:'06', nm:'跳绳 3 分钟', en:'Rope 3min',
+   val:'168 次', pct:58, dl:'—',     dir:'',    line:60,
+   hnm:'高抬腿 3 分钟', hen:'High Knees',  hval:'240 次', hpct:56, hdl:'+8', hline:56},
+  {no:'07', nm:'农夫行走', en:'Farmer Carry',
+   val:'80 m',   pct:61, dl:'+10',   dir:'pos', line:58,
+   hnm:'提水行走 40kg', hen:'Water Carry', hval:'60 m', hpct:57, hdl:'+5',  hline:54},
+  {no:'08', nm:'400 米跑', en:'Sprint 400m',
+   val:'1:32',   pct:64, dl:'-0:03', dir:'pos', line:60,
+   hnm:'400 米跑',     hen:'Sprint 400m',  hval:'1:32',  hpct:64, hdl:'-0:03', hline:60}
+];
+
+/* 等级门槛：不是简单除以 10，每档分界是设计过的 */
+function levelOf(sc){
+  var t = [0, 30, 40, 50, 60, 70, 80, 88, 94, 98, 101];
+  for(var i = 1; i <= 10; i++){ if(sc < t[i]) return i; }
+  return 10;
+}
+function buildMarks(){
+  var h = '', sum = 0;
+  ITEMS.forEach(function(it){
+    var home = (MODE === 'home');
+    var nm   = home ? it.hnm : it.nm;
+    var val  = home ? it.hval : it.val;
+    var pct  = home ? it.hpct : it.pct;
+    var dl   = home ? it.hdl : it.dl;
+    var line = home ? it.hline : it.line;
+    sum += pct;
+    h += '<div class="mark">'
+      + '<span class="no">' + it.no + '</span>'
+      + '<span class="nm">' + nm + '</span>'
+      + '<span class="bw"><i data-w="' + pct + '"></i><b style="left:' + line + '%"></b></span>'
+      + '<span class="v">' + val + '</span>'
+      + '<span class="dl ' + it.dir + '">' + dl + '</span>'
+      + '</div>';
+  });
+  document.getElementById('marks').innerHTML = h;
+
+  var total = Math.round(sum / ITEMS.length);
+  document.getElementById('scNow').textContent = total;
+  document.getElementById('lvlNow').textContent = 'L' + levelOf(total);
+
+  if(/noanim=1/.test(location.search)){
+    document.body.classList.add('noanim');
+    document.querySelectorAll('.mark .bw i').forEach(function(i){ i.style.width = i.dataset.w + '%'; });
+  } else {
+    setTimeout(function(){
+      document.querySelectorAll('.mark .bw i').forEach(function(i,n){
+        setTimeout(function(){ i.style.width = i.dataset.w + '%'; }, 45*n);
+      });
+    }, 120);
+  }
+}
+
+/* ===== 模式切换 ===== */
+function setMode(m){
+  MODE = m;
+  document.querySelectorAll('.mb').forEach(function(b){
+    b.classList.toggle('on', b.dataset.m === m);
+  });
+  updateTest();
+  buildMarks();
+}
+function updateTest(){
+  var home = (MODE === 'home');
+  var head = document.querySelector('.t-head div');
+  if(head) head.textContent = home ? '深蹲 · 30 秒次数' : '深蹲 · 最大重量';
+  var en = document.querySelector('.t-body .en');
+  if(en) en.textContent = home ? 'Squat 30s' : 'Back Squat';
+  var nm = document.querySelector('.t-body .nm');
+  if(nm) nm.textContent = home ? '深蹲（30 秒）' : '深蹲';
+  var rel = document.querySelector('.t-body .rel');
+  var st = document.querySelector('.t-stepper');
+  if(home){
+    document.getElementById('tval').innerHTML = '28<small>次</small>';
+    if(rel) rel.innerHTML = '标准：30 秒内完成的最多次数，动作要过膝';
+    if(st) st.style.display = 'none';
+  } else {
+    document.getElementById('tval').innerHTML = cur + '<small>kg</small>';
+    if(rel) rel.innerHTML = '折合 <span class="num" id="ratio">' + (cur / 72.4).toFixed(2) + '</span> × 体重（72.4kg）';
+    if(st) st.style.display = 'flex';
+  }
+}
+
+/* ===== 对比条（结果页）===== */
+function buildCmp(){
+  var h = '';
+  ITEMS.forEach(function(it){
+    var prev = Math.max(10, it.pct - 7);
+    h += '<div class="row">'
+      + '<span class="nm">' + it.nm + '</span>'
+      + '<span class="bars">'
+      +   '<span class="prev" data-w="' + prev + '"></span>'
+      +   '<span class="now" data-w="' + it.pct + '"></span>'
+      + '</span>'
+      + '<span class="vv">' + it.pct + '</span>'
+      + '</div>';
+  });
+  document.getElementById('cmp').innerHTML = h;
+  if(/noanim=1/.test(location.search)){
+    document.querySelectorAll('.cmp .bars .prev').forEach(function(e){ e.style.width = e.dataset.w + '%'; });
+    document.querySelectorAll('.cmp .bars .now').forEach(function(e){ e.style.width = e.dataset.w + '%'; });
+    return;
+  }
+  setTimeout(function(){ 
+    document.querySelectorAll('.cmp .bars .prev').forEach(function(e){ e.style.width = e.dataset.w + '%'; });
+    document.querySelectorAll('.cmp .bars .now').forEach(function(e,n){
+      setTimeout(function(){ e.style.width = e.dataset.w + '%'; }, 80*n);
+    });
+  }, 120);
+}
+
+/* ===== 历史曲线 ===== */
+function buildHist(){
+  var pts = [[10,52],[80,46],[150,42],[225,34],[292,26]];
+  var d = 'M' + pts.map(function(p){ return p[0] + ',' + p[1]; }).join(' L');
+  var area = d + ' L292,74 L10,74 Z';
+  document.getElementById('histSvg').innerHTML =
+      '<defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0%" stop-color="#3C4A32" stop-opacity=".55"/>'
+    + '<stop offset="100%" stop-color="#3C4A32" stop-opacity=".06"/></linearGradient></defs>'
+    + '<path d="' + area + '" fill="url(#hg)"/>'
+    + '<path d="' + d + '" fill="none" stroke="#3C4A32" stroke-width="1.6" stroke-linejoin="round"/>'
+    + pts.map(function(p,i){
+        return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (i===pts.length-1?3.4:2.4) + '" fill="'
+          + (i===pts.length-1?'#B4795A':'#3C4A32') + '"/>';
+      }).join('');
+}
+
+/* ===== 切换 ===== */
+function go(n){
+  [1,2,3,4].forEach(function(x){
+    document.getElementById('s'+x).classList.toggle('on', x===n);
+    var rb = document.getElementById('rb'+x);
+    if(rb) rb.classList.toggle('on', x===n);
+  });
+  document.getElementById('phone').classList.toggle('dark', n===4);
+  if(n===1) buildMarks();
+  if(n===3){ buildCmp(); buildHist(); }
+}
+
+/* ===== 测试中：步进 ===== */
+var cur = 68;
+function step(d){
+  cur = Math.max(0, Math.min(300, cur + d));
+  document.getElementById('tval').innerHTML = cur + '<small>kg</small>';
+  document.getElementById('ratio').textContent = (cur / 72.4).toFixed(2);
+}
+var stepIdx = 3;
+function nextItem(){
+  stepIdx++;
+  if(stepIdx > 8){ go(3); return; }
+  document.getElementById('stepNo').textContent = ('0' + stepIdx) + ' / 08';
+  document.getElementById('tfill').style.width = (stepIdx / 8 * 100) + '%';
+  if(stepIdx === 8){
+    document.querySelector('.t-foot .btn').innerHTML = '完成测试 <span>→</span>';
+  }
+}
+
+/* 深链 ?p=1..4 */
+(function(){
+  var started = false;
+  try{
+    var q = new URLSearchParams(location.search);
+    if(q.get('m') === 'home'){
+      MODE = 'home';
+      document.querySelectorAll('.mb').forEach(function(b){ b.classList.toggle('on', b.dataset.m === 'home'); });
+      updateTest();
+    }
+    var p = parseInt(q.get('p'), 10);
+    if(p >= 1 && p <= 4){ go(p); started = true; }
+  }catch(e){}
+  if(!started) buildMarks();
+})();
+</script>
+</body>
+</html>

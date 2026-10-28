@@ -1,0 +1,6 @@
+{
+  "usingComponents": {
+    "set-row": "/components/set-row/index"
+  },
+  "navigationStyle": "custom"
+}

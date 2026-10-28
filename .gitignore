@@ -1,0 +1,16 @@
+# 依赖
+node_modules/
+miniprogram_npm/
+
+# 微信开发者工具本地配置（含本机路径，不要提交）
+project.private.config.json
+
+# 临时与构建产物
+_cache/
+dist/
+*.log
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini

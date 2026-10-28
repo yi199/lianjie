@@ -1,0 +1,110 @@
+.wrap {
+  padding: 24rpx 44rpx 0;
+}
+
+.h1 {
+  font-size: 62rpx;
+  line-height: 1.3;
+  margin-top: 20rpx;
+}
+
+/* 今日卡 */
+.todaybig {
+  margin-top: 36rpx;
+  border-radius: 48rpx;
+  padding: 40rpx 36rpx;
+  background: linear-gradient(160deg, #FDFCF6, #F0EEE2);
+  border: 1rpx solid rgba(223, 220, 206, .9);
+}
+.todaybig .day {
+  font-family: Georgia, serif;
+  font-size: 20rpx;
+  letter-spacing: .16em;
+  color: var(--muted2);
+  text-transform: uppercase;
+}
+.todaybig .tt {
+  font-size: 54rpx;
+  margin-top: 16rpx;
+  letter-spacing: .02em;
+}
+.todaybig .meta {
+  font-size: 22rpx;
+  color: #6C7065;
+  margin-top: 20rpx;
+}
+.todaybig .last {
+  font-size: 20rpx;
+  color: var(--muted2);
+  margin-top: 12rpx;
+}
+
+/* 动作清单 */
+.plist { margin-top: 40rpx; }
+.plist .ph {
+  font-size: 22rpx;
+  color: var(--muted2);
+  margin-bottom: 20rpx;
+  letter-spacing: .06em;
+}
+.pitem {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+.pitem .no {
+  width: 36rpx;
+  font-family: Georgia, serif;
+  font-size: 20rpx;
+  color: var(--muted2);
+}
+.pitem .nm {
+  flex: 1;
+  font-size: 27rpx;
+}
+.pitem .en {
+  display: block;
+  font-family: Georgia, serif;
+  font-size: 18rpx;
+  font-style: italic;
+  color: var(--muted2);
+  margin-top: 4rpx;
+}
+.pitem .ss {
+  font-family: Georgia, serif;
+  font-size: 24rpx;
+  color: #5D6157;
+}
+.pitem .tick {
+  color: var(--green);
+  font-size: 24rpx;
+  margin-left: 12rpx;
+}
+
+/* 休息日 */
+.restcard {
+  margin-top: 44rpx;
+  padding: 64rpx 36rpx;
+  border-radius: 32rpx;
+  background: #F6F4EA;
+  border: 1rpx solid rgba(223, 220, 206, .8);
+  text-align: center;
+}
+.rtitle { font-size: 38rpx; }
+.rdesc {
+  font-size: 24rpx;
+  color: var(--muted);
+  margin-top: 16rpx;
+  line-height: 1.8;
+}
+.rlink {
+  font-size: 24rpx;
+  color: var(--green);
+  margin-top: 30rpx;
+}
+
+.footbar {
+  padding: 32rpx 40rpx calc(32rpx + env(safe-area-inset-bottom));
+}

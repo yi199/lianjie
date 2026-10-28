@@ -1,0 +1,10 @@
+<view class="row {{done ? 'done' : ''}}">
+  <text class="idx">{{no}}</text>
+  <text class="val">{{weightText}}</text>
+  <text class="x">×</text>
+  <text class="rng">{{repsText}}</text>
+  <text class="tag" wx:if="{{pr}}">PR</text>
+  <view class="chk" bindtap="onToggle">
+    <text wx:if="{{done}}" class="ck">✓</text>
+  </view>
+</view>

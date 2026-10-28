@@ -1,0 +1,49 @@
+<view class="sb" style="height:{{sbh}}px"></view>
+
+<view class="nav">
+  <view class="back" bindtap="back" hover-class="back-hover">
+    <text>‹</text>
+  </view>
+  <view class="tt">
+    <text>{{planName}}</text>
+    <text class="en">第 {{pnum}} 个动作 / 共 {{total}} 个</text>
+  </view>
+</view>
+
+<view class="prog">
+  <text class="pn">{{pnum}}</text>
+  <text class="pt">/ {{total}}</text>
+  <view class="pbar"><view class="pfill" style="width:{{pct}}%"></view></view>
+</view>
+
+<view class="wrap">
+  <view class="exhead">
+    <view class="nm">{{ex.cn}}</view>
+    <view class="last">{{lastText}}</view>
+  </view>
+
+  <view class="sets">
+    <set-row
+      wx:for="{{sets}}"
+      wx:key="no"
+      no="{{item.no}}"
+      weight="{{item.weight}}"
+      reps="{{item.reps}}"
+      unit="{{item.unit}}"
+      done="{{item.done}}"
+      pr="{{item.pr}}"
+      bind:toggle="onToggle"
+    />
+    <view class="addset">＋ 加一组</view>
+  </view>
+
+  <view class="rest" wx:if="{{resting}}">
+    <text class="tm">{{restText}}</text>
+    <view class="bar"><view class="fill" style="width:{{restPct}}%"></view></view>
+    <text class="sk" bindtap="stopRest">跳过</text>
+  </view>
+</view>
+
+<view class="footbar">
+  <view class="btn" hover-class="btn-hover" bindtap="nextEx">完成 · 下一个动作 →</view>
+</view>
