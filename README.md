@@ -85,6 +85,8 @@ git push gitee main && git push github main
 
 多人开发前先看 **[CONTRIBUTING.md](CONTRIBUTING.md)**（分支怎么开、commit 怎么写、PR 流程、冲突处理、这个项目的硬约定）。
 
+**拉人进项目**：看 **[文档/加入开发指南.md](文档/加入开发指南.md)**——Gitee 版和 GitHub 版各一份，可以直接发给队友。
+
 已配置：
 
 - `.gitattributes` 统一换行符为 LF，避免 Windows/macOS 互相制造假冲突
