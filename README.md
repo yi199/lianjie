@@ -68,7 +68,7 @@ cd app && node test.js
 | 平台 | 地址 | 推送方式 |
 |---|---|---|
 | Gitee（私有） | https://gitee.com/man-qianyi/lianjie | https + 本机已存凭证 |
-| GitHub | https://github.com/yi199/lianjian | SSH 443 端口（`ssh.github.com:443`，绕过 22 端口封锁） |
+| GitHub | https://github.com/yi199/lianjie | SSH 443 端口（`ssh.github.com:443`，绕过 22 端口封锁） |
 
 一次推到两边：
 
