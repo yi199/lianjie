@@ -6,40 +6,70 @@
   </view>
   <view class="tt">
     <text>{{planName}}</text>
-    <text class="en">第 {{pnum}} 个动作 / 共 {{total}} 个</text>
+    <text class="en">第 {{pnum}} / {{total}} 个动作</text>
   </view>
-</view>
-
-<view class="prog">
-  <text class="pn">{{pnum}}</text>
-  <text class="pt">/ {{total}}</text>
-  <view class="pbar"><view class="pfill" style="width:{{pct}}%"></view></view>
+  <view class="swap" bindtap="changeEx" hover-class="swap-hover">换一个</view>
 </view>
 
 <view class="wrap">
+  <!-- 动作名 -->
   <view class="exhead">
-    <view class="exmain">
-      <view class="nm">{{ex.cn}}</view>
-      <view class="en">{{ex.en}}</view>
-    </view>
-    <view class="swap" bindtap="changeEx" hover-class="swap-hover">换一个</view>
+    <view class="nm">{{ex.cn}}</view>
+    <view class="en">{{ex.en}}</view>
+    <view class="swapped" wx:if="{{ex.swapped}}">已换成 {{ex.cn}} · 原动作 {{ex.originCn}}</view>
   </view>
 
-  <view class="last" wx:if="{{ex.swapped}}">已换成 {{ex.cn}} · 原动作 {{ex.originCn}}</view>
-  <view class="last" wx:if="{{lastText}}">{{lastText}}</view>
+  <!-- 杠铃：片数代表重量，点亮代表进度 -->
+  <view class="barbell">
+    <view class="side left">
+      <view class="plate {{item.on ? 'on' : ''}} {{item.pr ? 'pr' : ''}}" wx:for="{{leftPlates}}" wx:key="i"></view>
+    </view>
+    <view class="bar"></view>
+    <view class="side right">
+      <view class="plate {{item.on ? 'on' : ''}} {{item.pr ? 'pr' : ''}}" wx:for="{{rightPlates}}" wx:key="i"></view>
+    </view>
+  </view>
+
+  <!-- 大数字：重量 / 次数 / 秒数 -->
+  <view class="bignum">
+    <text class="n">{{bigNum}}</text>
+    <text class="u">{{bigUnit}}</text>
+  </view>
+
+  <!-- 组进度点 -->
+  <view class="dots">
+    <view class="dot {{item.on ? 'on' : ''}} {{item.pr ? 'pr' : ''}}" wx:for="{{setDots}}" wx:key="i"></view>
+  </view>
+
+  <view class="hint">{{hint}}</view>
   <view class="sug" wx:if="{{sugHint}}">{{sugHint}}</view>
 
-  <!-- 杠铃片：一组一片，完成的点亮；超过历史最好成绩的那组是陶土色 -->
-  <view class="plates">
-    <view
-      class="plate {{item.on ? 'on' : ''}} {{item.pr ? 'pr' : ''}}"
-      wx:for="{{plates}}"
-      wx:key="no"
-    ></view>
-    <text class="plate-ct">{{sets.length}} 组</text>
+  <!-- 信息表 -->
+  <view class="facts">
+    <view class="f">
+      <text class="k">这次目标</text>
+      <text class="v">{{targetText}}</text>
+    </view>
+    <view class="f">
+      <text class="k">本次容量</text>
+      <text class="v">{{volumeText}}</text>
+    </view>
+    <view class="f">
+      <text class="k">上次记录</text>
+      <text class="v">{{lastText}}</text>
+    </view>
+    <view class="f" wx:if="{{ex.tips}}">
+      <text class="k">动作要点</text>
+      <text class="v">{{ex.tips}}</text>
+    </view>
   </view>
 
+  <!-- 组记录：可以逐组改重量和次数 -->
   <view class="sets">
+    <view class="sh">
+      <text>组记录</text>
+      <text class="shnote">点数字可改 · 打勾算完成</text>
+    </view>
     <set-row
       wx:for="{{sets}}"
       wx:key="no"
@@ -55,22 +85,25 @@
     />
     <view class="addset" bindtap="addSet">＋ 加一组</view>
   </view>
+</view>
 
-  <!-- 组间休息：呼吸环 -->
-  <view class="rest" wx:if="{{resting}}">
-    <view class="breath">
-      <view class="ring" style="background: conic-gradient(#3C4A32 {{restPct}}%, #E4E1D3 0)"></view>
-      <view class="core">
-        <text class="tm">{{restText}}</text>
-        <text class="ph">{{restPhase}}</text>
-      </view>
+<!-- 组间休息：盖住整页，90 秒呼吸引导 -->
+<view class="rest" wx:if="{{resting}}">
+  <view class="rtitle">组间休息 · 让呼吸慢下来</view>
+
+  <view class="breath">
+    <view class="ring" style="background: conic-gradient(#3C4A32 {{restPct}}%, #DCD8C8 0)"></view>
+    <view class="glow"></view>
+    <view class="core">
+      <text class="tm">{{restText}}</text>
+      <text class="ph">{{restPhase}}</text>
     </view>
-    <text class="sk" bindtap="stopRest">跳过休息</text>
   </view>
+
+  <view class="rsub">跟着圆圈：放大吸气，缩小呼气</view>
+  <view class="sk" bindtap="stopRest">跳过休息</view>
 </view>
 
 <view class="footbar">
-  <view class="btn" hover-class="btn-hover" bindtap="nextEx">
-    {{isLast ? '完成训练 →' : '完成 · 下一个动作 →'}}
-  </view>
+  <view class="btn" hover-class="btn-hover" bindtap="mainAction">{{btnText}}</view>
 </view>

@@ -157,6 +157,55 @@ ok('首页清单显示的是换过的动作', tp4.data.items[0].cn === '上斜�
 ok('换过的动作做过 → 打勾（旧版这里永远不打勾）', tp4.data.items[0].done === true);
 ok('清单上有「已换」标记', tp4.data.items[0].swapped === true);
 
+/* ================= 5. 训练页视觉层：杠铃 / 大数字 / 按钮 ================= */
+console.log('\n=== 5. 训练页视觉层 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+let rv = loadPage('./pages/record/index');
+rv.onLoad({});
+ok('杠铃片数按重量算（50kg → 5 片）', rv.data.leftPlates.length === 5, rv.data.leftPlates.length + ' 片');
+ok('两侧片数对称', rv.data.rightPlates.length === rv.data.leftPlates.length);
+ok('还没练 → 一片都不亮', rv.data.leftPlates.every(function (x) { return !x.on; }));
+ok('大数字是重量', rv.data.bigNum === 50 && rv.data.bigUnit === 'kg', rv.data.bigNum + rv.data.bigUnit);
+ok('组进度点 = 计划组数', rv.data.setDots.length === 4, rv.data.setDots.length + ' 个');
+ok('目标文案', rv.data.targetText === '4 组 × 10 次', rv.data.targetText);
+ok('动作要点来自动作库', String(rv.data.ex.tips).indexOf('肩胛') === 0, rv.data.ex.tips);
+ok('按钮是「完成第 1 组」', rv.data.btnText.indexOf('完成第 1 组') === 0, rv.data.btnText);
+
+rv.mainAction();
+ok('点一次按钮 = 完成一组', rv.data.doneCount === 1, rv.data.doneCount + ' 组');
+ok('杠铃亮了至少一片', rv.data.leftPlates.filter(function (x) { return x.on; }).length >= 1,
+  rv.data.leftPlates.filter(function (x) { return x.on; }).length + ' 片亮');
+ok('完成后自动进入组间休息', rv.data.resting === true);
+rv.stopRest();
+
+rv.mainAction(); rv.stopRest();
+rv.mainAction(); rv.stopRest();
+rv.mainAction(); rv.stopRest();
+ok('4 组全部完成', rv.data.doneCount === 4, rv.data.doneCount + ' 组');
+ok('杠铃全亮', rv.data.leftPlates.every(function (x) { return x.on; }));
+ok('按钮推进到下一个动作', rv.data.btnText === '下一个动作 →', rv.data.btnText);
+ok('本次容量 = 50×10×4', rv.data.volumeText === '2000 kg', rv.data.volumeText);
+
+/* ================= 6. PR 组亮陶土色 ================= */
+console.log('\n=== 6. PR 片 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+const pp = db.todaySession(today).plan;
+// 昨天同一动作 40kg 做满 4 组（planKey 写个不存在的，免得推进训练日）
+[1, 2, 3, 4].forEach(function (no) { rec(pp.items[0], no, 40, 'X', D.shift(today, -1)); });
+
+let prPage = loadPage('./pages/record/index');
+prPage.onLoad({});
+ok('上次 40kg 做满 → 今天建议 42.5kg', prPage.data.sets[0].weight === 42.5, prPage.data.sets[0].weight + 'kg');
+ok('还没完成 → 没有 PR 片', prPage.data.leftPlates.some(function (x) { return x.pr; }) === false);
+
+prPage.mainAction();
+prPage.stopRest();
+ok('完成一组后出现陶土色 PR 片', prPage.data.leftPlates.some(function (x) { return x.pr; }) === true,
+  prPage.data.leftPlates.map(function (x) { return x.on ? (x.pr ? 'PR' : '亮') : '·'; }).join(''));
+
 /* ================= 结果 ================= */
 console.log('\n' + (failed ? ('有 ' + failed + ' 项失败') : '页面测试全部通过') + '\n');
 if (failed) process.exitCode = 1;

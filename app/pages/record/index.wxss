@@ -17,7 +17,8 @@
 }
 .back-hover { opacity: .5; }
 .nav .tt {
-  font-size: 28rpx;
+  flex: 1;
+  font-size: 26rpx;
 }
 .nav .en {
   display: block;
@@ -28,145 +29,214 @@
   margin-top: 4rpx;
 }
 
-/* 进度 */
-.prog {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  padding: 24rpx 44rpx 0;
-  font-size: 22rpx;
-  color: var(--muted);
-}
-.prog .pn {
-  font-family: Georgia, serif;
-  font-size: 24rpx;
-  color: var(--ink);
-}
-.pbar {
-  flex: 1;
-  height: 4rpx;
-  background: #DDDACB;
-  position: relative;
-  margin-left: 8rpx;
-}
-.pfill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  background: var(--ink);
-  transition: width .3s;
-}
-
-/* 动作区 */
-.wrap { padding: 0 44rpx; }
-
-.exhead {
-  padding-top: 36rpx;
-  display: flex;
-  align-items: flex-start;
-}
-
-.exmain {
-  flex: 1;
-}
-
-.exhead .nm {
-  font-size: 50rpx;
-  letter-spacing: .02em;
-}
-
-.exhead .en {
-  margin-top: 8rpx;
-  font-size: 21rpx;
-  letter-spacing: 1rpx;
-  color: var(--muted2, #A9A79A);
-}
-
 .swap {
   flex-shrink: 0;
-  margin-top: 14rpx;
-  margin-left: 20rpx;
   padding: 10rpx 22rpx;
   border: 1rpx solid var(--line, #DFDCCE);
   border-radius: 30rpx;
   font-size: 21rpx;
-  color: var(--muted, #7C8A70);
+  color: var(--muted, #8B897C);
+}
+.swap-hover { background: #EFF2E7; }
+
+.wrap {
+  padding: 0 44rpx 220rpx;
 }
 
-.swap-hover {
-  background: #EFF2E7;
+/* ---------------- 动作名 ---------------- */
+
+.exhead {
+  padding-top: 24rpx;
+}
+.exhead .nm {
+  font-size: 46rpx;
+  letter-spacing: .02em;
+  line-height: 1.2;
+}
+.exhead .en {
+  margin-top: 6rpx;
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+  color: var(--muted2);
+}
+.swapped {
+  margin-top: 12rpx;
+  font-size: 20rpx;
+  color: var(--clay);
 }
 
-.last {
-  margin-top: 16rpx;
+/* ---------------- 杠铃 ---------------- */
+
+.barbell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 34rpx 0 6rpx;
+}
+
+.side {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+/* i=0 最靠近套筒：左侧反着排，右侧正着排，两侧才对称 */
+.side.left { flex-direction: row-reverse; }
+.side.right { flex-direction: row; }
+
+.plate {
+  width: 20rpx;
+  height: 96rpx;
+  margin: 0 4rpx;
+  border-radius: 6rpx;
+  background: #DCD8C8;
+  /* 点亮只靠 class 切换 + CSS transition，不用 setData 驱动动画 */
+  transition: background-color .5s ease, transform .42s cubic-bezier(.2, 1.4, .4, 1);
+}
+.plate.on {
+  background: var(--green);
+}
+.plate.pr {
+  background: var(--clay);
+}
+
+.bar {
+  flex: 1;
+  height: 8rpx;
+  border-radius: 4rpx;
+  background: var(--green);
+  transition: background-color .5s ease;
+}
+
+/* ---------------- 大数字 ---------------- */
+
+.bignum {
+  margin-top: 18rpx;
+  text-align: center;
+  line-height: 1;
+}
+.bignum .n {
+  font-family: Georgia, serif;
+  font-size: 114rpx;
+  color: var(--ink);
+  letter-spacing: -.02em;
+}
+.bignum .u {
+  font-size: 24rpx;
+  color: var(--muted2);
+  margin-left: 12rpx;
+}
+
+/* ---------------- 组进度点 ---------------- */
+
+.dots {
+  margin-top: 20rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.dot {
+  width: 12rpx;
+  height: 12rpx;
+  margin: 0 7rpx;
+  border-radius: 50%;
+  background: #DCD8C8;
+  transition: background-color .3s;
+}
+.dot.on { background: var(--green); }
+.dot.pr { background: var(--clay); }
+
+.hint {
+  margin-top: 22rpx;
+  text-align: center;
   font-size: 21rpx;
-  color: var(--muted2, #A9A79A);
+  color: var(--muted2);
 }
-
 .sug {
-  margin-top: 10rpx;
+  margin-top: 8rpx;
+  text-align: center;
   font-size: 21rpx;
-  color: var(--clay, #B4795A);
+  color: var(--clay);
 }
+
+/* ---------------- 信息表 ---------------- */
+
+.facts {
+  margin-top: 34rpx;
+  border-top: 1rpx solid var(--line);
+}
+.facts .f {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+.facts .k {
+  flex-shrink: 0;
+  font-size: 23rpx;
+  color: var(--muted);
+  margin-right: 32rpx;
+}
+.facts .v {
+  flex: 1;
+  font-size: 23rpx;
+  color: var(--ink);
+  text-align: right;
+}
+
+/* ---------------- 组记录 ---------------- */
 
 .sets {
   margin-top: 30rpx;
-  border-top: 1rpx solid var(--line);
+}
+.sh {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 22rpx;
+  color: var(--muted2);
+  letter-spacing: .04em;
+  padding-bottom: 6rpx;
+}
+.shnote {
+  font-size: 19rpx;
 }
 .addset {
-  padding: 26rpx 0;
+  padding: 26rpx 0 10rpx;
   font-size: 23rpx;
   color: var(--muted);
 }
 
-/* 休息条 */
-/* ---------------- 杠铃片 ---------------- */
-
-.plates {
-  margin: 30rpx 0 4rpx;
-  display: flex;
-  align-items: flex-end;
-}
-
-.plate {
-  width: 18rpx;
-  height: 46rpx;
-  margin-right: 10rpx;
-  border-radius: 6rpx;
-  background: #E4E1D3;
-  transition: background .3s, transform .3s;
-}
-
-.plate.on {
-  background: var(--green, #3C4A32);
-  transform: translateY(-6rpx);
-}
-
-.plate.pr {
-  background: var(--clay, #B4795A);
-}
-
-.plate-ct {
-  margin-left: 12rpx;
-  align-self: center;
-  font-size: 20rpx;
-  color: var(--muted2, #A9A79A);
-}
-
-/* ---------------- 组间休息：呼吸环 ---------------- */
+/* ---------------- 组间休息：呼吸环（盖住整页） ---------------- */
 
 .rest {
-  margin-top: 44rpx;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 60;
+  background: rgba(242, 240, 230, .985);
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding-bottom: 140rpx;
+}
+
+.rtitle {
+  font-size: 22rpx;
+  color: var(--muted);
+  letter-spacing: .08em;
+  margin-bottom: 64rpx;
 }
 
 .breath {
   position: relative;
-  width: 300rpx;
-  height: 300rpx;
+  width: 420rpx;
+  height: 420rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -179,61 +249,88 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  /* 兜底：老基础库不支持 conic-gradient 时显示成纯色环，不会崩 */
-  background: #E4E1D3;
+  /* 兜底：老基础库不支持 conic-gradient 时是个纯色块，不会崩 */
+  background: #DCD8C8;
   transition: background .95s linear;
 }
 
-/* 挖空中间，让外圈只剩一圈进度 */
+/* 挖空中间，外圈只剩一道细环 */
 .ring::after {
   content: '';
   position: absolute;
-  left: 16rpx;
-  top: 16rpx;
-  right: 16rpx;
-  bottom: 16rpx;
+  left: 5rpx;
+  top: 5rpx;
+  right: 5rpx;
+  bottom: 5rpx;
   border-radius: 50%;
-  background: var(--bg, #F2F0E6);
+  background: var(--bg);
+}
+
+/* 随呼吸放大的柔光 */
+.glow {
+  position: absolute;
+  width: 300rpx;
+  height: 300rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(60, 74, 50, .16) 0%,
+    rgba(60, 74, 50, .05) 55%,
+    rgba(60, 74, 50, 0) 72%);
+  animation: breathe 9s ease-in-out infinite;
 }
 
 .core {
   position: relative;
   z-index: 2;
-  width: 200rpx;
-  height: 200rpx;
+  width: 220rpx;
+  height: 220rpx;
   border-radius: 50%;
-  background: #EFF2E7;
+  background: rgba(238, 242, 228, .92);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  animation: breathe 8s ease-in-out infinite;
+  animation: breathe 9s ease-in-out infinite;
 }
-
 .core .tm {
   font-family: Georgia, serif;
-  font-size: 48rpx;
-  color: var(--green, #3C4A32);
+  font-size: 60rpx;
+  color: var(--green);
   line-height: 1;
 }
-
 .core .ph {
-  margin-top: 8rpx;
-  font-size: 19rpx;
-  letter-spacing: 3rpx;
-  color: var(--muted2, #A9A79A);
+  margin-top: 10rpx;
+  font-size: 20rpx;
+  letter-spacing: 4rpx;
+  color: var(--muted);
 }
 
+.rsub {
+  margin-top: 72rpx;
+  font-size: 22rpx;
+  color: var(--muted);
+}
 .sk {
   margin-top: 28rpx;
   font-size: 21rpx;
-  color: var(--muted2, #A9A79A);
+  color: var(--muted2);
   text-decoration: underline;
 }
 
-/* 4 秒吸、4 秒呼 */
+/* 吸 4 秒、呼 5 秒 = 9 秒一个周期 */
 @keyframes breathe {
-  0%   { transform: scale(.86); }
-  50%  { transform: scale(1.04); }
-  100% { transform: scale(.86); }
+  0%   { transform: scale(.82); }
+  55%  { transform: scale(1.06); }
+  100% { transform: scale(.82); }
+}
+
+/* 主按钮常驻底部：set-row 列表再长也不会把「完成这组」挤走 */
+.footbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  padding: 20rpx 40rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 72%, rgba(242, 240, 230, 0));
 }

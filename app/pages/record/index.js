@@ -3,7 +3,7 @@ const D = require('../../utils/date');
 const store = require('../../store/index');
 
 const REST_SECONDS = 90;
-const BREATH_CYCLE = 8;   // 4 秒吸气 + 4 秒呼气
+const BREATH_CYCLE = 9;   // 吸 4 秒 + 呼 5 秒
 
 /** 「上次 50 kg × 10 × 3 组」/「上次 12 次 × 3 组」/「上次 30 秒 × 3 组」 */
 function describeLast(lr, unit) {
@@ -11,6 +11,16 @@ function describeLast(lr, unit) {
   if (unit === 'sec') return '上次 ' + lr.reps + ' 秒 × ' + lr.sets + ' 组';
   if (unit === 'bw') return '上次 ' + lr.reps + ' 次 × ' + lr.sets + ' 组';
   return '上次 ' + lr.weight + ' kg × ' + lr.reps + ' × ' + lr.sets + ' 组';
+}
+
+/**
+ * 杠铃上挂几片。
+ * 片数代表重量（恒定，不带进度含义），颜色代表进度 —— 这样「这根杠铃被我练熟了」才有累积感。
+ * 自重 / 计时动作没有重量，固定 3 片。
+ */
+function plateCountOf(weight, unit) {
+  if (unit !== 'kg' || !(weight > 0)) return 3;
+  return Math.min(5, Math.max(2, Math.round(weight / 6)));
 }
 
 Page({
@@ -26,8 +36,20 @@ Page({
     ex: {},
     lastText: '',
     sugHint: '',
+
+    // 视觉层
+    bigNum: 0,
+    bigUnit: 'kg',
+    leftPlates: [],
+    rightPlates: [],
+    setDots: [],
+    targetText: '',
+    volumeText: '—',
+    hint: '',
+    btnText: '完成这组',
+    doneCount: 0,
+
     sets: [],
-    plates: [],
     resting: false,
     restText: '01:30',
     restPct: 100,
@@ -140,23 +162,86 @@ Page({
       restPhase: '吸气'
     });
 
-    this.refreshPlates();
+    this.refreshView();
   },
 
-  /**
-   * 重算杠铃片。
-   * 一组一片：完成了点亮；重量超过历史最好成绩的那一组，用陶土色。
-   */
-  refreshPlates() {
-    const maxBefore = this.maxBefore || 0;
-    const plates = this.data.sets.map(function (s) {
-      return {
-        no: s.no,
-        on: !!s.done,
-        pr: s.unit === 'kg' && s.weight > 0 && maxBefore > 0 && s.weight > maxBefore
-      };
+  /* ---------- 视觉层：杠铃 / 大数字 / 组进度 / 信息表 / 按钮 ---------- */
+  refreshView() {
+    const ex = this.data.ex || {};
+    const sets = this.data.sets || [];
+    const total = sets.length || 1;
+    const done = sets.filter(function (s) { return s.done; }).length;
+    const first = sets[0] || { weight: 0, reps: 0, unit: 'kg' };
+
+    // 大数字：负重看重量，自重看次数，计时看秒数
+    let bigNum;
+    let bigUnit;
+    if (ex.unit === 'sec') { bigNum = first.reps; bigUnit = '秒'; }
+    else if (ex.unit === 'bw') { bigNum = first.reps; bigUnit = '次'; }
+    else { bigNum = first.weight || 0; bigUnit = 'kg'; }
+
+    // 杠铃：片数代表重量（恒定），点亮的片数代表这组练到哪了
+    const plateN = plateCountOf(first.weight, ex.unit);
+    const lit = done === 0
+      ? 0
+      : (done >= total ? plateN : Math.max(1, Math.floor(done / total * plateN)));
+
+    const isPR = ex.unit === 'kg' && first.weight > 0 && this.maxBefore > 0 && first.weight > this.maxBefore;
+
+    const left = [];
+    const right = [];
+    for (let i = 0; i < plateN; i++) {
+      const on = i < lit;
+      const pr = on && isPR && i === lit - 1;
+      left.push({ i: i, on: on, pr: pr });
+      right.push({ i: i, on: on, pr: pr });
+    }
+
+    // 组进度点：一组一个点
+    const dots = sets.map(function (s) {
+      return { i: s.no, on: !!s.done, pr: !!(s.done && isPR) };
     });
-    this.setData({ plates: plates });
+
+    // 信息表
+    const targetText = ex.sets + ' 组 × ' + ex.reps + (ex.unit === 'sec' ? ' 秒' : ' 次');
+    const self = this;
+    const todayRows = (db.todaySets(this.date) || []).filter(function (r) { return r.exId === ex.exId; });
+    const volume = todayRows.reduce(function (a, r) { return a + (r.weight || 0) * (r.reps || 0); }, 0);
+    const repsSum = todayRows.reduce(function (a, r) { return a + (r.reps || 0); }, 0);
+
+    let volumeText = '—';
+    if (todayRows.length) {
+      if (ex.unit === 'kg') volumeText = volume > 0 ? volume + ' kg' : '—';
+      else volumeText = repsSum + (ex.unit === 'sec' ? ' 秒' : ' 次');
+    }
+
+    // 底部按钮：还有没做的组就先做组，全做完才推进到下一个动作
+    const pending = sets.filter(function (s) { return !s.done; })[0];
+    let btnText;
+    if (pending) {
+      btnText = '完成第 ' + pending.no + ' 组 · ' + pending.reps + (ex.unit === 'sec' ? ' 秒' : ' 次');
+    } else if (this.data.isLast) {
+      btnText = '完成训练 · 看战报 →';
+    } else {
+      btnText = '下一个动作 →';
+    }
+
+    const hint = pending
+      ? (done === 0 ? '点下方按钮完成一组 → 杠铃会一片片亮起来' : '还剩 ' + (total - done) + ' 组')
+      : total + ' 组全部完成，重量已经留在你的记录里';
+
+    self.setData({
+      bigNum: bigNum,
+      bigUnit: bigUnit,
+      leftPlates: left,
+      rightPlates: right,
+      setDots: dots,
+      doneCount: done,
+      targetText: targetText,
+      volumeText: volumeText,
+      hint: hint,
+      btnText: btnText
+    });
   },
 
   /* ---------- 换动作 ---------- */
@@ -223,6 +308,7 @@ Page({
       cn: pick.cn,
       en: pick.en,
       part: pick.part,
+      tips: pick.tips || '',
       slot: slot,
       sets: n,
       reps: cur.reps,
@@ -252,7 +338,7 @@ Page({
       sugHint: sugHint
     });
 
-    this.refreshPlates();
+    this.refreshView();
     wx.showToast({ title: '换成 ' + pick.cn, icon: 'none' });
   },
 
@@ -269,7 +355,6 @@ Page({
     });
 
     this.setData({ sets: sets });
-
     if (!target) return;
 
     if (target.done) {
@@ -280,7 +365,40 @@ Page({
       this.stopRest();
     }
 
-    this.refreshPlates();
+    this.refreshView();
+  },
+
+  /**
+   * 底部主按钮。
+   * 一组之内不做任何动画和跳转，所以按钮只有一个动作：完成下一组。
+   * 全部做完才推进到下一个动作 / 收尾战报。
+   */
+  mainAction() {
+    const pending = (this.data.sets || []).filter(function (s) { return !s.done; })[0];
+    if (pending) {
+      this.completeSet(pending.no);
+      return;
+    }
+    this.nextEx();
+  },
+
+  /** 把某一组标成完成（跟手动点勾走同一条路，保证落库一致） */
+  completeSet(no) {
+    let target = null;
+    const sets = this.data.sets.map(function (s) {
+      if (s.no === no && !s.done) {
+        target = Object.assign({}, s, { done: true });
+        return target;
+      }
+      return s;
+    });
+    if (!target) return;
+
+    this.setData({ sets: sets });
+    this.persist(target);
+    this.startRest();
+    try { wx.vibrateShort({ type: 'light' }); } catch (err) { /* 忽略 */ }
+    this.refreshView();
   },
 
   /* ---------- 改重量 / 改次数 ---------- */
@@ -309,7 +427,7 @@ Page({
     this.setData({ sets: sets });
 
     if (target && target.done) this.persist(target);
-    this.refreshPlates();
+    this.refreshView();
   },
 
   /** 加一组：照最后一组的重量次数复制一份 */
@@ -329,7 +447,7 @@ Page({
       pr: false
     });
     this.setData({ sets: sets });
-    this.refreshPlates();
+    this.refreshView();
   },
 
   /** 写入一条组记录（勾选和改数值共用） */
@@ -364,8 +482,8 @@ Page({
       const m = Math.floor(self.restLeft / 60);
       const s = self.restLeft % 60;
       const elapsed = REST_SECONDS - self.restLeft;
-      const half = BREATH_CYCLE / 2;
-      const phase = Math.floor(elapsed % BREATH_CYCLE / half) === 0 ? '吸气' : '呼气';
+      // 吸 4 秒、呼 5 秒，跟 CSS 的 9s 呼吸动画对齐
+      const phase = (elapsed % BREATH_CYCLE) < 4 ? '吸气' : '呼气';
 
       self.setData({
         restText: ('0' + m).slice(-2) + ':' + ('0' + s).slice(-2),

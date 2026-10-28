@@ -171,6 +171,7 @@ function decorate(p) {
         cn: ex.cn,
         en: ex.en,
         part: ex.part,
+        tips: ex.tips || '',
         slot: i,
         sets: it.sets,
         reps: it.reps,
