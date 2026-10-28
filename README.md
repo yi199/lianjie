@@ -81,6 +81,20 @@ git push gitee main && git push github main
 
 ---
 
+## 协作
+
+多人开发前先看 **[CONTRIBUTING.md](CONTRIBUTING.md)**（分支怎么开、commit 怎么写、PR 流程、冲突处理、这个项目的硬约定）。
+
+已配置：
+
+- `.gitattributes` 统一换行符为 LF，避免 Windows/macOS 互相制造假冲突
+- `.github/pull_request_template.md` 和 `.gitee/PULL_REQUEST_TEMPLATE.md` 提 PR 时自动带清单
+- `project.private.config.json` 已排除（每人的微信开发者工具配置不同）
+
+**`main` 分支建议开保护**：Gitee 在「管理 → 保护分支」，GitHub 在「Settings → Branches」，勾选禁止直接推送。
+
+---
+
 ## 进度
 
 - [x] 产品对标分析（见 `文档/`）
