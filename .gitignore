@@ -25,3 +25,11 @@ desktop.ini
 
 # 本机工具配置（团结引擎 MCP，跟本项目无关）
 .codely-cli/
+
+# Go 编译产物
+server/api.exe
+server/api
+*.exe
+
+# 后端本地环境变量（含密钥）
+server/.env
