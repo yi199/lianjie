@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>练界 · 训练记录小程序</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #EDEBDF;
+  font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+  color: #1F231C;
+  -webkit-font-smoothing: antialiased;
+  padding: 56px 40px 80px;
+}
+
+/* ---------- 页头 ---------- */
+.head {
+  max-width: 1240px;
+  margin: 0 auto 56px;
+}
+.head .k {
+  font-family: Georgia, serif;
+  font-size: 11px;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: #A9A79A;
+}
+.head h1 {
+  margin-top: 18px;
+  font-size: 44px;
+  font-weight: 400;
+  line-height: 1.2;
+}
+.head p {
+  margin-top: 16px;
+  max-width: 620px;
+  font-size: 15px;
+  line-height: 1.9;
+  color: #6E6C60;
+}
+.tags { margin-top: 24px; display: flex; flex-wrap: wrap; }
+.tag {
+  font-size: 11px;
+  letter-spacing: .08em;
+  color: #5C6B4F;
+  background: #E3E8D6;
+  border-radius: 20px;
+  padding: 7px 14px;
+  margin: 0 10px 10px 0;
+}
+
+/* ---------- 屏列表 ---------- */
+.grid {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(375px, 1fr));
+  gap: 56px 40px;
+  justify-items: center;
+}
+.slot { width: 100%; max-width: 391px; }
+.cap {
+  margin-top: 22px;
+  text-align: center;
+}
+.cap .n {
+  font-family: Georgia, serif;
+  font-size: 10px;
+  letter-spacing: .26em;
+  color: #B0AE9F;
+}
+.cap .t {
+  margin-top: 8px;
+  font-size: 17px;
+}
+.cap .d {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: #7E7C6E;
+}
+
+/* ---------- 手机框 ---------- */
+.phone {
+  width: 375px;
+  height: 812px;
+  border-radius: 42px;
+  background: #F2F0E6;
+  border: 7px solid #17190F;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 24px 60px rgba(23, 25, 15, .18);
+  margin: 0 auto;
+}
+.screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* 状态栏 + 微信胶囊 */
+.statusbar {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  font-family: -apple-system, "PingFang SC", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  position: relative;
+  z-index: 5;
+}
+.capsule {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  height: 30px;
+  width: 88px;
+  border-radius: 15px;
+  border: .5px solid rgba(0, 0, 0, .12);
+  background: rgba(255, 255, 255, .55);
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  font-family: -apple-system, sans-serif;
+  font-size: 11px;
+  color: #333;
+  z-index: 6;
+}
+.capsule .dot { width: 5px; height: 5px; border-radius: 50%; background: #333; }
+
+/* ---------- 通用 ---------- */
+.pg { padding: 0 20px 96px; }
+.brandrow { display: flex; align-items: baseline; justify-content: space-between; padding-top: 4px; }
+.brand { font-size: 12px; letter-spacing: .3em; }
+.date  { font-size: 9.5px; letter-spacing: .06em; color: #A9A79A; }
+.kick  { font-family: Georgia, serif; font-size: 9.5px; letter-spacing: .3em;
+         text-transform: uppercase; color: #A9A79A; }
+.h1en  { margin-top: 16px; font-family: Georgia, serif; font-size: 9.5px;
+         letter-spacing: .28em; text-transform: uppercase; color: #A9A79A; }
+.h1    { margin-top: 5px; font-size: 30px; line-height: 1.24; }
+
+.tabbar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 52px;
+  background: #FAF9F3; border-top: .5px solid #EBE8DC;
+  display: flex; align-items: center;
+}
+.tabbar .tb { flex: 1; text-align: center; }
+.tabbar img { width: 22px; height: 22px; display: block; margin: 0 auto 2px; }
+.tabbar span { font-size: 9.5px; color: #A9A79A; }
+.tabbar .on span { color: #3C4A32; }
+
+/* ---------- 欢迎页 ---------- */
+.welcome { height: calc(100% - 44px); padding: 0 28px 26px; display: flex; flex-direction: column; }
+.welcome .mark { margin-top: 60px; font-size: 52px; letter-spacing: .1em; line-height: 1.15; }
+.welcome .rule { width: 32px; height: 1.5px; background: #3C4A32; margin: 20px 0 24px; }
+.welcome .sl { font-size: 21px; line-height: 1.75; color: #3C4A32; }
+.welcome .en { margin-top: 30px; font-family: Georgia, serif; font-size: 9.5px;
+               letter-spacing: .28em; color: #A9A79A; }
+.welcome .foot { margin-top: auto; }
+.wbtn {
+  height: 52px; border-radius: 26px; background: #fff; border: .5px solid #EBE8DC;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+  font-size: 15px;
+}
+.wbtn .arw { font-family: Georgia, serif; color: #8B897C; }
+.welcome .hint { margin-top: 11px; text-align: center; font-size: 11px; color: #A9A79A; }
+
+/* ---------- 首页 ---------- */
+.dots-week { margin-top: 18px; display: flex; align-items: center; }
+.dw { width: 9px; height: 9px; border-radius: 50%; background: #DEDBCB; margin-right: 8px; }
+.dw.on { background: #3C4A32; }
+.dwt { margin-left: 4px; font-size: 12px; color: #8B897C; }
+
+.card {
+  position: relative; margin-top: 18px; padding: 20px 18px 18px;
+  border-radius: 20px; background: #fff; overflow: hidden;
+}
+.art { position: absolute; left: 50%; top: 18px; width: 160px; margin-left: -80px; }
+.cbody { position: relative; padding-top: 168px; }
+.cen { font-family: Georgia, serif; font-size: 9.5px; letter-spacing: .26em; color: #A9A79A; }
+.cname { margin-top: 5px; font-size: 30px; line-height: 1.15; }
+.cmeta { margin-top: 11px; font-size: 12px; color: #8B897C; }
+.cdim  { margin-top: 3px; font-size: 12px; color: #A9A79A; }
+.cbtn {
+  margin-top: 18px; height: 50px; border-radius: 25px; background: #F7F6EE;
+  border: .5px solid #EBE8DC; display: flex; align-items: center;
+  justify-content: space-between; padding: 0 18px; font-size: 15px;
+}
+.cbtn .arw { font-family: Georgia, serif; color: #8B897C; }
+
+.sech { margin-top: 20px; font-size: 9.5px; letter-spacing: .2em;
+        text-transform: uppercase; color: #A9A79A; }
+.items { margin-top: 10px; border-top: .5px solid #EBE8DC; }
+.it { display: flex; align-items: center; padding: 9px 0; border-bottom: .5px solid #EBE8DC; }
+.it .no { width: 24px; font-family: Georgia, serif; font-size: 9.5px; color: #A9A79A; }
+.it .nm { flex: 1; }
+.it .cn { font-size: 15px; }
+.it .en { display: block; margin-top: 2px; font-family: Georgia, serif;
+          font-size: 9.5px; letter-spacing: .08em; color: #A9A79A; }
+.it .ss { font-family: Georgia, serif; font-size: 12px; color: #8B897C; }
+
+/* ---------- 记录页 ---------- */
+.rnav { display: flex; align-items: center; padding: 4px 20px 0; }
+.rnav .back { width: 32px; font-size: 23px; line-height: 1; }
+.rnav .tt { flex: 1; font-size: 15px; }
+.rnav .tt .en { display: block; margin-top: 2px; font-family: Georgia, serif;
+                font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase; color: #A9A79A; }
+.rnav .swap { font-size: 9.5px; color: #8B897C; border: .5px solid #EBE8DC;
+              border-radius: 15px; padding: 4px 11px; }
+
+.rwrap { padding: 0 20px 84px; }
+.exh { padding-top: 16px; }
+.exh .nm { font-size: 23px; line-height: 1.2; }
+.exh .en { margin-top: 4px; font-family: Georgia, serif; font-size: 9.5px;
+           letter-spacing: .2em; text-transform: uppercase; color: #A9A79A; }
+
+.barbell { display: flex; align-items: center; justify-content: center; margin: 18px 0 4px; }
+.side { display: flex; align-items: center; }
+.side.left { flex-direction: row-reverse; }
+.plate { width: 10px; height: 48px; margin: 0 2px; border-radius: 3px; background: #DCD8C8; }
+.plate.on { background: #3C4A32; }
+.plate.pr { background: #B4795A; }
+.bar { flex: 1; height: 4px; border-radius: 2px; background: #3C4A32; }
+
+.bignum { margin-top: 10px; text-align: center; line-height: 1; }
+.bignum .n { font-family: Georgia, serif; font-size: 57px; letter-spacing: -.02em; }
+.bignum .u { font-size: 12px; color: #A9A79A; margin-left: 6px; }
+
+.sdots { margin-top: 10px; display: flex; justify-content: center; }
+.sdot { width: 6px; height: 6px; border-radius: 50%; background: #DCD8C8; margin: 0 3.5px; }
+.sdot.on { background: #3C4A32; }
+.sdot.pr { background: #B4795A; }
+
+.hint { margin-top: 11px; text-align: center; font-size: 10.5px; color: #A9A79A; }
+.sug  { margin-top: 4px; text-align: center; font-size: 10.5px; color: #B4795A; }
+
+.facts { margin-top: 16px; border-top: .5px solid #EBE8DC; }
+.facts .f { display: flex; justify-content: space-between; align-items: baseline;
+            padding: 9px 0; border-bottom: .5px solid #EBE8DC; }
+.facts .k { font-size: 11.5px; color: #8B897C; }
+.facts .v { font-size: 11.5px; text-align: right; }
+
+.sets { margin-top: 14px; }
+.sh { display: flex; justify-content: space-between; font-size: 11px; color: #A9A79A; padding-bottom: 3px; }
+.sh .n2 { font-size: 9.5px; }
+.srow { display: flex; align-items: center; padding: 11px 0; border-bottom: .5px solid #EBE8DC; }
+.srow .i { width: 18px; font-family: Georgia, serif; font-size: 12px; color: #A9A79A; }
+.srow .w { font-family: Georgia, serif; font-size: 17px; width: 52px; }
+.srow .x { font-size: 11px; color: #A9A79A; }
+.srow .r { font-family: Georgia, serif; font-size: 17px; width: 40px; }
+.srow .u { font-size: 10.5px; color: #A9A79A; margin-left: 2px; }
+.srow .tag { font-size: 8px; background: #F2E6C9; color: #7A6021;
+             border-radius: 6px; padding: 2px 5px; margin-left: 6px; }
+.srow .ck { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #CFCCBC;
+            margin-left: auto; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; color: #fff; }
+.srow.done .ck { background: #3C4A32; border-color: #3C4A32; }
+.srow.done .w, .srow.done .r { color: #A9A79A; }
+.addset { padding: 13px 0 4px; font-size: 11.5px; color: #8B897C; }
+
+.footbar { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 20px 22px; }
+.fbtn { height: 50px; border-radius: 25px; background: #fff; border: .5px solid #EBE8DC;
+        display: flex; align-items: center; justify-content: center; font-size: 15px; }
+
+/* ---------- 呼吸环 ---------- */
+.breathwrap { height: calc(100% - 44px); display: flex; flex-direction: column;
+              align-items: center; justify-content: center; padding-bottom: 40px; }
+.rtitle { font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase;
+          color: #A9A79A; margin-bottom: 34px; }
+.breath { position: relative; width: 210px; height: 210px;
+          display: flex; align-items: center; justify-content: center; }
+.ring { position: absolute; inset: 0; border-radius: 50%;
+        background: conic-gradient(#3C4A32 0% 78%, #DCD8C8 78% 100%); }
+.ring::after { content: ''; position: absolute; inset: 8px; border-radius: 50%; background: #F2F0E6; }
+.glow { position: absolute; width: 150px; height: 150px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(60,74,50,.14) 0%, rgba(60,74,50,.04) 55%, rgba(60,74,50,0) 72%); }
+.core { position: relative; z-index: 2; width: 110px; height: 110px; border-radius: 50%;
+        background: rgba(238,242,228,.94); display: flex; flex-direction: column;
+        align-items: center; justify-content: center; }
+.core .tm { font-family: Georgia, serif; font-size: 30px; color: #3C4A32; line-height: 1; }
+.core .ph { margin-top: 5px; font-size: 9px; letter-spacing: .2em; color: #8B897C; }
+.rsub { margin-top: 36px; font-size: 11px; color: #8B897C; }
+.rsk  { margin-top: 14px; font-size: 10.5px; color: #A9A79A; text-decoration: underline; }
+
+/* ---------- 数据页 ---------- */
+.nums { margin-top: 22px; display: flex; align-items: flex-end; }
+.nums .st { margin-right: 30px; }
+.nums .v { font-family: Georgia, serif; font-size: 23px; line-height: 1; }
+.nums .k { margin-top: 6px; font-size: 9.5px; letter-spacing: .06em; color: #A9A79A; }
+
+.cal { margin-top: 24px; }
+.cal .wd { width: 14.28%; text-align: center; font-size: 9.5px; color: #A9A79A;
+           padding-bottom: 10px; display: inline-block; }
+.cal .grid2 { display: flex; flex-wrap: wrap; }
+.cell { width: 14.28%; height: 39px; display: flex; align-items: center; justify-content: center; }
+.cell .cd { width: 28px; height: 28px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center;
+            font-family: Georgia, serif; font-size: 12px; color: #8B897C; }
+.cell.on .cd { background: #3C4A32; color: #F6F4EA; }
+.cell.today .cd { border: .5px solid #B4795A; color: #B4795A; }
+.cell.on.today .cd { border-color: transparent; color: #F6F4EA; }
+
+.prow { display: flex; align-items: center; margin-bottom: 11px; }
+.prow .nm { width: 46px; font-size: 12px; color: #8B897C; }
+.prow .bw { flex: 1; height: 5px; border-radius: 3px; background: #E6E3D5; overflow: hidden; }
+.prow .bf { height: 100%; border-radius: 3px; background: #3C4A32; }
+.prow .pc { width: 46px; text-align: right; font-size: 12px; color: #A9A79A; }
+
+.arow { display: flex; align-items: center; padding: 11px 0; border-bottom: .5px solid #EBE8DC; }
+.arow .an { width: 24px; font-family: Georgia, serif; font-size: 9.5px; color: #A9A79A; }
+.arow .acn { flex: 1; font-size: 15px; }
+.arow .act { font-family: Georgia, serif; font-size: 12px; color: #8B897C; }
+
+/* ---------- 战报页（深色） ---------- */
+.dark { height: 100%; background: #2A3226; padding: 0 24px; }
+.dark .kick { color: #8C9A80; }
+.dark .h1en { color: #8C9A80; margin-top: 14px; }
+.dark .h1 { color: #F2F0E6; margin-top: 6px; font-size: 30px; }
+.dark .plan { margin-top: 7px; font-size: 12.5px; color: #A8B79C; }
+.dnums { margin-top: 32px; display: flex; align-items: flex-end; }
+.dnums .st { margin-right: 28px; }
+.dnums .v { font-family: Georgia, serif; font-size: 38px; color: #F2F0E6; line-height: 1; }
+.dnums .k { margin-top: 6px; font-size: 10.5px; letter-spacing: .1em; color: #8C9A80; }
+
+.prbox { margin-top: 28px; padding: 16px; border-radius: 12px;
+         background: rgba(208,139,99,.14); border: .5px solid rgba(208,139,99,.35); }
+.prhead { display: flex; align-items: center; }
+.prhead .d { width: 6px; height: 6px; border-radius: 50%; background: #D08B63; margin-right: 7px; }
+.prhead .t { font-size: 12px; color: #E5A882; }
+.prrow { margin-top: 11px; display: flex; align-items: baseline; }
+.prrow .cn { flex: 1; font-size: 13.5px; color: #F2F0E6; }
+.prrow .w { font-family: Georgia, serif; font-size: 14.5px; color: #E5A882; }
+.prrow .dl { margin-left: 8px; font-size: 11px; color: #8C9A80; }
+
+.dark .sech { color: #8C9A80; margin-top: 28px; }
+.dark .prow .nm { color: #C8D2BE; }
+.dark .prow .bw { background: #3C4636; }
+.dark .prow .bf { background: #A8BC96; }
+.dark .prow .pc { color: #8C9A80; }
+.dark .comment { margin-top: 30px; font-size: 14px; line-height: 1.85; color: #A8B79C; }
+.dark .dbtn { position: absolute; left: 24px; right: 24px; bottom: 26px; height: 50px;
+              border-radius: 25px; background: #F2F0E6; color: #2A3226;
+              display: flex; align-items: center; justify-content: center; font-size: 15px; }
+
+/* ---------- 我的页 ---------- */
+.pcard { margin-top: 20px; padding: 20px 18px; border-radius: 20px; background: #fff; }
+.pcard .cl { font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase; color: #A9A79A; }
+.pcard .cn2 { margin-top: 10px; font-size: 19px; }
+.pcard .keys { margin-top: 12px; display: flex; }
+.pcard .pk { margin-right: 20px; display: flex; align-items: baseline; }
+.pcard .pk b { font-family: Georgia, serif; font-weight: 400; font-size: 12px; color: #B4795A; margin-right: 4px; }
+.pcard .pk span { font-size: 12px; color: #8B897C; }
+
+.chips { margin-top: 10px; display: flex; }
+.chip { flex: 1; height: 41px; margin-right: 10px; border-radius: 22px;
+        border: .5px solid #EBE8DC; background: #fff; display: flex;
+        align-items: center; justify-content: center; font-size: 12px; color: #8B897C; }
+.chip:last-child { margin-right: 0; }
+.chip.on { background: #3C4A32; border-color: #3C4A32; color: #F6F4EA; }
+
+.rows { margin-top: 10px; border-top: .5px solid #EBE8DC; }
+.row2 { display: flex; justify-content: space-between; align-items: baseline;
+        padding: 12px 0; border-bottom: .5px solid #EBE8DC; }
+.row2 .rt { font-size: 15px; }
+.row2 .rt.danger { color: #B4795A; }
+.row2 .rn { font-size: 12px; color: #A9A79A; }
+
+.about { margin-top: 26px; text-align: center; font-size: 9.5px;
+         letter-spacing: .08em; color: #A9A79A; }
+
+@media (max-width: 900px) {
+  body { padding: 32px 16px 56px; }
+  .head h1 { font-size: 32px; }
+}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div class="k">训练记录小程序 · 界面预览</div>
+  <h1>练界</h1>
+  <p>一个只做一件事的健身小程序：<b>今天练什么、练了多重、练了多少</b>。<br>
+     不社交、不卖课、不做社区，数据只存在手机本地。</p>
+  <div class="tags">
+    <span class="tag">微信小程序原生</span>
+    <span class="tag">无需后端 · 本地存储</span>
+    <span class="tag">训练日排队，不绑星期</span>
+    <span class="tag">重量自动递进</span>
+    <span class="tag">全部图形自绘</span>
+  </div>
+</div>
+
+<div class="grid">
+    <div class="slot">
+      <div class="phone">
+        <div class="screen" style="background:#F2F0E6">
+          <div class="statusbar" style="color:#1F231C">9:41
+            <div class="capsule" style="color:#333"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="font-size:14px">⊙</span></div>
+          </div>
+          
+<div class="welcome">
+  <div class="mark">练界</div>
+  <div class="rule"></div>
+  <div class="sl">把每一次训练</div>
+  <div class="sl">留在身体上</div>
+  <div class="en">TRAIN · RECORD · SEE IT GROW</div>
+  <div class="foot">
+    <div class="wbtn"><span>开始</span><span class="arw">→</span></div>
+    <div class="hint">先花 30 秒，告诉我们你的情况</div>
+  </div>
+</div>
+
+        </div>
+      </div>
+      <div class="cap">
+        <div class="n">01 / 品牌</div>
+        <div class="t">第一次打开</div>
+        <div class="d">没有登录墙、没有广告位。品牌名 + 一句话，然后直接开始。</div>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="phone">
+        <div class="screen" style="background:#F2F0E6">
+          <div class="statusbar" style="color:#1F231C">9:41
+            <div class="capsule" style="color:#333"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="font-size:14px">⊙</span></div>
+          </div>
+          
+<div class="pg">
+  <div class="brandrow"><span class="brand">练界</span><span class="date">周三 · 10 月 29 日</span></div>
+  <div class="h1en">Today's Session</div>
+  <div class="h1">今天练推日。</div>
+
+  <div class="dots-week">
+    <span class="dw on"></span><span class="dw"></span><span class="dw"></span>
+    <span class="dwt">本周 1 / 3</span>
+  </div>
+
+  <div class="card">
+    <img class="art" src="data:image/png;base64,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">
+    <div class="cbody">
+      <div class="cen">PUSH</div>
+      <div class="cname">推日</div>
+      <div class="cmeta">4 个动作 · 约 45 分钟</div>
+      <div class="cdim">上次练这个 · 3 天前</div>
+      <div class="cbtn"><span>开始训练</span><span class="arw">→</span></div>
+    </div>
+  </div>
+
+  <div class="sech">动作清单</div>
+  <div class="items">
+    <div class="it"><span class="no">01</span><div class="nm"><span class="cn">卧推</span><span class="en">BENCH PRESS</span></div><span class="ss">4 × 10</span></div>
+    <div class="it"><span class="no">02</span><div class="nm"><span class="cn">哑铃推举</span><span class="en">SHOULDER PRESS</span></div><span class="ss">4 × 10</span></div>
+    <div class="it"><span class="no">03</span><div class="nm"><span class="cn">哑铃侧平举</span><span class="en">LATERAL RAISE</span></div><span class="ss">4 × 10</span></div>
+  </div>
+</div>
+<div class="tabbar"><div class="tb on"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFEAAABRCAYAAACqj0o2AAACzklEQVR4nO3aT2/TMBgG8Oe1Q7eJgQQCrdIilW+yr4EQHDghzgiJA+LCJ+HAkRMSB258jJ22oSF1GuM0xtIlfpGzdHRlf9rUlZfm+WnR1Nbx27x2W9sxQERERERERERERERERBSBRKxXFyhu8IuwE5a1ARsxVtyz4MH1er1lVV257PUsywZ7e3u/FyVuyJ4g2IBJt7rvIXgC4LZCT5//RwWiEGRQ+fxnefD6YPPgcPhag+KekyAMA6DwF2IT+8Y5B1WFyMVtJBCYxLxYPk5WATytPmJFg+KO1Ts78a2ZpukKTL4FgwdV2/oLvIwvoeVfcau3u7v7oyrvGhD3P1cFnNaKinaq1vX1yjWHBcTmNr/b0Ljhk2iMqVp5yvPEuCbGPVcXmjHuvKlx55LEVmISA2ASA2ASA2ASAwg1Y6nNOWexgQT7MHg4xaD3EIJV6GBzkNgltDuJhSz9wjfkdc/vo7+/3lvTNicx7+D4Zfqo67RQEZGJk6GqIlb8vwzqbMyRYqwkyjC+NeZd+bDuOxH/lSDDOYu0sSfCOS3KpZe6JP51RE8i/IJA1Enb7DjEWZCeWARYXW73x9kY8et7M9XhV7TbmEStfhLywukHEbXq/H2RyYc4nhhAnR6JyDMAd0bqbVVPTAZYeru/vdOfoQ5Z7609Lu+rRBpyx04irGb3Afyse4+l2+3eK2/mRRQ9icYY/8OS101ip9PJC2SIiUOcAJjEAJjEAJjEAJjEAJjEm5REVy7q1ThPnWli3FHBKjo5Ocn8+ujIgsJ1x2k5wVET44ZOovqJR7l5UvHJGjvciXrlYa2xqvq1v93/XnNnVqy4c+uJzteVrbpXeVF8FJGj6rnx2ax/7PxmyyLXLxbF84bGPWcuc840Tddd4vxGygs5uOP+dn9n5D1ok+OGJlP07vEtwU2Me1bhPJgJyrgFiktERERERERERERERESYzl+UqFYkjLDkMwAAAABJRU5ErkJggg=="><span>训练</span></div><div class="tb"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFEAAABRCAYAAACqj0o2AAAEBklEQVR4nO2bQW8bRRTH35udWZs0ISRuD0Wo4cCNLxFOSIVLVMVSi2gbFYkTjTggcbP3I3AjrZAiqgjYnHrjguobEodKlTggWjjk0ByaxrFS23F2dx6asU3Bsa2q2ZXHm/eTxrue2fV4//7P7MzsMwDDMAzDMAzDMAzDMAzDMAzDMGcMhPyBRDSYBYgwmMkMg6gihhYAQBiGHmREnpyIRsfV1VXv9u0bb+7s7NjMS/Pz8PCvvdb6+nqHCDALR4785abQgfTj1p0Pr1396Pfdp7uPPfSemLT7ovV46Z35P8IfNj41AlYqo916lp2Ipg/c3t5WOqn/OTc7u9RstkCIrlamrFDwod1uH6EnL5XLt54RESJiao6ceidSt40SQGMWCN9qtdraEMcxmWT2TR4AFqXU58051Wo1VfNMvYh9oigiAEoQ0VwT9unt2+YO4CeQAbkR0dATbRQYx1Em3VeuRJwULGIKsIgpwCKmgARHIaITN4E0x3Z5dyKaGYgRbDCZ2cYwcSeNi04kxIDCcGN+ZmZWNBoNm/n2zEX6YGXlIAgCcA3p2vRtc3OzcK4YfSuFutw8bApPeAIB9fN4H8Kf7v4qlX9zZeX6vkvN25nm/OBBxTOiFIvRJ4ulhRtxHF/wPK8kPblgtkmclEqLCx8fH3W+NMfVatXMlramVkSAZfsqgN7tdI4TrXXUn/+aRARRu91OBNGSPbAGzuBSc7ZoDREAGJfZpZaXd2uz4oQeoS13Coec+ErzX6skOIZzIk4jLGIKsIgpwCKmAIuYAiziFIwT8SxEI4isnwXjidUYoCyjEfLkREQM9KhohHK5nFk0Qi6cSBOORsiDExGgSmH4vq+T+oav1FJ0HIGU3WpM/yg8USKAO2H43c9ZRCNMApG3aIRJIPIWjTAJRN6iESZBLjr2ScMipgCLmAIsYgqwiE7fnWHslI6kVEPL6eSKxf/Lx3zu69bppIhKKdREJuSj/6XN1u738hDgeOgiBCJKRDBjzP45Npn3RKARUKZdp1MiYndoiM2mbCFCp1Dw+2NBO9A21+L7ymyJSB+Ygmq1OuiOZ0r5HhHZgXo/aa1FsVgQGmHvP4+p06rTKSdSGIZibW3tCAG+0lrve0Lo7gUQCUQthHgBAF9fufL5LlW6gUvmxOXl5cTMowtvqHv1+sEvyreG0z03aaUkNhqNh3EivjHH1Wq27FR1pkUmswbqLXNtbW2cX1ycKR3uHdr8ubk5qO8dHF777Iun/T/vDPk+Nu/+/e/f63ReNr9zUtFvj/5+EgSBHnbuKep0l8qYZa5xZd1Ih9GMC6173TpPS6bzVyLCwVUa0x+9SnMadtFBEPx7s8iiToZhGIZhGIZhGIZhGIZhGMiYfwCptUal+7dpvwAAAABJRU5ErkJggg=="><span>数据</span></div><div class="tb"><img src="data:image/png;base64,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"><span>我的</span></div></div>
+
+        </div>
+      </div>
+      <div class="cap">
+        <div class="n">02 / 首页</div>
+        <div class="t">今天练什么</div>
+        <div class="d">本周进度、今天该练哪个训练日、一张卡片就能开始。不绑星期几，跳过自动顺延。</div>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="phone">
+        <div class="screen" style="background:#F2F0E6">
+          <div class="statusbar" style="color:#1F231C">9:41
+            <div class="capsule" style="color:#333"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="font-size:14px">⊙</span></div>
+          </div>
+          
+<div class="rnav">
+  <span class="back">‹</span>
+  <div class="tt">推日<span class="en">第 01 / 04 个动作</span></div>
+  <span class="swap">换一个</span>
+</div>
+
+<div class="rwrap">
+  <div class="exh">
+    <div class="nm">卧推</div>
+    <div class="en">BENCH PRESS</div>
+  </div>
+
+  <div class="barbell">
+    <div class="side left"><div class="plate on"></div><div class="plate on pr"></div><div class="plate"></div><div class="plate"></div></div>
+    <div class="bar"></div>
+    <div class="side right"><div class="plate on"></div><div class="plate on pr"></div><div class="plate"></div><div class="plate"></div></div>
+  </div>
+
+  <div class="bignum"><span class="n">52.5</span><span class="u">kg</span></div>
+
+  <div class="sdots">
+    <span class="sdot on"></span><span class="sdot on pr"></span><span class="sdot"></span><span class="sdot"></span>
+  </div>
+
+  <div class="hint">第 3 组 · 还有 2 组</div>
+  <div class="sug">上次 50 kg 全部完成，今天加 2.5 kg</div>
+
+  <div class="facts">
+    <div class="f"><span class="k">这次目标</span><span class="v">4 组 × 10 次</span></div>
+    <div class="f"><span class="k">本次容量</span><span class="v">2.1 吨</span></div>
+    <div class="f"><span class="k">上次记录</span><span class="v">50 kg × 10 × 4</span></div>
+  </div>
+
+  <div class="sets">
+    <div class="sh"><span>组记录</span><span class="n2">点数字可改 · 打勾算完成</span></div>
+    <div class="srow done"><span class="i">1</span><span class="w">52.5</span><span class="u">kg</span><span class="x">&nbsp;×&nbsp;</span><span class="r">10</span><span class="ck">✓</span></div>
+    <div class="srow done"><span class="i">2</span><span class="w">52.5</span><span class="u">kg</span><span class="x">&nbsp;×&nbsp;</span><span class="r">10</span><span class="tag">PR</span><span class="ck">✓</span></div>
+    <div class="srow"><span class="i">3</span><span class="w">52.5</span><span class="u">kg</span><span class="x">&nbsp;×&nbsp;</span><span class="r">10</span><span class="ck"></span></div>
+    <div class="srow"><span class="i">4</span><span class="w">52.5</span><span class="u">kg</span><span class="x">&nbsp;×&nbsp;</span><span class="r">10</span><span class="ck"></span></div>
+    <div class="addset">＋ 加一组</div>
+  </div>
+</div>
+
+<div class="footbar"><div class="fbtn">完成这组</div></div>
+
+        </div>
+      </div>
+      <div class="cap">
+        <div class="n">03 / 记录</div>
+        <div class="t">边练边记</div>
+        <div class="d">杠铃片点亮＝完成一组，超大数字是当下重量，重量会按上次表现自动加。</div>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="phone">
+        <div class="screen" style="background:#F2F0E6">
+          <div class="statusbar" style="color:#1F231C">9:41
+            <div class="capsule" style="color:#333"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="font-size:14px">⊙</span></div>
+          </div>
+          
+<div class="breathwrap">
+  <div class="rtitle">组间休息 · 让呼吸慢下来</div>
+  <div class="breath">
+    <div class="ring"></div>
+    <div class="glow"></div>
+    <div class="core"><span class="tm">01:12</span><span class="ph">呼气</span></div>
+  </div>
+  <div class="rsub">跟着圆圈：放大吸气，缩小呼气</div>
+  <div class="rsk">跳过休息</div>
+</div>
+
+        </div>
+      </div>
+      <div class="cap">
+        <div class="n">04 / 组间</div>
+        <div class="t">呼吸环</div>
+        <div class="d">组间 90 秒不用盯着数字干等，圆环按 4 秒吸、5 秒呼的节奏带呼吸。</div>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="phone">
+        <div class="screen" style="background:#2A3226">
+          <div class="statusbar" style="color:#F2F0E6">9:41
+            <div class="capsule" style="color:#333"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="font-size:14px">⊙</span></div>
+          </div>
+          
+<div class="dark">
+  <div class="kick" style="padding-top:16px">2026.10.29 · 周三</div>
+  <div class="h1en">Session Report</div>
+  <div class="h1">今天练完了。</div>
+  <div class="plan">推日</div>
+
+  <div class="dnums">
+    <div class="st"><div class="v">12</div><div class="k">组</div></div>
+    <div class="st"><div class="v">2.4</div><div class="k">吨</div></div>
+    <div class="st"><div class="v">4</div><div class="k">个动作</div></div>
+  </div>
+
+  <div class="prbox">
+    <div class="prhead"><span class="d"></span><span class="t">今天破了 1 个纪录</span></div>
+    <div class="prrow"><span class="cn">卧推</span><span class="w">52.5kg</span><span class="dl">+2.5</span></div>
+  </div>
+
+  <div class="sech">今天练了</div>
+  <div style="margin-top:10px">
+    <div class="prow"><span class="nm">胸</span><div class="bw"><div class="bf" style="width:42%"></div></div><span class="pc">42%</span></div>
+    <div class="prow"><span class="nm">肩</span><div class="bw"><div class="bf" style="width:33%"></div></div><span class="pc">33%</span></div>
+    <div class="prow"><span class="nm">手臂</span><div class="bw"><div class="bf" style="width:25%"></div></div><span class="pc">25%</span></div>
+  </div>
+
+  <div class="comment">计划全部完成。好好吃一顿，好好睡。</div>
+
+  <div class="dbtn">完成</div>
+</div>
+
+        </div>
+      </div>
+      <div class="cap">
+        <div class="n">05 / 战报</div>
+        <div class="t">练完的收尾</div>
+        <div class="d">深色页，和其它页面刻意区分——这是「结束了」的信号。组数、吨数、破纪录。</div>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="phone">
+        <div class="screen" style="background:#F2F0E6">
+          <div class="statusbar" style="color:#1F231C">9:41
+            <div class="capsule" style="color:#333"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="font-size:14px">⊙</span></div>
+          </div>
+          
+<div class="pg">
+  <div class="brandrow"><span class="brand">练界</span><span class="date">10 月</span></div>
+  <div class="h1en">Your Record</div>
+  <div class="h1">你练了 12 天。</div>
+
+  <div class="nums">
+    <div class="st"><div class="v">12</div><div class="k">本月天数</div></div>
+    <div class="st"><div class="v">2/3</div><div class="k">本周</div></div>
+    <div class="st"><div class="v">27.6</div><div class="k">累计吨数</div></div>
+  </div>
+
+  <div class="cal">
+    <div class="grid2">
+      <div class="wd">一</div><div class="wd">二</div><div class="wd">三</div><div class="wd">四</div><div class="wd">五</div><div class="wd">六</div><div class="wd">日</div>
+      <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"><div class="cd">1</div></div><div class="cell on"><div class="cd">2</div></div><div class="cell"><div class="cd">3</div></div><div class="cell"><div class="cd">4</div></div><div class="cell on"><div class="cd">5</div></div><div class="cell"><div class="cd">6</div></div><div class="cell on"><div class="cd">7</div></div><div class="cell"><div class="cd">8</div></div><div class="cell on"><div class="cd">9</div></div><div class="cell"><div class="cd">10</div></div><div class="cell"><div class="cd">11</div></div><div class="cell on"><div class="cd">12</div></div><div class="cell"><div class="cd">13</div></div><div class="cell on"><div class="cd">14</div></div><div class="cell"><div class="cd">15</div></div><div class="cell on"><div class="cd">16</div></div><div class="cell"><div class="cd">17</div></div><div class="cell"><div class="cd">18</div></div><div class="cell on"><div class="cd">19</div></div><div class="cell"><div class="cd">20</div></div><div class="cell on"><div class="cd">21</div></div><div class="cell"><div class="cd">22</div></div><div class="cell on"><div class="cd">23</div></div><div class="cell"><div class="cd">24</div></div><div class="cell"><div class="cd">25</div></div><div class="cell on"><div class="cd">26</div></div><div class="cell"><div class="cd">27</div></div><div class="cell on today"><div class="cd">28</div></div><div class="cell"><div class="cd">29</div></div><div class="cell"><div class="cd">30</div></div><div class="cell"><div class="cd">31</div></div>
+    </div>
+  </div>
+
+  <div class="sech">练了什么部位</div>
+  <div style="margin-top:10px">
+    <div class="prow"><span class="nm">腿</span><div class="bw"><div class="bf" style="width:44%"></div></div><span class="pc">44%</span></div>
+    <div class="prow"><span class="nm">背</span><div class="bw"><div class="bf" style="width:18%"></div></div><span class="pc">18%</span></div>
+    <div class="prow"><span class="nm">核心</span><div class="bw"><div class="bf" style="width:17%"></div></div><span class="pc">17%</span></div>
+    <div class="prow"><span class="nm">胸</span><div class="bw"><div class="bf" style="width:16%"></div></div><span class="pc">16%</span></div>
+    <div class="prow"><span class="nm">肩</span><div class="bw"><div class="bf" style="width:5%"></div></div><span class="pc">5%</span></div>
+  </div>
+</div>
+<div class="tabbar"><div class="tb"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFEAAABRCAYAAACqj0o2AAADeklEQVR4nO3aT0sbQRQA8PdmZmP8GyN6UWiPpd9CT/0CNZRqBfFQPBehh9IleO610D9ge1BkoSehh172E3jpB7C0UGlJ0dg0W2My88popLZqiMksyZr3g1zMOm/37czum8kAMMYYY4wxxhhjjDHGGGOMMdYBGEejRLZdahwYka5LXNcwCALZzIH2OCLChMc9CQ4xWFtbS09MpPoPDg7OfZfJZMDb00d3FhbK1yWus57g+z5OT4MofJ9aVUrdr9X0oDEGrdODyHYBIUhJWSGgreIBrSwtLf1qY5h1Ku4/FDgQBIHI5XL69q1Xq+Pjo4+LxZ8gBIIQFzVPYIyBbDbzUNf2hhBxvj4UdVLixtET0Z5hEDzrJz30yfPU+NFRzf5dXPoPiPahRIYIhDI3c7nlr77vi3w+bxIQ95xLAzaL6HQ0jPQDYMoYsHdXYAP2eghAIqLUWo0kKW4sSTxVrVaP7zJckZRokhg3liRaFNPbvlvjxpLEXsVJdICT6AAn0QFOogNOZiztQRmGoSoUCiIMw6bLju3tbQzDkHZ2PqqhAdXrSRR7MzMzx1ONFhU2N15STyYREe2so2ZMdTnYfG2INBI1vxhgZ3BSSqpWdcXWzi3U24lPItanbWow3f9UStFSCmyFbdIE5XIEWht7Y7Anh3M5iuwqSsvdqJ63jl5Hx5OIiE2tSHczLnGuQ08kIn2yQtWa+lOwt4fz4OCAXd9rq40o+n1mfbF3kkj2TWpLnHI5eiuFkFobFHi1FwwqBUbrCIAeCCGHtdbH7UKv9ESqlzhCpZ7M5ha/tdEUbm68uNeh6qY7hjOAGQt9/0cBQEwAND3tG56cxNLuLu3cGMt2qj7soiSSnsnna1f9wcj+CmqfCOvrz9uZMjrBJY4DnEQHOIkOcBId4CQ6wEnspiR6ntdSraY1iSTGPctZQ4eHxQoRGUQ4XVBo+EEAbbe8aY1REuM6TSIikt2itrCwYjdPvstkRuz6IDb62EJ5NDsqEeDD3NzSl1Z2ZnUqbmw9cXZ21tgTEir7aH+/uO6lVISIxt7xC7bNGM9TlVKp9F5pWExi3P/FMufcCt5M6ZQcOiqVAPpSf7+oAKT6AGoifXj37vznM+dASY7rfPe+7/tN9W47tFxtQO9U3FgWIPB4PTBPzVyQHXZJj8sYY4wxxhhjjDHGGGOMMcagZX8ApJYKX/9UpdYAAAAASUVORK5CYII="><span>训练</span></div><div class="tb on"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFEAAABRCAYAAACqj0o2AAADTUlEQVR4nO2az24TMRDG5/OGbQ/8K22lRIQkKj2gvARHJMQbIASvwAGJE88AN+Da5+DAiRsnDggioaQiVCpFKC1V0tQe5NRpVyENbeNtvNv5RU5W9jqz/jTr9XiHSBAEQRAEQRAEQRAEQRAEQRCECwbo4oyJz/k6Moua0BalZTRPngjnbVGlUrmabIjjeLfRaPQS53g3nBcPNOVa6R6IXzLTMhMPxgYCA9g2hl98b22sDc/1aTwPIsJ+1ev1S52drS8qiqrGmKORMREUyGjT1TEqG42NTd8eOWkOyRLc6XQuM9F1w1ZBMsTuQ2TYsAEwT31aSsN58iIiKaWYQNqNCSPF1rFSSqdim/IFJrZZmVMgbyLOBBHRAyKiB0REDxQoXJCV+DdEEeHKuKhisFQJTcwQRWRbVlYWru3vXzmcbgBws9n8TQFSCO32rVarc5q7r/e0uk/oKSZSILIRB5WrxQ+mr5602+1frk8QHhnSgyWyomjuPowKhccgXiZgEcCC/WWmxagQPUBBPx3u1lAghCPi3YMfZqoxs2am/mH8exAD99kM6qsUGCHdzgMA9IdeOfKEtseRaw+KcDzxCGRt+y5EETOHiOgBEdEDIqIHREQPiIgZWCfimPogwrUsiKgmvN+1i+lUXhrlSUQ4Ac89GyEvc6Ky4thshFu14ieDva8avYYt9ri3/+fzzUrxkRMwF3Oy70HAilOv12My5g2g7hCR3Ym5YYs9JlCNiN8WV4vLzluDC+NOi8pbNsIsUHnLRpgFKm/ZCLMgFxP7rBERPSAiekBE9ICIGLiIPLHNPp9P3+///3s2m+GJaIyxlztM+aCR1I/BWzxjzNj3xsxs43md6JMsxrV7tRmiiIiiaBeEHmzagqsbrhtdHcccD1NCDgb63p0I2gQQEf5ZqCsAikA/vdkMVES2/9lsNrtM9IyYbbqHSXoSEe0Q8/NWq/UjkaBEzvsQYX5Na/3OLcWHfQcxttb6o1F4NZLwNI1NL6QVNcBeaKlUWpqbw+Keq4ytUrq3vb6+1T5mK+ywrny7vGp04vYDcftbu5HYtGBPNoNGnbFtmpf3Z7U5FWnHrxhj46T5heMGfZK+09gUBEEQBEEQBEEQBEEQBEGgNPkLzF5ebYfEobEAAAAASUVORK5CYII="><span>数据</span></div><div class="tb"><img src="data:image/png;base64,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"><span>我的</span></div></div>
+
+        </div>
+      </div>
+      <div class="cap">
+        <div class="n">06 / 数据</div>
+        <div class="t">长期记录</div>
+        <div class="d">月历热力图、部位分布、最常练的动作。数据全部存在本机，不上传。</div>
+      </div>
+    </div>
+    <div class="slot">
+      <div class="phone">
+        <div class="screen" style="background:#F2F0E6">
+          <div class="statusbar" style="color:#1F231C">9:41
+            <div class="capsule" style="color:#333"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="font-size:14px">⊙</span></div>
+          </div>
+          
+<div class="pg">
+  <div class="brandrow"><span class="brand">练界</span><span class="date">SETTINGS</span></div>
+  <div class="h1en">Your Plan</div>
+  <div class="h1">把训练，调成你的。</div>
+
+  <div class="pcard">
+    <div class="cl">当前计划</div>
+    <div class="cn2">一周 3 练 · 健身房</div>
+    <div class="keys">
+      <span class="pk"><b>A</b><span>推日</span></span>
+      <span class="pk"><b>B</b><span>拉日</span></span>
+      <span class="pk"><b>C</b><span>腿日</span></span>
+    </div>
+  </div>
+
+  <div class="sech">一周练几次</div>
+  <div class="chips"><div class="chip">2 天</div><div class="chip on">3 天</div><div class="chip">4 天</div></div>
+
+  <div class="sech">在哪练</div>
+  <div class="chips"><div class="chip on">健身房</div><div class="chip">家里</div></div>
+
+  <div class="sech">水平</div>
+  <div class="chips"><div class="chip">刚开始</div><div class="chip on">练过一阵</div><div class="chip">一直在练</div></div>
+
+  <div class="sech">数据</div>
+  <div class="rows">
+    <div class="row2"><span class="rt">填入示例数据</span><span class="rn">用来看图表效果</span></div>
+    <div class="row2"><span class="rt">清空训练记录</span><span class="rn">保留计划设置</span></div>
+    <div class="row2"><span class="rt danger">重新引导</span><span class="rn">全部重来</span></div>
+  </div>
+
+  <div class="about">练界 v0.1 · 数据只存在这台手机里，不上传</div>
+</div>
+<div class="tabbar"><div class="tb"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFEAAABRCAYAAACqj0o2AAADeklEQVR4nO3aT0sbQRQA8PdmZmP8GyN6UWiPpd9CT/0CNZRqBfFQPBehh9IleO610D9ge1BkoSehh172E3jpB7C0UGlJ0dg0W2My88popLZqiMksyZr3g1zMOm/37czum8kAMMYYY4wxxhhjjDHGGGOMMdYBGEejRLZdahwYka5LXNcwCALZzIH2OCLChMc9CQ4xWFtbS09MpPoPDg7OfZfJZMDb00d3FhbK1yWus57g+z5OT4MofJ9aVUrdr9X0oDEGrdODyHYBIUhJWSGgreIBrSwtLf1qY5h1Ku4/FDgQBIHI5XL69q1Xq+Pjo4+LxZ8gBIIQFzVPYIyBbDbzUNf2hhBxvj4UdVLixtET0Z5hEDzrJz30yfPU+NFRzf5dXPoPiPahRIYIhDI3c7nlr77vi3w+bxIQ95xLAzaL6HQ0jPQDYMoYsHdXYAP2eghAIqLUWo0kKW4sSTxVrVaP7zJckZRokhg3liRaFNPbvlvjxpLEXsVJdICT6AAn0QFOogNOZiztQRmGoSoUCiIMw6bLju3tbQzDkHZ2PqqhAdXrSRR7MzMzx1ONFhU2N15STyYREe2so2ZMdTnYfG2INBI1vxhgZ3BSSqpWdcXWzi3U24lPItanbWow3f9UStFSCmyFbdIE5XIEWht7Y7Anh3M5iuwqSsvdqJ63jl5Hx5OIiE2tSHczLnGuQ08kIn2yQtWa+lOwt4fz4OCAXd9rq40o+n1mfbF3kkj2TWpLnHI5eiuFkFobFHi1FwwqBUbrCIAeCCGHtdbH7UKv9ESqlzhCpZ7M5ha/tdEUbm68uNeh6qY7hjOAGQt9/0cBQEwAND3tG56cxNLuLu3cGMt2qj7soiSSnsnna1f9wcj+CmqfCOvrz9uZMjrBJY4DnEQHOIkOcBId4CQ6wEnspiR6ntdSraY1iSTGPctZQ4eHxQoRGUQ4XVBo+EEAbbe8aY1REuM6TSIikt2itrCwYjdPvstkRuz6IDb62EJ5NDsqEeDD3NzSl1Z2ZnUqbmw9cXZ21tgTEir7aH+/uO6lVISIxt7xC7bNGM9TlVKp9F5pWExi3P/FMufcCt5M6ZQcOiqVAPpSf7+oAKT6AGoifXj37vznM+dASY7rfPe+7/tN9W47tFxtQO9U3FgWIPB4PTBPzVyQHXZJj8sYY4wxxhhjjDHGGGOMMcagZX8ApJYKX/9UpdYAAAAASUVORK5CYII="><span>训练</span></div><div class="tb"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFEAAABRCAYAAACqj0o2AAAEBklEQVR4nO2bQW8bRRTH35udWZs0ISRuD0Wo4cCNLxFOSIVLVMVSi2gbFYkTjTggcbP3I3AjrZAiqgjYnHrjguobEodKlTggWjjk0ByaxrFS23F2dx6asU3Bsa2q2ZXHm/eTxrue2fV4//7P7MzsMwDDMAzDMAzDMAzDMAzDMAzDMGcMhPyBRDSYBYgwmMkMg6gihhYAQBiGHmREnpyIRsfV1VXv9u0bb+7s7NjMS/Pz8PCvvdb6+nqHCDALR4785abQgfTj1p0Pr1396Pfdp7uPPfSemLT7ovV46Z35P8IfNj41AlYqo916lp2Ipg/c3t5WOqn/OTc7u9RstkCIrlamrFDwod1uH6EnL5XLt54RESJiao6ceidSt40SQGMWCN9qtdraEMcxmWT2TR4AFqXU58051Wo1VfNMvYh9oigiAEoQ0VwT9unt2+YO4CeQAbkR0dATbRQYx1Em3VeuRJwULGIKsIgpwCKmgARHIaITN4E0x3Z5dyKaGYgRbDCZ2cYwcSeNi04kxIDCcGN+ZmZWNBoNm/n2zEX6YGXlIAgCcA3p2vRtc3OzcK4YfSuFutw8bApPeAIB9fN4H8Kf7v4qlX9zZeX6vkvN25nm/OBBxTOiFIvRJ4ulhRtxHF/wPK8kPblgtkmclEqLCx8fH3W+NMfVatXMlramVkSAZfsqgN7tdI4TrXXUn/+aRARRu91OBNGSPbAGzuBSc7ZoDREAGJfZpZaXd2uz4oQeoS13Coec+ErzX6skOIZzIk4jLGIKsIgpwCKmAIuYAiziFIwT8SxEI4isnwXjidUYoCyjEfLkREQM9KhohHK5nFk0Qi6cSBOORsiDExGgSmH4vq+T+oav1FJ0HIGU3WpM/yg8USKAO2H43c9ZRCNMApG3aIRJIPIWjTAJRN6iESZBLjr2ScMipgCLmAIsYgqwiE7fnWHslI6kVEPL6eSKxf/Lx3zu69bppIhKKdREJuSj/6XN1u738hDgeOgiBCJKRDBjzP45Npn3RKARUKZdp1MiYndoiM2mbCFCp1Dw+2NBO9A21+L7ymyJSB+Ygmq1OuiOZ0r5HhHZgXo/aa1FsVgQGmHvP4+p06rTKSdSGIZibW3tCAG+0lrve0Lo7gUQCUQthHgBAF9fufL5LlW6gUvmxOXl5cTMowtvqHv1+sEvyreG0z03aaUkNhqNh3EivjHH1Wq27FR1pkUmswbqLXNtbW2cX1ycKR3uHdr8ubk5qO8dHF777Iun/T/vDPk+Nu/+/e/f63ReNr9zUtFvj/5+EgSBHnbuKep0l8qYZa5xZd1Ih9GMC6173TpPS6bzVyLCwVUa0x+9SnMadtFBEPx7s8iiToZhGIZhGIZhGIZhGIZhGMiYfwCptUal+7dpvwAAAABJRU5ErkJggg=="><span>数据</span></div><div class="tb on"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFEAAABRCAYAAACqj0o2AAAFiElEQVR4nO2aX4hUVRzHv7/fubPGirvqmruuM3dLtz+Y0IM9CanYS08FkWCGED30EL4kPfQQ+GCvUVEIQRRRUEFGT75GVBARCIlEIubMzjirhpm2ujsz9/zid+fc5ba47Kp79951zgf2zt47c++c853f7/x+53cO4PF4PB6Px+PxeDwej8fj8Xg8i4OwctonObZjxUEADACec13PgyL+8EVrEAOwycn4+PiqVqvVb62drtfrN+f7XN4USUR2wlA53HQAJPtB2C6CAQKmAJwh4GuJgk+doGqtEQoAFUnASuX+reDgY2LapUOgCCAiICKQtpQIEtlTsHh5YmLy16JYZBFEZBUiDIcftEQ/MfMma23HtS3506AiEFgyVIJgSsjurf958ZciCDl38M7nR9yNwBI+jwWMbNsFkCS4kHs1IJTESgeE1WLpiy1b1g06gamXRTRqReXzG/cxm52xBRJKC9wTSCRtw7xlJup71Ymoz+lZEaV7pIMCiYPKou4iGNHBUugFd0+UpzXmKSJp57dt29YH4DHIrOsu6l5VkEi2hmE4kncinrcl4urVq2sEGNSocVvW1P14fwutde5KT1piTKlUmgLhX9wBIjJj+sw15EyeIop+f7VanSahM+qbt5GqxL5MQLVxttFMpUE9aYmsBxF85dLpxQmh+aJm4KBvXFAxvSxipFZkO/SZjaLfiUnzw85C9xCTsTa6bCh6LxWd0asiiorQbDZvWDIvQuSGCimCtnNtSf1ZvU5EanUkoJeq1cuTrg+9HZ3RFctcqF44acU+JVb+MAGXiChJebqzZiLW6wJpRpF9plGdPFGUIkQR5s4JsSDr168fWL1m1SEheR6ChwD0AzIN4iog37LtvF+r/dUsioBFExFziwlhuGETc99AO6CpxtnGhdR7hRGwqJArQNwKX9m+A5IxEakAUziK5s4Lta2QIhZvgWp37LLzZQ3JYlWc5qAgFKEhPE/CzGNjgwMig3Eba7XatVt8Jpmp2F4VkZyAsTBhOLgOuG9nRLSLgB0AKoAMyWwyTVcI0gTopAh+CCj60SXbSFmu7SURTSJeuTy8HYYPgeRZJhrRJsVlsXj0cwWyuKE6VXavOnkW+VuAExD7QaN66ee5z73XRQx0fjw6OloxJXtEgIPM3BcXqkWs6uOUSkdmpBarxL1vmDleDRTBcbL2yMTExdPJksNyBiHKw303hyP7mHCMmDdYa7W7urZyu8EiGQuZmUnE3hTB6/Xq5LHUfFruJRFpVsCx4aPM/Gbssd2Vu7uPtN0fIVDLjKz9qFGdfOV/794jIgbqwpvD4bdNYA7bKF5X5iUugKhYHTZcijr2y0Zt8kBqGikrvYoTxAKODR91Arbn2bC0FAZR0uebgPeXw+FPUgXbFW2JpuvCI88ZpuNW3Xd5EuU2s1pk57XGxKV3s47aWXaG9VCpVEaE2qfBNBBvrlke60+CjgiZJxrnG7+lc9KlJssOkXbEUvstNrwWmr4sXxE4Ng6tkpON3sk6UmdliawCjj4w+giLPZVy4eXOSyNdTrBi9zaqF7/Lyq2zsgyKH26jwzo2JfsOM/quhVqi6fkb7iwTa8yiY6SNHR8fH5huXz8HoiE3e8tDxES0Dot9tFa7dC6LrXhZWCLr4Wbr+pNErALmZ4WuOqTeYImfTrev2CLudoIR9sS7Groi5o9gz+x/hRfx+65oJLRDd265YkGesBYpAHk8leYsaZvmWxC6q7QG8auMiFBnuSsqt0C3MmplaKhcLq+t1+tXlvoLllrEmDAM11qaeZiZjBpjMZChNqKNAK4s9QaoTEScmZlpBavwYWRtf0FGxO7EGn3/uFO/4FU0svS1AMVDg4q3Qo/H4/F4PB6Px+PxeDwej8fj8Xg8HuTPf+QQFqJ+A/3lAAAAAElFTkSuQmCC"><span>我的</span></div></div>
+
+        </div>
+      </div>
+      <div class="cap">
+        <div class="n">07 / 我的</div>
+        <div class="t">改计划</div>
+        <div class="d">频率、场所、水平随时改，改完立刻重新生成计划，历史记录不丢。</div>
+      </div>
+    </div></div>
+
+</body>
+</html>
