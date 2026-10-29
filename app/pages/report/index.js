@@ -44,5 +44,15 @@ Page({
 
   done() {
     wx.switchTab({ url: '/pages/today/index' });
+  },
+
+  onShareAppMessage() {
+    const r = this.data.r;
+    return {
+      title: r.sets
+        ? '今天练了 ' + r.sets + ' 组 · ' + r.ton + ' 吨'
+        : '练界 · 把每一次训练留在身体上',
+      path: '/pages/welcome/index'
+    };
   }
 });

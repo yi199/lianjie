@@ -8,6 +8,7 @@
       <text class="kicker">{{weekday}} · {{dateText}}</text>
     </view>
     <view class="h1">{{h1}}</view>
+    <view class="h1en">Today's Session</view>
   </view>
 
   <!-- 本周进度：练了就算一次，不绑星期几 -->
@@ -20,7 +21,7 @@
 
   <block wx:if="{{plan}}">
 
-    <!-- 今天练什么：一张大卡 -->
+    <!-- 今天练什么：一张大卡，主按钮就在卡里，首屏看完就能开始 -->
     <view class="card sec">
       <view class="cardtop">
         <text class="ckey">{{plan.key}}</text>
@@ -29,6 +30,9 @@
       <view class="cname">{{plan.name}}</view>
       <view class="cmeta">{{items.length}} 个动作 · 约 {{minutes}} 分钟</view>
       <view class="cmeta dim">{{lastText}}</view>
+      <view class="cbtn" hover-class="cbtn-hover" bindtap="mainAction">
+        {{allDone ? '看今日战报 →' : (resumed ? '继续训练 →' : '开始训练 →')}}
+      </view>
     </view>
 
     <!-- 动作清单：点某个动作直接跳过去 -->
@@ -62,14 +66,8 @@
     <view class="emptycard sec">
       <view class="etitle">还没有训练计划</view>
       <view class="etext">回到引导页重新选一次，30 秒就好。</view>
+      <view class="ebtn" hover-class="ebtn-hover" bindtap="gotoMy">去设置 →</view>
     </view>
   </block>
 
-</view>
-
-<view class="footbar">
-  <view wx:if="{{plan}}" class="btn" hover-class="btn-hover" bindtap="mainAction">
-    {{allDone ? '看今日战报 →' : (resumed ? '继续训练 →' : '开始训练 →')}}
-  </view>
-  <view wx:else class="btn btn-ghost" hover-class="btn-hover" bindtap="gotoStats">去看数据</view>
 </view>

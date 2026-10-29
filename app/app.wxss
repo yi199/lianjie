@@ -71,6 +71,16 @@ view, text, scroll-view { box-sizing: border-box; }
   font-weight: 400;
 }
 
+/* 中文大标题下面那行英文：整页的双层标题结构 */
+.h1en {
+  margin-top: var(--sp1);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: var(--fs-label);
+  letter-spacing: .3em;
+  color: var(--muted2);
+  text-transform: uppercase;
+}
+
 .h2 {
   font-size: var(--fs-h2);
   line-height: 1.3;

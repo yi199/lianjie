@@ -70,5 +70,17 @@ Page({
 
   gotoToday() {
     wx.switchTab({ url: '/pages/today/index' });
+  },
+
+  onPullDownRefresh() {
+    this.refresh();
+    wx.stopPullDownRefresh();
+  },
+
+  onShareAppMessage() {
+    return {
+      title: '练界 · 把每一次训练留在身体上',
+      path: '/pages/welcome/index'
+    };
   }
 });

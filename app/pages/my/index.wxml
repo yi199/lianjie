@@ -7,7 +7,8 @@
       <text class="brand">练界</text>
       <text class="kicker">Settings</text>
     </view>
-    <view class="h1">我的训练。</view>
+    <view class="h1">把训练，调成你的。</view>
+    <view class="h1en">Your Plan</view>
   </view>
 
   <!-- 当前计划 -->

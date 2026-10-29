@@ -18,20 +18,26 @@
   "tabBar": {
     "color": "#A9A79A",
     "selectedColor": "#1C1F18",
-    "backgroundColor": "#F2F0E6",
+    "backgroundColor": "#FAF9F3",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/today/index",
-        "text": "训练"
+        "text": "训练",
+        "iconPath": "images/tabbar/tab-train.png",
+        "selectedIconPath": "images/tabbar/tab-train-on.png"
       },
       {
         "pagePath": "pages/stats/index",
-        "text": "数据"
+        "text": "数据",
+        "iconPath": "images/tabbar/tab-data.png",
+        "selectedIconPath": "images/tabbar/tab-data-on.png"
       },
       {
         "pagePath": "pages/my/index",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "images/tabbar/tab-my.png",
+        "selectedIconPath": "images/tabbar/tab-my-on.png"
       }
     ]
   },

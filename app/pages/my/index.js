@@ -91,5 +91,10 @@ Page({
         wx.reLaunch({ url: '/pages/welcome/index' });
       }
     });
+  },
+
+  onPullDownRefresh() {
+    this.refresh();
+    wx.stopPullDownRefresh();
   }
 });

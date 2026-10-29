@@ -161,3 +161,38 @@
   line-height: 1.7;
   color: var(--muted);
 }
+
+/* 卡里的主行动：首屏就能点到，不用滚到底部找按钮 */
+.cbtn {
+  margin-top: var(--sp3);
+  height: 96rpx;
+  border-radius: 48rpx;
+  background: var(--green);
+  color: #F6F4EA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-body);
+  letter-spacing: .08em;
+}
+
+.cbtn-hover {
+  opacity: .9;
+  transform: scale(.99);
+}
+
+.ebtn {
+  margin-top: var(--sp3);
+  height: 92rpx;
+  border-radius: 46rpx;
+  border: 1rpx solid var(--green);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-body);
+}
+
+.ebtn-hover {
+  background: var(--soft);
+}
