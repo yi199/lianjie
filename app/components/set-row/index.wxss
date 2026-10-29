@@ -23,7 +23,7 @@
 
 .num {
   font-family: Georgia, serif;
-  font-size: 34rpx;
+  font-size: 30rpx;
   color: var(--ink, #1F231C);
   background: transparent;
   border: none;
@@ -42,11 +42,11 @@
 
 .ph {
   color: #C6C3B4;
-  font-size: 28rpx;
+  font-size: 30rpx;
 }
 
 .unit {
-  font-size: 21rpx;
+  font-size: 19rpx;
   color: var(--muted2, #A9A79A);
   margin-left: 4rpx;
   flex-shrink: 0;
@@ -54,7 +54,7 @@
 
 .x {
   color: var(--muted2, #A9A79A);
-  font-size: 22rpx;
+  font-size: 24rpx;
   flex-shrink: 0;
 }
 

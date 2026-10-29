@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 44rpx;
+  font-size: var(--fs-h1);
   color: #43473D;
   line-height: 1;
   margin-left: -12rpx;
@@ -18,13 +18,13 @@
 .back-hover { opacity: .5; }
 .nav .tt {
   flex: 1;
-  font-size: 26rpx;
+  font-size: var(--fs-note);
 }
 .nav .en {
   display: block;
   font-family: Georgia, serif;
   font-style: italic;
-  font-size: 18rpx;
+  font-size: var(--fs-label);
   color: var(--muted2);
   margin-top: 4rpx;
 }
@@ -34,7 +34,7 @@
   padding: 10rpx 22rpx;
   border: 1rpx solid var(--line, #DFDCCE);
   border-radius: 30rpx;
-  font-size: 21rpx;
+  font-size: var(--fs-label);
   color: var(--muted, #8B897C);
 }
 .swap-hover { background: #EFF2E7; }
@@ -49,7 +49,7 @@
   padding-top: 24rpx;
 }
 .exhead .nm {
-  font-size: 46rpx;
+  font-size: var(--fs-h1);
   letter-spacing: .02em;
   line-height: 1.2;
 }
@@ -57,13 +57,13 @@
   margin-top: 6rpx;
   font-family: Georgia, serif;
   font-style: italic;
-  font-size: 20rpx;
+  font-size: var(--fs-label);
   letter-spacing: 1rpx;
   color: var(--muted2);
 }
 .swapped {
   margin-top: 12rpx;
-  font-size: 20rpx;
+  font-size: var(--fs-label);
   color: var(--clay);
 }
 
@@ -123,7 +123,7 @@
   letter-spacing: -.02em;
 }
 .bignum .u {
-  font-size: 24rpx;
+  font-size: var(--fs-note);
   color: var(--muted2);
   margin-left: 12rpx;
 }
@@ -150,13 +150,13 @@
 .hint {
   margin-top: 22rpx;
   text-align: center;
-  font-size: 21rpx;
+  font-size: var(--fs-label);
   color: var(--muted2);
 }
 .sug {
   margin-top: 8rpx;
   text-align: center;
-  font-size: 21rpx;
+  font-size: var(--fs-label);
   color: var(--clay);
 }
 
@@ -175,13 +175,13 @@
 }
 .facts .k {
   flex-shrink: 0;
-  font-size: 23rpx;
+  font-size: var(--fs-note);
   color: var(--muted);
   margin-right: 32rpx;
 }
 .facts .v {
   flex: 1;
-  font-size: 23rpx;
+  font-size: var(--fs-note);
   color: var(--ink);
   text-align: right;
 }
@@ -195,17 +195,17 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 22rpx;
+  font-size: var(--fs-note);
   color: var(--muted2);
   letter-spacing: .04em;
   padding-bottom: 6rpx;
 }
 .shnote {
-  font-size: 19rpx;
+  font-size: var(--fs-label);
 }
 .addset {
   padding: 26rpx 0 10rpx;
-  font-size: 23rpx;
+  font-size: var(--fs-note);
   color: var(--muted);
 }
 
@@ -227,7 +227,7 @@
 }
 
 .rtitle {
-  font-size: 22rpx;
+  font-size: var(--fs-note);
   color: var(--muted);
   letter-spacing: .08em;
   margin-bottom: 64rpx;
@@ -294,25 +294,25 @@
 }
 .core .tm {
   font-family: Georgia, serif;
-  font-size: 60rpx;
+  font-size: var(--fs-title);
   color: var(--green);
   line-height: 1;
 }
 .core .ph {
   margin-top: 10rpx;
-  font-size: 20rpx;
+  font-size: var(--fs-label);
   letter-spacing: 4rpx;
   color: var(--muted);
 }
 
 .rsub {
   margin-top: 72rpx;
-  font-size: 22rpx;
+  font-size: var(--fs-note);
   color: var(--muted);
 }
 .sk {
   margin-top: 28rpx;
-  font-size: 21rpx;
+  font-size: var(--fs-label);
   color: var(--muted2);
   text-decoration: underline;
 }

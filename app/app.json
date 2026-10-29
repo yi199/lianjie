@@ -4,7 +4,8 @@
     "pages/today/index",
     "pages/record/index",
     "pages/report/index",
-    "pages/stats/index"
+    "pages/stats/index",
+    "pages/my/index"
   ],
   "window": {
     "backgroundTextStyle": "dark",
@@ -16,7 +17,7 @@
   },
   "tabBar": {
     "color": "#A9A79A",
-    "selectedColor": "#1F231C",
+    "selectedColor": "#1C1F18",
     "backgroundColor": "#F2F0E6",
     "borderStyle": "white",
     "list": [
@@ -27,6 +28,10 @@
       {
         "pagePath": "pages/stats/index",
         "text": "数据"
+      },
+      {
+        "pagePath": "pages/my/index",
+        "text": "我的"
       }
     ]
   },

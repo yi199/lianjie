@@ -1,21 +1,37 @@
-<view class="sb" style="height:{{sbh + 36}}px"></view>
+<view class="sb" style="height:{{sbh + 12}}px"></view>
 
-<view class="wrap">
-  <view class="kicker">This Month</view>
+<view class="page">
+
+  <view class="phead">
+    <view class="brandrow">
+      <text class="brand">练界</text>
+      <text class="kicker">This Month · {{monthLabel}}</text>
+    </view>
+    <view class="h1" wx:if="{{!empty}}">你练了 {{days}} 天。</view>
+    <view class="h1" wx:else>还没有记录。</view>
+  </view>
 
   <block wx:if="{{!empty}}">
-    <view class="h1">你练了</view>
-    <view class="h1">{{days}} 天。</view>
 
-    <view class="stats">
-      <view class="st"><text class="v">{{days}}</text><text class="k">本月天数</text></view>
-      <view class="st"><text class="v">{{weekDone}}/{{weekPlanned}}</text><text class="k">本周</text></view>
-      <view class="st"><text class="v">{{ton}}</text><text class="k">累计吨数</text></view>
+    <!-- 三个数 -->
+    <view class="stats sec">
+      <view class="st">
+        <text class="v num">{{days}}</text>
+        <text class="k">本月天数</text>
+      </view>
+      <view class="st">
+        <text class="v num">{{weekDone}}/{{weekPlanned}}</text>
+        <text class="k">本周</text>
+      </view>
+      <view class="st">
+        <text class="v num">{{ton}}</text>
+        <text class="k">累计吨数</text>
+      </view>
     </view>
 
-    <!-- 日历 -->
-    <view class="cal">
-      <view class="ch"><text class="n">{{monthLabel}}</text><text class="r">深色 = 练过</text></view>
+    <!-- 日历热力图 -->
+    <view class="sec">
+      <view class="sec-h">这个月</view>
       <view class="grid">
         <view class="wd" wx:for="{{weekdays}}" wx:key="*this">{{item}}</view>
         <view class="cell blank" wx:for="{{blanks}}" wx:key="*this"></view>
@@ -23,41 +39,46 @@
           class="cell {{item.on ? 'on' : ''}} {{item.today ? 'today' : ''}}"
           wx:for="{{cells}}"
           wx:key="d"
-        >{{item.d}}</view>
+        >
+          <view class="cd">{{item.d}}</view>
+        </view>
+      </view>
+      <view class="legend">
+        <text class="lgdot"></text>
+        <text class="lgtext">深色 = 练过</text>
       </view>
     </view>
 
     <!-- 部位 -->
-    <view class="block" wx:if="{{parts.length}}">
-      <view class="bh">练了什么部位</view>
+    <view class="sec" wx:if="{{parts.length}}">
+      <view class="sec-h">练了什么部位</view>
       <view class="prow" wx:for="{{parts}}" wx:key="key">
-        <text class="nm">{{item.name}}</text>
-        <view class="bw"><view class="bf" style="width:{{item.pct}}%"></view></view>
-        <text class="pc">{{item.pct}}%</text>
+        <text class="pnm">{{item.name}}</text>
+        <view class="pbw"><view class="pbf" style="width:{{item.pct}}%"></view></view>
+        <text class="ppc num">{{item.pct}}%</text>
       </view>
     </view>
 
     <!-- 动作频次 -->
-    <view class="block" wx:if="{{top.length}}">
-      <view class="bh">练得最多的动作</view>
+    <view class="sec" wx:if="{{top.length}}">
+      <view class="sec-h">练得最多的动作</view>
       <view class="arow" wx:for="{{top}}" wx:key="cn">
-        <text class="n">{{index + 1}}</text>
-        <text class="nm">{{item.cn}}</text>
-        <text class="c">{{item.count}} 次</text>
+        <text class="an num">{{index + 1}}</text>
+        <text class="acn">{{item.cn}}</text>
+        <text class="act num">{{item.count}} 次</text>
       </view>
     </view>
+
   </block>
 
-  <!-- 空状态 -->
+  <!-- 空态 -->
   <block wx:else>
-    <view class="h1">还没有记录。</view>
-    <view class="emptycard">
-      <view class="et">练一次，这里就有东西了。</view>
-      <view class="ed">每次训练会自动记下：练了哪几天、练了哪些部位、哪些动作。</view>
+    <view class="emptycard sec">
+      <view class="etitle">练一次，这里就有东西了。</view>
+      <view class="etext">每次训练会自动记下：练了哪几天、哪些部位、哪些动作。</view>
       <view class="ebtn" bindtap="gotoToday">去训练 →</view>
       <view class="ebtn ghost" bindtap="loadDemo">先看看示例数据</view>
     </view>
   </block>
 
-  <view style="height:40rpx"></view>
 </view>

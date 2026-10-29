@@ -1,58 +1,75 @@
-<view class="sb" style="height:{{sbh + 36}}px"></view>
+<view class="sb" style="height:{{sbh + 12}}px"></view>
 
-<view class="wrap">
-  <view class="kicker">Today · {{weekday}}</view>
-  <view class="h1">{{h1}}</view>
+<view class="page">
 
-  <!-- 本周进度：不绑星期几，练了就算一次 -->
+  <view class="phead">
+    <view class="brandrow">
+      <text class="brand">练界</text>
+      <text class="kicker">{{weekday}} · {{dateText}}</text>
+    </view>
+    <view class="h1">{{h1}}</view>
+  </view>
+
+  <!-- 本周进度：练了就算一次，不绑星期几 -->
   <view class="weekbar">
     <view class="wdots">
-      <view
-        class="wdot {{index < weekDone ? 'on' : ''}}"
-        wx:for="{{weekDots}}"
-        wx:key="*this"
-      ></view>
+      <view class="wdot {{index < weekDone ? 'on' : ''}}" wx:for="{{weekDots}}" wx:key="*this"></view>
     </view>
-    <text class="wtext">本周 {{weekDone}}/{{weekTarget}}</text>
+    <text class="wtext">本周 {{weekDone}} / {{weekTarget}}</text>
   </view>
 
   <block wx:if="{{plan}}">
-    <view class="todaybig">
-      <view class="day">{{plan.key}} · {{plan.en}}</view>
-      <view class="tt">{{plan.name}}</view>
-      <view class="meta">{{items.length}} 个动作 · 约 {{minutes}} 分钟</view>
-      <view class="last">{{lastText}}</view>
+
+    <!-- 今天练什么：一张大卡 -->
+    <view class="card sec">
+      <view class="cardtop">
+        <text class="ckey">{{plan.key}}</text>
+        <text class="cen">{{plan.en}}</text>
+      </view>
+      <view class="cname">{{plan.name}}</view>
+      <view class="cmeta">{{items.length}} 个动作 · 约 {{minutes}} 分钟</view>
+      <view class="cmeta dim">{{lastText}}</view>
     </view>
 
-    <view class="plist">
-      <view class="ph">动作清单</view>
-      <view class="pitem" wx:for="{{items}}" wx:key="exId" data-i="{{index}}" bindtap="openEx" hover-class="pitem-hover">
-        <text class="no">{{item.no}}</text>
-        <view class="nm">
-          <text>{{item.cn}}</text>
-          <text class="en">{{item.en}}</text>
+    <!-- 动作清单：点某个动作直接跳过去 -->
+    <view class="sec">
+      <view class="sec-h">动作清单</view>
+      <view class="plist">
+        <view
+          class="pitem"
+          wx:for="{{items}}"
+          wx:key="exId"
+          bindtap="openEx"
+          data-i="{{index}}"
+          hover-class="pitem-hover"
+        >
+          <text class="pno num">{{item.no}}</text>
+          <view class="pnm">
+            <text class="pcn">{{item.cn}}</text>
+            <text class="pen">{{item.en}}</text>
+          </view>
+          <text class="pss num">{{item.label}}</text>
+          <text class="tick" wx:if="{{item.done}}">✓</text>
         </view>
-        <text class="sw" wx:if="{{item.swapped}}">已换</text>
-        <text class="ss">{{item.label}}</text>
-        <text class="tick" wx:if="{{item.done}}">✓</text>
       </view>
     </view>
 
     <view class="tip">{{tip}}</view>
+
   </block>
 
   <block wx:else>
-    <view class="restcard">
-      <view class="rtitle">还没有训练计划</view>
-      <view class="rdesc">回到引导页重新选一次，30 秒就好。</view>
-      <view class="rlink" bindtap="gotoStats">先看看数据 →</view>
+    <view class="emptycard sec">
+      <view class="etitle">还没有训练计划</view>
+      <view class="etext">回到引导页重新选一次，30 秒就好。</view>
     </view>
   </block>
+
 </view>
 
 <view class="footbar">
   <view wx:if="{{plan}}" class="btn" hover-class="btn-hover" bindtap="mainAction">
-    {{allDone ? '看今日战报 →' : (finished ? '再练一次 →' : (resumed ? '继续训练 →' : '开始训练 →'))}}
+    {{allDone ? '看今日战报 →' : (resumed ? '继续训练 →' : '开始训练 →')}}
   </view>
   <view wx:else class="btn btn-ghost" hover-class="btn-hover" bindtap="gotoStats">去看数据</view>
 </view>

@@ -1,0 +1,76 @@
+<view class="sb" style="height:{{sbh + 12}}px"></view>
+
+<view class="page">
+
+  <view class="phead">
+    <view class="brandrow">
+      <text class="brand">练界</text>
+      <text class="kicker">Settings</text>
+    </view>
+    <view class="h1">我的训练。</view>
+  </view>
+
+  <!-- 当前计划 -->
+  <view class="card sec">
+    <view class="cardlabel">当前计划</view>
+    <view class="cname">{{profileText}}</view>
+    <view class="planline">
+      <view class="pk" wx:for="{{planKeys}}" wx:key="key">
+        <text class="pkkey">{{item.key}}</text>
+        <text class="pkname">{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 一周几次 -->
+  <view class="sec">
+    <view class="sec-h">一周练几次</view>
+    <view class="chips">
+      <view class="chip {{profile.days == 2 ? 'on' : ''}}" data-v="2" bindtap="setDays">2 天</view>
+      <view class="chip {{profile.days == 3 ? 'on' : ''}}" data-v="3" bindtap="setDays">3 天</view>
+      <view class="chip {{profile.days == 4 ? 'on' : ''}}" data-v="4" bindtap="setDays">4 天</view>
+    </view>
+  </view>
+
+  <!-- 在哪练 -->
+  <view class="sec">
+    <view class="sec-h">在哪练</view>
+    <view class="chips">
+      <view class="chip {{profile.place == 'gym' ? 'on' : ''}}" data-v="gym" bindtap="setPlace">健身房</view>
+      <view class="chip {{profile.place == 'home' ? 'on' : ''}}" data-v="home" bindtap="setPlace">家里</view>
+    </view>
+  </view>
+
+  <!-- 水平 -->
+  <view class="sec">
+    <view class="sec-h">水平</view>
+    <view class="chips">
+      <view class="chip {{profile.level == 'new' ? 'on' : ''}}" data-v="new" bindtap="setLevel">刚开始</view>
+      <view class="chip {{profile.level == 'some' ? 'on' : ''}}" data-v="some" bindtap="setLevel">练过一阵</view>
+      <view class="chip {{profile.level == 'trained' ? 'on' : ''}}" data-v="trained" bindtap="setLevel">一直在练</view>
+    </view>
+    <view class="hint">改完立刻生效，之后的训练按新计划走。已有的训练记录不会丢。</view>
+  </view>
+
+  <!-- 数据 -->
+  <view class="sec">
+    <view class="sec-h">数据</view>
+    <view class="rows">
+      <view class="row" bindtap="fillDemo" hover-class="row-hover">
+        <text class="rowt">填入示例数据</text>
+        <text class="rownote">用来看图表效果</text>
+      </view>
+      <view class="row" bindtap="clearData" hover-class="row-hover">
+        <text class="rowt">清空训练记录</text>
+        <text class="rownote">保留计划设置</text>
+      </view>
+      <view class="row" bindtap="restart" hover-class="row-hover">
+        <text class="rowt danger">重新引导</text>
+        <text class="rownote">全部重来</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="about">练界 v0.1 · 数据只存在这台手机里，不上传</view>
+
+</view>
