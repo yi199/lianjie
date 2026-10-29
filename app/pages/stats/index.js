@@ -14,7 +14,8 @@ Page({
     cells: [],
     parts: [],
     top: [],
-    empty: false
+    empty: false,
+    enter: false
   },
 
   onLoad() {
@@ -28,6 +29,13 @@ Page({
       return;
     }
     this.refresh();
+    this.playEnter();
+  },
+
+  playEnter() {
+    const self = this;
+    this.setData({ enter: false });
+    setTimeout(function () { self.setData({ enter: true }); }, 24);
   },
 
   refresh() {

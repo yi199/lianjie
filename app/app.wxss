@@ -182,6 +182,37 @@ view, text, scroll-view { box-sizing: border-box; }
   border: 1rpx solid rgba(60, 74, 50, .28);
 }
 
+/* ================= 页面转场 =================
+   switchTab 切换本身没有动画，所以内容层自己淡入一下；
+   navigateTo 的淡入由 animationType 控制（见各页 js）。
+*/
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(10rpx); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pageOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-10rpx); }
+}
+
+.page.enter {
+  animation: pageIn .26s cubic-bezier(.23, .9, .3, 1) both;
+}
+
+.page.leaving {
+  animation: pageOut .2s ease forwards;
+}
+
+/* 尊重系统的「减弱动态效果」开关 */
+@media (prefers-reduced-motion: reduce) {
+  .page.enter,
+  .page.leaving {
+    animation: none;
+  }
+}
+
 /* ================= 底部操作区 ================= */
 
 .footbar {

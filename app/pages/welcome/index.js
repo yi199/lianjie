@@ -9,7 +9,8 @@ Page({
     days: 0,
     place: '',
     canFinish: false,
-    summary: ''
+    summary: '',
+    leaving: false
   },
 
   onLoad() {
@@ -65,7 +66,7 @@ Page({
   },
 
   finish() {
-    if (!this.data.canFinish) return;
+    if (!this.data.canFinish || this.data.leaving) return;
 
     db.finishOnboarding({
       level: this.data.level || 'some',
@@ -73,6 +74,10 @@ Page({
       place: this.data.place
     });
 
-    wx.reLaunch({ url: '/pages/today/index' });
+    // 先淡出再跳，避免从引导页硬切到首页
+    this.setData({ leaving: true });
+    setTimeout(function () {
+      wx.reLaunch({ url: '/pages/today/index' });
+    }, 200);
   }
 });

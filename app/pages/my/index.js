@@ -5,7 +5,8 @@ Page({
     sbh: 20,
     profile: { days: 3, place: 'gym', level: 'some' },
     profileText: '',
-    planKeys: []
+    planKeys: [],
+    enter: false
   },
 
   onLoad() {
@@ -19,6 +20,13 @@ Page({
       return;
     }
     this.refresh();
+    this.playEnter();
+  },
+
+  playEnter() {
+    const self = this;
+    this.setData({ enter: false });
+    setTimeout(function () { self.setData({ enter: true }); }, 24);
   },
 
   refresh() {

@@ -19,7 +19,8 @@ Page({
     weekDone: 0,
     weekTarget: 0,
     weekDots: [],
-    profileText: ''
+    profileText: '',
+    enter: false
   },
 
   onLoad() {
@@ -34,6 +35,17 @@ Page({
       return;
     }
     this.refresh();
+    this.playEnter();
+  },
+
+  /**
+   * 切 tab / 从子页返回时，内容淡入一下。
+   * switchTab 本身没有转场动画，只能靠内容层补。
+   */
+  playEnter() {
+    const self = this;
+    this.setData({ enter: false });
+    setTimeout(function () { self.setData({ enter: true }); }, 24);
   },
 
   refresh() {
@@ -126,16 +138,28 @@ Page({
   /** 底部主按钮：练完了就去看战报，否则继续练 */
   mainAction() {
     if (this.data.allDone) {
-      wx.navigateTo({ url: '/pages/report/index?date=' + D.today() });
+      wx.navigateTo({
+        url: '/pages/report/index?date=' + D.today(),
+        animationType: 'fade-in',
+        animationDuration: 260
+      });
       return;
     }
-    wx.navigateTo({ url: '/pages/record/index' });
+    wx.navigateTo({
+      url: '/pages/record/index',
+      animationType: 'fade-in',
+      animationDuration: 240
+    });
   },
 
   /** 点某个动作，直接跳到它 */
   openEx(e) {
     const i = e.currentTarget.dataset.i;
-    wx.navigateTo({ url: '/pages/record/index?i=' + i });
+    wx.navigateTo({
+      url: '/pages/record/index?i=' + i,
+      animationType: 'fade-in',
+      animationDuration: 240
+    });
   },
 
   gotoStats() {

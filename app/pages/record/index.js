@@ -525,6 +525,6 @@ Page({
   },
 
   back() {
-    wx.navigateBack();
+    wx.navigateBack({ animationType: 'fade-out', animationDuration: 200 });
   }
 });

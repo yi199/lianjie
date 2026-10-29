@@ -1,4 +1,4 @@
-<view class="page" style="padding-top:{{sbh + 24}}px">
+<view class="page {{leaving ? 'leaving' : ''}}" style="padding-top:{{sbh + 24}}px">
 
   <!-- ① 品牌 -->
   <block wx:if="{{step === 0}}">
