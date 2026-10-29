@@ -5,7 +5,9 @@
     "pages/record/index",
     "pages/report/index",
     "pages/stats/index",
-    "pages/my/index"
+    "pages/my/index",
+    "pages/programs/index",
+    "pages/builder/index"
   ],
   "window": {
     "backgroundTextStyle": "dark",

@@ -285,4 +285,102 @@ ok('练完还是当天那个训练日（不跳到下一个）', full.plan.key ==
 console.log('\n=== 16. 示例数据保护 ===');
 ok('已有记录时拒绝覆盖', db.loadDemo() === -1);
 
+/* ================= 17. 官方方案 ================= */
+console.log('\n=== 17. 官方方案 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+const pl0 = db.programList();
+ok('6 个官方方案', pl0.official.length === 6, pl0.official.length + ' 个');
+ok('初始是自动排（auto）', pl0.auto === true);
+ok('一开始没有自定义方案', pl0.custom.length === 0);
+
+const act = db.activateProgram('gym-ppl-3');
+ok('启用「增肌推拉腿」', !!act && act.name === '增肌推拉腿', act && act.name);
+ok('计划变成 3 个训练日', db.plans().length === 3, db.plans().length + ' 天');
+ok('A 日是推日', db.plans()[0].name === '推日', db.plans()[0].name);
+ok('A 日动作 = 方案里写死的那 5 个',
+  db.plans()[0].items.map(i => i.exId).join(',') === 'g1,g15,g4,g3,g19',
+  db.plans()[0].items.map(i => i.exId).join(','));
+ok('腿日把新动作排进去了（杠铃深蹲 / 臀推）',
+  db.plans()[2].items.some(i => i.exId === 'g40') && db.plans()[2].items.some(i => i.exId === 'g44'),
+  db.plans()[2].items.map(i => i.exId).join(','));
+ok('profileText 显示方案名', db.profileText().indexOf('增肌推拉腿') >= 0, db.profileText());
+ok('profile 的天数/场所跟着方案走', db.profile().days === 3 && db.profile().place === 'gym');
+ok('签名带上方案 id（换方案才能识别出旧记录）', db.planSig().indexOf('gym-ppl-3') >= 0, db.planSig());
+ok('列表里只有一个标为使用中', db.programList().official.filter(x => x.active).length === 1);
+
+db.activateProgram('gym-upper-lower-4');
+ok('4 练方案 → 4 个训练日', db.plans().length === 4, db.plans().length + ' 天');
+ok('4 练是 trained 档，起点重量更高',
+  db.plans()[0].items[0].weight >= 50, db.plans()[0].items[0].cn + ' ' + db.plans()[0].items[0].weight + 'kg');
+
+// 换方案后，旧方案下的记录不能接着参与轮转
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+set('2026-10-26', 'g1', 'A', 1, 50, 10);
+db.activateProgram('home-starter-2');
+const tSwitch = db.todaySession('2026-10-27');
+ok('换成居家方案后，不会接着旧方案的 A 日排',
+  db.plans().length === 2 && tSwitch.plan && tSwitch.plan.items.every(i => i.exId[0] === 'h'),
+  tSwitch.plan && (tSwitch.plan.key + ' ' + tSwitch.plan.items.map(i => i.exId).join(',')));
+ok('方案的训练日没有跨场所的脏动作',
+  db.plans().every(p => p.items.every(i => (EX.byId(i.exId) || {}).place === 'home')));
+
+/* ================= 18. 自定义方案 ================= */
+console.log('\n=== 18. 自定义方案 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+const mine = db.saveCustomProgram({
+  name: '我的上肢日',
+  place: 'gym',
+  level: 'some',
+  sessions: [
+    { name: '上肢 A', exIds: ['g1', 'g27', 'g33', 'g36'] },
+    { name: '上肢 B', exIds: ['g24', 'g30', 'g34', 'g39'] }
+  ]
+});
+ok('存下来自动生成 id', !!mine.id, mine.id);
+ok('天数按训练日数量算', mine.days === 2, mine.days);
+ok('训练日自动编号 A/B', mine.sessions.map(s => s.key).join('') === 'AB', mine.sessions.map(s => s.key).join(''));
+ok('出现在方案列表里', db.programList().custom.length === 1);
+
+db.activateProgram(mine.id);
+ok('启用自定义方案 → 2 个训练日', db.plans().length === 2, db.plans().length + ' 天');
+ok('动作就是自己选的那几个',
+  db.plans()[0].items.map(i => i.exId).join(',') === 'g1,g27,g33,g36',
+  db.plans()[0].items.map(i => i.exId).join(','));
+const kgItems = db.plans()[0].items.filter(i => i.unit === 'kg');
+ok('自定义方案里每个负重动作都按自己的基线出重量（不是一律 20kg）',
+  kgItems.every(i => i.weight === db.initialWeight(i.exId)),
+  kgItems.map(i => i.exId + ' ' + i.weight + 'kg').join(' / '));
+ok('基线本来就不是 20kg 的动作确实不是 20kg',
+  db.plans()[0].items.some(i => i.unit === 'kg' && i.weight !== 20),
+  db.plans()[0].items.filter(i => i.unit === 'kg').map(i => i.exId + ':' + i.weight).join(' '));
+
+db.saveCustomProgram({ id: mine.id, name: '我的上肢日 v2', place: 'gym', sessions: [{ name: '只有一天', exIds: ['g1'] }] });
+ok('同 id 是覆盖而不是新增',
+  db.programList().custom.length === 1 && db.programList().custom[0].name === '我的上肢日 v2',
+  db.programList().custom[0].name);
+
+db.removeCustomProgram(mine.id);
+ok('删掉后自定义列表清空', db.programList().custom.length === 0);
+ok('删掉正在用的方案 → 自动退回 auto 排', db.currentProgramId() === 'auto', db.currentProgramId());
+// 退回 auto 后按 profile.days 排 —— 激活方案时 days 已被方案同步（2 天），这是有意的：
+// 删掉方案不该把用户突然弹回健身房/3 天，那和他刚才选的安排无关
+ok('退回 auto 后计划仍然有内容，且训练日数 = 当前设置', 
+  db.plans().length === db.profile().days && db.plans().length >= 2,
+  db.plans().length + ' 天 / profile ' + db.profile().days);
+
+/* ================= 19. 老数据升级 ================= */
+console.log('\n=== 19. 老数据升级 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+const legacy = db.profile();
+delete legacy.programId;
+wx.setStorageSync('lj.profile', legacy);
+db.migrate();
+ok('老 profile 补上 programId=auto', db.profile().programId === 'auto', JSON.stringify(db.profile()));
+
 console.log('\n' + (process.exitCode ? '有失败项' : '全部通过') + '\n');

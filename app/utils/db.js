@@ -13,6 +13,7 @@
 
 const EX = require('../data/exercises');
 const P = require('../data/plan');
+const PR = require('../data/programs');
 const D = require('../utils/date');
 const V = require('../utils/volume');
 
@@ -21,6 +22,9 @@ const K_PROFILE = 'lj.profile';
 const K_PLAN = 'lj.plans';
 const K_SETS = 'lj.sets';
 const K_SWAPS = 'lj.swaps';   // 训练日里「第几个动作 → 换成哪个」，跟着计划走
+const K_CUSTOM = 'lj.customPrograms';   // 用户自己搭的方案（数组）
+
+const LEVEL_CN = { new: '刚开始', some: '练过一阵', trained: '一直在练' };
 
 /* ---------------- 引导 / 用户设置 ---------------- */
 
@@ -32,22 +36,54 @@ function profile() {
   return wx.getStorageSync(K_PROFILE) || null;
 }
 
-/** 生成并保存计划（改设置时也走这里） */
+/**
+ * 生成并保存计划（改设置、换方案都走这里）
+ *
+ * profile.programId：
+ *   'auto'    按 level × days × place 自动排（原来的行为）
+ *   方案 id   用官方 / 自定义方案里显式写死的动作表
+ */
 function saveProfile(p) {
   const prof = {
     level: p.level || 'some',
     days: Number(p.days) || 3,
-    place: p.place === 'home' ? 'home' : 'gym'
+    place: p.place === 'home' ? 'home' : 'gym',
+    programId: p.programId || 'auto'
   };
   const oldSig = planSig();
-  const plans = P.buildPlan(prof.days, prof.place, prof.level);
   wx.setStorageSync(K_PROFILE, prof);
-  wx.setStorageSync(K_PLAN, plans);
+  applyProgram(prof);
 
   // 训练日编号的含义变了（A 从「推日」变「上肢 A」），旧的换动作记录不能再用
   if (oldSig && oldSig !== planSig()) wx.removeStorageSync(K_SWAPS);
 
-  return plans;
+  return plans();
+}
+
+/**
+ * 把方案写进 lj.plans。
+ *
+ * 官方方案和自定义方案是同一种结构，都走 PR.expand —— 所以
+ * 「今天该练哪个训练日」的轮转逻辑（nextKey/todaySession）一行都不用改，
+ * 页面层也完全不知道「方案」这个概念存在。
+ */
+function applyProgram(prof) {
+  let list = null;
+
+  if (prof.programId && prof.programId !== 'auto') {
+    const prog = programById(prof.programId);
+    if (prog) list = PR.expand(prog);
+  }
+
+  if (!list) {
+    // 方案被删了，或者本来就是 auto → 退回参数化生成
+    prof.programId = 'auto';
+    list = P.buildPlan(prof.days, prof.place, prof.level);
+    wx.setStorageSync(K_PROFILE, prof);
+  }
+
+  wx.setStorageSync(K_PLAN, list);
+  return list;
 }
 
 /** 走完引导（第一次进入时调用） */
@@ -82,12 +118,25 @@ function migrate() {
     changed = true;
   }
 
+  // 老 profile 没有 programId，补成 auto；不补的话换方案时签名不会变，会漏判
+  const prof = wx.getStorageSync(K_PROFILE);
+  if (prof && prof.programId === undefined) {
+    prof.programId = 'auto';
+    wx.setStorageSync(K_PROFILE, prof);
+    changed = true;
+  }
+
   return changed;
 }
 
 function profileText() {
   const p = profile();
-  return p ? P.describe(p) : '';
+  if (!p) return '';
+  if (p.programId && p.programId !== 'auto') {
+    const prog = programById(p.programId);
+    if (prog) return PR.describe(prog);      // 一周 3 练 · 健身房 · 增肌推拉腿
+  }
+  return P.describe(p);
 }
 
 /* ---------------- 动作 ---------------- */
@@ -118,6 +167,148 @@ function alternatives(exId) {
 function plans() {
   const p = wx.getStorageSync(K_PLAN);
   return Array.isArray(p) ? p : [];
+}
+
+/* ---------------- 方案：官方预选 / 用户自定义 ---------------- */
+
+function customPrograms() {
+  const list = wx.getStorageSync(K_CUSTOM);
+  return Array.isArray(list) ? list : [];
+}
+
+/**
+ * 存一个自定义方案（新建或覆盖同 id）。
+ * 结构对齐官方方案，这样两边都能被 PR.expand 展开成同一种训练日队列。
+ */
+function saveCustomProgram(prog) {
+  const list = customPrograms();
+  const sessions = (prog.sessions || []).map(function (s, i) {
+    const letter = String.fromCharCode(65 + i);
+    return {
+      key: s.key || letter,
+      type: s.type || 'fullA',
+      name: s.name || ('训练日 ' + letter),
+      en: s.en || '',
+      exIds: (s.exIds || []).slice()
+    };
+  });
+
+  const row = {
+    id: prog.id || ('my-' + Date.now()),
+    name: prog.name || '我的方案',
+    en: prog.en || 'Custom',
+    desc: prog.desc || '',
+    place: prog.place === 'home' ? 'home' : 'gym',
+    level: prog.level || 'some',
+    days: sessions.length,
+    tags: prog.tags || ['自定义'],
+    sessions: sessions
+  };
+
+  const idx = list.findIndex(function (x) { return x.id === row.id; });
+  if (idx >= 0) list[idx] = row; else list.push(row);
+  wx.setStorageSync(K_CUSTOM, list);
+  return row;
+}
+
+function removeCustomProgram(id) {
+  const list = customPrograms().filter(function (x) { return x.id !== id; });
+  wx.setStorageSync(K_CUSTOM, list);
+
+  // 正在用这个方案 → 退回自动排，别留一个指向已删方案的 programId
+  const prof = profile();
+  if (prof && prof.programId === id) {
+    saveProfile({ level: prof.level, days: prof.days, place: prof.place, programId: 'auto' });
+  }
+  return list;
+}
+
+/** 官方 + 自定义统一按 id 查 */
+function programById(id) {
+  return PR.byId(id) ||
+    customPrograms().filter(function (x) { return x.id === id; })[0] ||
+    null;
+}
+
+function currentProgramId() {
+  const p = profile();
+  return (p && p.programId) || 'auto';
+}
+
+/** 方案中心用的列表（带 active 标记，页面不用自己比 id） */
+function programList() {
+  const cur = currentProgramId();
+
+  function brief(p, source) {
+    return {
+      id: p.id,
+      name: p.name,
+      en: p.en,
+      desc: p.desc || '',
+      place: p.place,
+      placeCn: p.place === 'home' ? '居家' : '健身房',
+      level: p.level,
+      levelCn: LEVEL_CN[p.level] || p.level,
+      days: p.days,
+      tags: p.tags || [],
+      source: source,
+      active: cur === p.id,
+      sessionText: p.sessions.map(function (s) { return s.key + ' ' + s.name; }).join(' · ')
+    };
+  }
+
+  return {
+    auto: cur === 'auto',
+    official: PR.official().map(function (p) { return brief(p, 'official'); }),
+    custom: customPrograms().map(function (p) { return brief(p, 'custom'); })
+  };
+}
+
+/**
+ * 启用方案（官方/自定义都行）。传 'auto' 退回参数化生成。
+ * 会同时把 profile 的 days/place/level 对齐方案，避免「一周 3 练」显示错。
+ */
+function activateProgram(id) {
+  const prof = profile() || { level: 'some', days: 3, place: 'gym' };
+  const next = {
+    level: prof.level,
+    days: prof.days,
+    place: prof.place,
+    programId: id || 'auto'
+  };
+
+  if (id && id !== 'auto') {
+    const prog = programById(id);
+    if (!prog) return null;
+    next.level = prog.level;
+    next.days = prog.days;
+    next.place = prog.place;
+  }
+
+  saveProfile(next);
+  return programById(id);
+}
+
+/** 当前方案用什么动作（给方案中心的「看看练什么」用） */
+function programSessions(id) {
+  const prog = programById(id || currentProgramId());
+  if (!prog) return [];
+  return PR.expand(prog).map(function (p) {
+    return {
+      key: p.key,
+      name: p.name,
+      en: p.en,
+      art: p.art,
+      items: p.items.map(function (it) {
+        const ex = EX.byId(it.exId) || { cn: it.exId, en: '', part: '' };
+        return {
+          exId: it.exId, cn: ex.cn, en: ex.en, part: ex.part,
+          partCn: EX.PART_CN[ex.part] || '',
+          sets: it.sets, reps: it.reps, unit: it.unit, weight: it.weight
+        };
+      })
+    };
+  });
 }
 
 /* ---------------- 换动作（训练日里永久替换） ---------------- */
@@ -197,9 +388,10 @@ function weekDates(date) {
 
 /* ---------------- 训练日轮转 ---------------- */
 
-/** 当前计划签名（设置变了，旧记录就不再对应现在的 A/B/C） */
+/** 当前计划签名（设置/方案变了，旧记录就不再对应现在的 A/B/C） */
 function planSig() {
-  return P.planSig(profile());
+  const p = profile() || {};
+  return P.planSig(p) + '|' + (p.programId || 'auto');
 }
 
 /**
@@ -493,6 +685,7 @@ function resetAll() {
   wx.removeStorageSync(K_PLAN);
   wx.removeStorageSync(K_SETS);
   wx.removeStorageSync(K_SWAPS);
+  wx.removeStorageSync(K_CUSTOM);
 }
 
 /* ---------------- 训练战报 ---------------- */
@@ -746,6 +939,9 @@ module.exports = {
   exercises, exerciseById, alternatives, initialWeight,
   /* 计划 */
   plans, todaySession, suggestWeight, planSig,
+  /* 方案 */
+  programList, programById, currentProgramId, activateProgram, programSessions,
+  customPrograms, saveCustomProgram, removeCustomProgram,
   /* 换动作 */
   swaps, setSwap, clearSwap,
   /* 记录 */

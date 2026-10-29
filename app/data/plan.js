@@ -26,7 +26,13 @@ const LEVEL = {
 const BASE_WEIGHT = {
   g1: 50, g2: 14, g3: 25, g4: 8, g6: 40, g7: 20, g8: 10,
   g9: 24, g10: 16, g11: 20, g12: 80,
-  g15: 40, g16: 10, g17: 45, g18: 40, g19: 6, g20: 10, g21: 50, g22: 40
+  g15: 40, g16: 10, g17: 45, g18: 40, g19: 6, g20: 10, g21: 50, g22: 40,
+  /* g23–g52（新增动作）。口径：some 水平、每组 10 次左右的合理起点；
+     哑铃类记「单只」重量，和 g2/g4 一致。缺省的按 20kg 兜底，所以这里要补全。 */
+  g23: 16, g25: 25, g26: 10, g27: 20, g28: 35, g29: 15, g31: 40,
+  g32: 25, g33: 10, g34: 6, g35: 20, g36: 20, g37: 12, g38: 40,
+  g39: 8, g40: 50, g41: 40, g42: 60, g43: 12, g44: 50, g45: 30,
+  g46: 25, g47: 30, g49: 25, g50: 6
 };
 
 /* ---------------- 日类型 ---------------- */
@@ -211,6 +217,6 @@ function makeDemoSets(plans, target) {
 
 module.exports = {
   LEVEL, BASE_WEIGHT, SCHEDULE, DAY_TYPES,
-  buildPlan, describe, makeDemoSets, roundWeight,
+  buildPlan, describe, makeDemoSets, roundWeight, makeItems,
   planSig, initialWeight
 };

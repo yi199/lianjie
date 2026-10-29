@@ -41,12 +41,21 @@ Page({
     });
   },
 
-  /** 改任何一项都会重新生成计划，已有的训练记录保留 */
+  /**
+   * 改任何一项都会重新生成计划，已有的训练记录保留。
+   *
+   * 手动调参数 = 要「按参数自动排」，所以顺手把 programId 清成 auto：
+   * 否则正在用某个方案时，这里改天数/场所/水平根本不会生效。
+   */
   apply(patch) {
-    const p = Object.assign({}, this.data.profile, patch);
+    const p = Object.assign({}, this.data.profile, patch, { programId: 'auto' });
     db.saveProfile(p);
     this.refresh();
-    wx.showToast({ title: '计划已更新', icon: 'none' });
+    wx.showToast({ title: '已按参数重排', icon: 'none' });
+  },
+
+  gotoPrograms() {
+    wx.navigateTo({ url: '/pages/programs/index' });
   },
 
   setDays(e) {

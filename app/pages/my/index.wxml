@@ -21,6 +21,10 @@
         <text class="pkname">{{item.name}}</text>
       </view>
     </view>
+    <view class="changebtn" hover-class="changebtn-hover" bindtap="gotoPrograms">
+      <text>换方案 / 自己搭</text>
+      <text class="changearrow">→</text>
+    </view>
   </view>
 
   <!-- 一周几次 -->

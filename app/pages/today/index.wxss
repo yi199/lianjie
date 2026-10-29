@@ -183,6 +183,27 @@
   color: #6F7D63;
 }
 
+/* 换方案：一行小链接，不抢主按钮的位置 */
+.swapline {
+  margin-top: var(--sp2);
+  padding: 20rpx var(--sp2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-note);
+  color: var(--green);
+  border-bottom: 1rpx solid var(--line);
+}
+
+.swapline-hover {
+  opacity: .7;
+}
+
+.swaparrow {
+  font-family: Georgia, serif;
+  opacity: .7;
+}
+
 .emptycard {
   padding: var(--sp4) var(--sp3);
   border-radius: 40rpx;

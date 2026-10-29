@@ -1,0 +1,143 @@
+<view class="sb" style="height:{{sbh + 12}}px"></view>
+
+<view class="page {{enter ? 'enter' : ''}}">
+
+  <view class="phead">
+    <view class="brandrow">
+      <text class="brand">练界</text>
+      <text class="kicker">Build</text>
+    </view>
+    <view class="h1en">Make Your Own</view>
+    <view class="h1">{{id ? '改你的方案。' : '自己搭一个。'}}</view>
+    <view class="sub">先定场所和水平，再一天一天把动作挑出来。组数次数会按水平自动算。</view>
+  </view>
+
+  <!-- 名字 -->
+  <view class="sec">
+    <view class="sec-h">方案名</view>
+    <input
+      class="nameinput"
+      value="{{name}}"
+      maxlength="12"
+      placeholder="比如：我的上肢日"
+      bindinput="onName"
+    />
+  </view>
+
+  <!-- 场所 -->
+  <view class="sec">
+    <view class="sec-h">在哪练</view>
+    <view class="chips">
+      <view class="chip {{place === 'gym' ? 'on' : ''}}" data-v="gym" bindtap="setPlace">健身房</view>
+      <view class="chip {{place === 'home' ? 'on' : ''}}" data-v="home" bindtap="setPlace">家里</view>
+    </view>
+  </view>
+
+  <!-- 水平 -->
+  <view class="sec">
+    <view class="sec-h">水平</view>
+    <view class="chips">
+      <view class="chip {{level === 'new' ? 'on' : ''}}" data-v="new" bindtap="setLevel">刚开始</view>
+      <view class="chip {{level === 'some' ? 'on' : ''}}" data-v="some" bindtap="setLevel">练过一阵</view>
+      <view class="chip {{level === 'trained' ? 'on' : ''}}" data-v="trained" bindtap="setLevel">一直在练</view>
+    </view>
+    <view class="hint">水平只影响组数、次数和起始重量，动作是你自己选的。</view>
+  </view>
+
+  <!-- 训练日数量 -->
+  <view class="sec">
+    <view class="sec-h">一周几个训练日</view>
+    <view class="chips">
+      <view class="chip {{days == 2 ? 'on' : ''}}" data-v="2" bindtap="setDays">2 天</view>
+      <view class="chip {{days == 3 ? 'on' : ''}}" data-v="3" bindtap="setDays">3 天</view>
+      <view class="chip {{days == 4 ? 'on' : ''}}" data-v="4" bindtap="setDays">4 天</view>
+    </view>
+  </view>
+
+  <!-- 训练日 -->
+  <view class="sec">
+    <view class="sec-h">每天练什么</view>
+
+    <view class="daycard" wx:for="{{sessions}}" wx:key="key" wx:for-item="day" wx:for-index="di">
+      <view class="dayhead">
+        <text class="daykey num">{{day.key}}</text>
+        <text class="dayname">{{day.name}}</text>
+        <text class="daycount num">{{day.exIds.length}} 个动作</text>
+      </view>
+
+      <view class="dayex" wx:for="{{day.exs}}" wx:key="id" wx:for-item="ex">
+        <text class="dayno num">·</text>
+        <view class="dayexl">
+          <text class="dayexcn">{{ex.cn}}</text>
+          <text class="dayexmeta">{{ex.partCn}} · {{ex.unitCn}}</text>
+        </view>
+        <text class="dayexdel" data-i="{{di}}" data-id="{{ex.id}}" catchtap="removeEx">移除</text>
+      </view>
+
+      <view class="dayempty" wx:if="{{!day.exIds.length}}">还没选动作。</view>
+
+      <view class="dayadd" hover-class="dayadd-hover" bindtap="openSheet" data-i="{{di}}">
+        + 加动作
+      </view>
+    </view>
+  </view>
+
+  <view class="tipsline">
+    动作池共 105 个（健身房 52 / 居家 53）。已经练熟的方案可以随时在「方案」页换回来。
+  </view>
+
+  <view style="height:200rpx"></view>
+</view>
+
+<!-- 底部固定：保存 -->
+<view class="footfix">
+  <view class="savebtn" hover-class="savebtn-hover" bindtap="save">
+    {{id ? '保存并启用' : '保存并启用这个方案'}}
+  </view>
+</view>
+
+<!-- ================= 挑动作抽屉 ================= -->
+
+<view class="mask {{sheetOpen ? 'show' : ''}}" bindtap="closeSheet"></view>
+
+<view class="sheet {{sheetOpen ? 'up' : ''}}">
+  <view class="sheeth">
+    <text class="sheettitle">{{sheetDayName}} · 选动作</text>
+    <text class="sheetdone" bindtap="closeSheet">好了</text>
+  </view>
+
+  <scroll-view class="parttabs" scroll-x enable-flex>
+    <view
+      class="ptab {{sheetPart === item.key ? 'on' : ''}}"
+      wx:for="{{parts}}"
+      wx:key="key"
+      data-v="{{item.key}}"
+      bindtap="setSheetPart"
+    >{{item.name}}</view>
+  </scroll-view>
+
+  <scroll-view class="exscroll" scroll-y>
+    <view
+      class="exrow {{item.picked ? 'on' : ''}}"
+      wx:for="{{sheetList}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="toggleEx"
+    >
+      <view class="exrowl">
+        <text class="exrowcn">{{item.cn}}</text>
+        <text class="exrowen">{{item.en}}</text>
+      </view>
+      <text class="exrowmeta">{{item.partCn}} · {{item.unitCn}}</text>
+      <text class="exrowtick">{{item.picked ? '✓' : '+'}}</text>
+    </view>
+
+    <view class="exnone" wx:if="{{!sheetList.length}}">这个部位在这个场所下没有动作。</view>
+    <view style="height:40rpx"></view>
+  </scroll-view>
+
+  <view class="sheetf">
+    <text class="sheetcount num">已选 {{sheetCount}} 个</text>
+    <view class="sheetok" hover-class="savebtn-hover" bindtap="closeSheet">完成</view>
+  </view>
+</view>

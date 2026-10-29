@@ -45,6 +45,28 @@
   color: var(--muted);
 }
 
+.changebtn {
+  margin-top: var(--sp3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  padding: 0 var(--sp3);
+  border-radius: 44rpx;
+  background: var(--soft);
+  color: var(--green);
+  font-size: var(--fs-note);
+  letter-spacing: .06em;
+}
+
+.changebtn-hover {
+  opacity: .9;
+}
+
+.changearrow {
+  font-family: Georgia, serif;
+}
+
 /* ================= 选项 ================= */
 
 .chips {

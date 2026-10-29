@@ -1,0 +1,157 @@
+<view class="sb" style="height:{{sbh + 12}}px"></view>
+
+<view class="page {{enter ? 'enter' : ''}}">
+
+  <view class="phead">
+    <view class="brandrow">
+      <text class="brand">练界</text>
+      <text class="kicker">Programs</text>
+    </view>
+    <view class="h1en">Pick a Plan</view>
+    <view class="h1">选一个方案，或者自己搭。</view>
+    <view class="sub">下面几套是排好的，点一下就能用。想自己挑动作，翻到底。</view>
+  </view>
+
+  <!-- 当前方案 -->
+  <view class="card sec">
+    <view class="cardlabel">当前方案</view>
+    <view class="cname">{{profileText}}</view>
+    <view class="planline">
+      <view class="pk" wx:for="{{planKeys}}" wx:key="key">
+        <text class="pkkey">{{item.key}}</text>
+        <text class="pkname">{{item.name}}</text>
+      </view>
+    </view>
+    <view class="cbtn" hover-class="cbtn-hover" bindtap="gotoToday">
+      <text>看看今天练什么</text>
+      <text class="carrow">→</text>
+    </view>
+  </view>
+
+  <!-- 官方方案 -->
+  <view class="sec">
+    <view class="sec-h">官方方案</view>
+
+    <view class="pcard {{item.active ? 'on' : ''}}" wx:for="{{official}}" wx:key="id">
+      <view class="pbody" bindtap="toggleExpand" data-id="{{item.id}}">
+        <view class="ptop">
+          <text class="pname">{{item.name}}</text>
+          <text class="pen">{{item.en}}</text>
+        </view>
+
+        <view class="pdesc">{{item.desc}}</view>
+
+        <view class="pmeta">
+          <text class="pm num">一周 {{item.days}} 练</text>
+          <text class="pdot">·</text>
+          <text class="pm">{{item.placeCn}}</text>
+          <text class="pdot">·</text>
+          <text class="pm">{{item.levelCn}}</text>
+        </view>
+
+        <view class="ptags">
+          <text class="ptag" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+          <text class="pexp">{{expanded === item.id ? '收起' : '看动作'}}</text>
+        </view>
+      </view>
+
+      <!-- 展开：每个训练日练什么 -->
+      <view class="pex" wx:if="{{expanded === item.id}}">
+        <view class="pexday" wx:for="{{expandedSessions}}" wx:for-item="day" wx:key="key">
+          <view class="pexh">
+            <text class="pexkey num">{{day.key}}</text>
+            <text class="pexname">{{day.name}}</text>
+            <text class="pexen">{{day.en}}</text>
+          </view>
+          <view class="pexrow" wx:for="{{day.items}}" wx:for-item="ex" wx:key="exId">
+            <text class="pexcn">{{ex.cn}}</text>
+            <text class="pexss num">{{ex.sets}} × {{ex.reps}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="pfoot">
+        <view
+          class="puse {{item.active ? 'on' : ''}}"
+          hover-class="puse-hover"
+          bindtap="useProgram"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+        >{{item.active ? '使用中' : '用这个'}}</view>
+      </view>
+    </view>
+
+    <!-- 退回自动排 -->
+    <view class="autorow {{auto ? 'on' : ''}}" bindtap="useAuto" hover-class="autorow-hover">
+      <view class="autorowl">
+        <text class="autoron">按参数自动排</text>
+        <text class="autonote">不指定方案，按一周几次 × 在哪练 × 水平机械地排</text>
+      </view>
+      <text class="autorowtag">{{auto ? '使用中' : '退回'}}</text>
+    </view>
+  </view>
+
+  <!-- 我的方案 -->
+  <view class="sec">
+    <view class="sec-h">我的方案</view>
+
+    <block wx:if="{{custom.length}}">
+      <view class="pcard {{item.active ? 'on' : ''}}" wx:for="{{custom}}" wx:key="id">
+        <view class="pbody" bindtap="toggleExpand" data-id="{{item.id}}">
+          <view class="ptop">
+            <text class="pname">{{item.name}}</text>
+            <text class="pen">{{item.en}}</text>
+          </view>
+          <view class="pmeta">
+            <text class="pm num">一周 {{item.days}} 练</text>
+            <text class="pdot">·</text>
+            <text class="pm">{{item.placeCn}}</text>
+            <text class="pm pdot">·</text>
+            <text class="pm">自己搭的</text>
+          </view>
+          <view class="psess">{{item.sessionText}}</view>
+          <view class="ptags">
+            <text class="pexp">{{expanded === item.id ? '收起' : '看动作'}}</text>
+          </view>
+        </view>
+
+        <view class="pex" wx:if="{{expanded === item.id}}">
+          <view class="pexday" wx:for="{{expandedSessions}}" wx:for-item="day" wx:key="key">
+            <view class="pexh">
+              <text class="pexkey num">{{day.key}}</text>
+              <text class="pexname">{{day.name}}</text>
+            </view>
+            <view class="pexrow" wx:for="{{day.items}}" wx:for-item="ex" wx:key="exId">
+              <text class="pexcn">{{ex.cn}}</text>
+              <text class="pexss num">{{ex.sets}} × {{ex.reps}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="pfoot pfoot-split">
+          <view class="pedit" hover-class="puse-hover" bindtap="editCustom" data-id="{{item.id}}">编辑</view>
+          <view class="pdel" hover-class="puse-hover" bindtap="removeCustom" data-id="{{item.id}}" data-name="{{item.name}}">删除</view>
+          <view
+            class="puse {{item.active ? 'on' : ''}}"
+            hover-class="puse-hover"
+            bindtap="useProgram"
+            data-id="{{item.id}}"
+            data-name="{{item.name}}"
+          >{{item.active ? '使用中' : '用这个'}}</view>
+        </view>
+      </view>
+    </block>
+
+    <view class="empty" wx:else>
+      <text class="emptyt">还没有自己搭的方案。</text>
+      <text class="emptyd">从 105 个动作里挑，按自己的器械和时间排。存在这台手机里。</text>
+    </view>
+
+    <view class="btn btn-ghost buildbtn" hover-class="btn-hover" bindtap="newProgram">
+      自己搭一个 →
+    </view>
+  </view>
+
+  <view class="about">官方方案用的是练熟的编排，随时可以换回自动排</view>
+
+</view>

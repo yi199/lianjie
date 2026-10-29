@@ -146,7 +146,7 @@ Page({
       weekTarget: s.week.target,
       weekDots: dots,
       profileText: db.profileText(),
-      art: plan ? (ART[plan.type] || 'barbell') : ''
+      art: plan ? (plan.art || ART[plan.type] || 'barbell') : ''
     });
   },
 
@@ -179,6 +179,14 @@ Page({
 
   gotoStats() {
     wx.switchTab({ url: '/pages/stats/index' });
+  },
+
+  gotoPrograms() {
+    wx.navigateTo({
+      url: '/pages/programs/index',
+      animationType: 'fade-in',
+      animationDuration: 240
+    });
   },
 
   gotoMy() {

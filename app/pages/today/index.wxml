@@ -63,6 +63,11 @@
 
     <view class="tip">{{tip}}</view>
 
+    <view class="swapline" hover-class="swapline-hover" bindtap="gotoPrograms">
+      <text>换方案 / 自己搭训练安排</text>
+      <text class="swaparrow">→</text>
+    </view>
+
   </block>
 
   <block wx:else>
