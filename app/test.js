@@ -160,7 +160,20 @@ ok('部位占比合计 ≈ 100%',
 ok('累计吨数 > 0', st.ton > 0, st.ton + ' 吨');
 ok('动作 TOP 不超过 5 条', st.top.length <= 5, st.top.map(t => t.cn + ':' + t.count).join(' '));
 
-/* ================= 9. 示例数据 ================= */
+/* ================= 9. 可视化数据 ================= */
+console.log('\n=== 9. 可视化数据 ===');
+const terr = db.partTerrain(2026, 10);
+ok('力量地形固定 6 个部位', terr.length === 6, terr.map(t => t.name).join('/'));
+ok('每个部位都有 pct', terr.every(t => typeof t.pct === 'number'));
+ok('练过的部位 pct > 0', terr.some(t => t.pct > 0), terr.filter(t => t.trained).map(t => t.name + t.pct + '%').join(' '));
+ok('没练的部位 pct = 0', terr.some(t => t.pct === 0) || terr.every(t => t.pct > 0), '共 ' + terr.filter(t => !t.trained).length + ' 个没练');
+
+const wv = db.weeklyVolume(8);
+ok('近 8 周返回 8 项', wv.length === 8, wv.map(w => w.ton).join(' / '));
+ok('最后一项是本周', wv[7].label === '本周', wv[7].label);
+ok('吨数不为负', wv.every(w => w.ton >= 0));
+
+/* ================= 10. 示例数据 ================= */
 console.log('\n=== 9. 示例数据 ===');
 db.clearSets();
 ok('清空后没有记录', !db.hasAnyRecord());
@@ -170,7 +183,7 @@ ok('示例数据带 planKey', db.allSets().every(x => !!x.planKey), db.allSets()
 const st2 = db.monthlyStats(D.thisMonth().y, D.thisMonth().m);
 ok('示例数据让数据页有内容', st2.days > 1, st2.days + ' 天');
 
-/* ================= 10. 旧数据迁移 ================= */
+/* ================= 11. 旧数据迁移 ================= */
 console.log('\n=== 10. 旧数据迁移 ===');
 // 旧版的 plans 是按星期的对象
 store['lj.plans'] = { 0: { name: '旧计划', en: 'Old', items: [] } };
@@ -180,7 +193,7 @@ ok('对象格式的计划被迁移成数组', migrated === true && Array.isArray
 ok('迁移后条数正确', db.plans().length === 3, db.plans().length + ' 个训练日');
 ok('再次调用不重复迁移', db.migrate() === false);
 
-/* ================= 11. 容量计算 ================= */
+/* ================= 12. 容量计算 ================= */
 console.log('\n=== 11. 容量计算 ===');
 ok('单组容量', V.setVolume({ weight: 24, reps: 12 }) === 288, V.setVolume({ weight: 24, reps: 12 }));
 ok('吨换算', V.toTon(1240) === 1.2, V.toTon(1240));

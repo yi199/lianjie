@@ -30,6 +30,33 @@
       </view>
     </view>
 
+    <!-- 力量地形：各部位强度画成一块会长的形状 -->
+    <view class="sec" wx:if="{{terrainAny}}">
+      <view class="sec-h">力量地形</view>
+      <view class="terrain-wrap">
+        <canvas type="2d" id="terrain" class="terrain"></canvas>
+      </view>
+      <view class="legend2">
+        <view class="lg" wx:for="{{terrain}}" wx:key="key">
+          <text class="lgd {{item.trained ? 'on' : ''}}"></text>
+          <text class="lgn">{{item.name}}</text>
+          <text class="lgp">{{item.pct}}%</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 近 8 周训练量 -->
+    <view class="sec" wx:if="{{weeks.length}}">
+      <view class="sec-h">近 8 周训练量</view>
+      <view class="bars">
+        <view class="bar" wx:for="{{weeks}}" wx:key="label">
+          <view class="barfill {{item.ton > 0 ? 'on' : ''}}" style="height:{{item.h}}%"></view>
+          <text class="barl">{{item.label}}</text>
+        </view>
+      </view>
+      <view class="barnote">单位：吨 · 柱高按最高一周归一化</view>
+    </view>
+
     <!-- 日历热力图 -->
     <view class="sec">
       <view class="sec-h">这个月</view>
@@ -50,17 +77,7 @@
       </view>
     </view>
 
-    <!-- 部位 -->
-    <view class="sec" wx:if="{{parts.length}}">
-      <view class="sec-h">练了什么部位</view>
-      <view class="prow" wx:for="{{parts}}" wx:key="key">
-        <text class="pnm">{{item.name}}</text>
-        <view class="pbw"><view class="pbf" style="width:{{item.pct}}%"></view></view>
-        <text class="ppc num">{{item.pct}}%</text>
-      </view>
-    </view>
-
-    <!-- 动作频次 -->
+    <!-- 部位（原始百分比，地形图下面是图例，这里只保留动作频次） -->
     <view class="sec" wx:if="{{top.length}}">
       <view class="sec-h">练得最多的动作</view>
       <view class="arow" wx:for="{{top}}" wx:key="cn">

@@ -245,6 +245,13 @@ body {
 .prow .bw { flex: 1; height: 5px; border-radius: 3px; background: #E6E3D5; overflow: hidden; }
 .prow .bf { height: 100%; border-radius: 3px; background: #3C4A32; transition: width .4s; }
 .prow .pc { width: 46px; text-align: right; font-size: 12px; color: #A9A79A; }
+.legend2 { margin-top: 8px; display: flex; flex-wrap: wrap; }
+.lg { width: 33.33%; display: flex; align-items: center; padding: 4px 0; }
+.lgd { width: 6px; height: 6px; border-radius: 50%; background: #DCD8C8; margin-right: 6px; flex-shrink: 0; }
+.lgd.on { background: #3C4A32; }
+.lgn { font-size: 12px; color: #8B897C; }
+.lgp { margin-left: auto; padding-right: 10px; font-size: 10px; color: #A9A79A; }
+
 .empty2 { margin-top: 40px; text-align: center; }
 .empty2 .e1 { font-size: 19px; }
 .empty2 .e2 { margin-top: 10px; font-size: 11.5px; line-height: 1.8; color: #8B897C; }
@@ -432,6 +439,7 @@ function render() {
   document.getElementById('statusbar').className = 'statusbar' + (dark ? ' dark' : '');
   document.getElementById('capsule').className = 'capsule' + (dark ? ' dark' : '');
   if (S.resting) drawRest();
+  if (S.screen === 'stats') setTimeout(drawTerrain, 30);
 }
 
 function TABBAR() {
@@ -643,11 +651,19 @@ function REPORT() {
   </div>`;
 }
 
+function terrData() {
+  const KEYS = [['chest','胸'],['back','背'],['shoulders','肩'],['arms','手臂'],['legs','腿'],['core','核心']];
+  const pm = {};
+  partPct().forEach(p => pm[p.key] = p.pct);
+  return KEYS.map(([k, n]) => ({ key: k, name: n, pct: pm[k] || 0 }));
+}
+
 function STATS() {
   const total = S.records.length;
   const v = vol();
   const parts = partPct();
   const trained = total > 0;
+  const terr = terrData();
   const cells = [];
   const trainedDays = trained ? { 29: 1 } : {};
   for (let i = 0; i < 3; i++) cells.push('<div class="cell"></div>');
@@ -678,11 +694,12 @@ function STATS() {
       <div class="wd">五</div><div class="wd">六</div><div class="wd">日</div>
       ${cells.join('')}
     </div></div>
-    <div class="sech">练了什么部位</div>
-    <div style="margin-top:10px">${parts.map(p =>
-      `<div class="prow"><span class="nm">${p.name}</span>
-        <div class="bw"><div class="bf" style="width:${p.pct}%"></div></div>
-        <span class="pc">${p.pct}%</span></div>`).join('')}</div>
+    <div class="sech">力量地形</div>
+    <canvas id="terr" width="630" height="630"
+            style="width:315px;height:315px;display:block;margin:4px auto 0"></canvas>
+    <div class="legend2">${terr.map(t =>
+      `<div class="lg"><span class="lgd${t.pct > 0 ? ' on' : ''}"></span>
+        <span class="lgn">${t.name}</span><span class="lgp">${t.pct}%</span></div>`).join('')}</div>
   </div>`;
 }
 
@@ -788,7 +805,87 @@ document.addEventListener('click', e => {
   if (ok.indexOf(h) >= 0) { S.screen = h; if (h === 'onboard') S.step = 1; }
 })();
 
+/* ---- 力量地形（和 app/utils/terrain.js 同一套画法）---- */
+function smoothPath(ctx, pts) {
+  const n = pts.length;
+  if (n < 3) return;
+  const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const st = mid(pts[n - 1], pts[0]);
+  ctx.beginPath(); ctx.moveTo(st.x, st.y);
+  for (let i = 0; i < n; i++) {
+    const cur = pts[i], nx = pts[(i + 1) % n], m = mid(cur, nx);
+    ctx.quadraticCurveTo(cur.x, cur.y, m.x, m.y);
+  }
+  ctx.closePath();
+}
+function polyPts(cx, cy, r, n) {
+  return Array.from({ length: n }, (_, i) => {
+    const a = -Math.PI / 2 + i * (Math.PI * 2 / n);
+    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r };
+  });
+}
+function drawTerrain() {
+  const cv = document.getElementById('terr');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const w = 315, h = 315;
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const parts = terrData();
+  const cx = w / 2, cy = h * 0.52, R = Math.min(w, h) * 0.38, n = parts.length;
+
+  ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+  [1, .72, .44].forEach((k, i) => {
+    smoothPath(ctx, polyPts(cx, cy, R * k, n));
+    ctx.strokeStyle = 'rgba(60,74,50,' + (0.10 + i * 0.03) + ')';
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(60,74,50,.07)';
+  polyPts(cx, cy, R, n).forEach(p => {
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(p.x, p.y); ctx.stroke();
+  });
+
+  const mx = parts.reduce((a, p) => Math.max(a, p.pct), 0);
+  const pts = parts.map((p, i) => {
+    const k = mx > 0 ? p.pct / mx : 0;
+    const r = R * (0.35 + 0.6 * k);
+    const a = -Math.PI / 2 + i * (Math.PI * 2 / n);
+    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, pct: p.pct };
+  });
+  const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, R);
+  g.addColorStop(0, 'rgba(60,74,50,.42)');
+  g.addColorStop(1, 'rgba(60,74,50,.14)');
+  smoothPath(ctx, pts);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = 'rgba(60,74,50,.72)'; ctx.lineWidth = 1.6; ctx.stroke();
+  pts.forEach((p, i) => {
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.pct > 0 ? 3 : 2, 0, Math.PI * 2);
+    ctx.fillStyle = p.pct > 0 ? '#3C4A32' : 'rgba(60,74,50,.22)';
+    ctx.fill();
+  });
+  ctx.beginPath(); ctx.arc(cx, cy, 1.8, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(60,74,50,.5)'; ctx.fill();
+}
+
+document.addEventListener('click', () => {});
+/* 调试：?demo=stats 直接进入「已练完一次」的数据页，方便看图表 */
+if (location.search.indexOf('demo=stats') >= 0) {
+  S.days = 3; S.place = 'gym';
+  S.records = []; S.done = {};
+  plan().items.forEach(function (it, i) {
+    const ex = EX[it.exId];
+    for (let k = 0; k < it.sets; k++) {
+      S.records.push({ exIdx: i, no: k + 1, weight: it.weight, reps: it.reps,
+                       unit: it.unit || 'kg', cn: ex.cn, part: ex.part });
+      S.done[i + ':' + (k + 1)] = true;
+    }
+  });
+  S.screen = 'stats';
+}
+
 render();
+if (S.screen === 'stats') setTimeout(drawTerrain, 30);
 </script>
 </body>
 </html>

@@ -192,3 +192,100 @@
   font-size: var(--fs-note);
   color: var(--muted2);
 }
+
+/* ================= 力量地形 ================= */
+
+.terrain-wrap {
+  margin-top: var(--sp2);
+  width: 100%;
+  height: 440rpx;
+}
+
+.terrain {
+  width: 100%;
+  height: 440rpx;
+}
+
+.legend2 {
+  margin-top: var(--sp2);
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.lg {
+  width: 33.33%;
+  display: flex;
+  align-items: center;
+  padding: 8rpx 0;
+}
+
+.lgd {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #DCD8C8;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+.lgd.on {
+  background: var(--green);
+}
+
+.lgn {
+  font-size: var(--fs-note);
+  color: var(--muted);
+}
+
+.lgp {
+  margin-left: auto;
+  padding-right: 20rpx;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+}
+
+/* ================= 周训练量 ================= */
+
+.bars {
+  margin-top: var(--sp2);
+  height: 260rpx;
+  display: flex;
+  align-items: flex-end;
+}
+
+.bar {
+  flex: 1;
+  position: relative;
+  height: 100%;
+}
+
+.barfill {
+  position: absolute;
+  left: 50%;
+  margin-left: -11rpx;
+  bottom: 30rpx;
+  width: 22rpx;
+  border-radius: 6rpx 6rpx 0 0;
+  background: #E2DFD1;
+  transition: height .5s cubic-bezier(.2, .8, .2, 1);
+}
+
+.barfill.on {
+  background: var(--green);
+}
+
+.barl {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+}
+
+.barnote {
+  margin-top: var(--sp1);
+  font-size: var(--fs-label);
+  color: var(--muted2);
+}

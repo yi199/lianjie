@@ -582,6 +582,48 @@ function todayReport(date) {
   };
 }
 
+/**
+ * 力量地形用的部位强度。
+ * 固定返回 6 个部位（没练过的记 0），这样多边形形状才稳定，
+ * 不会因为某个部位没数据就塌掉一个角。
+ */
+const TERRAIN_KEYS = ['chest', 'back', 'shoulders', 'arms', 'legs', 'core'];
+
+function partTerrain(y, m) {
+  const st = monthlyStats(y, m);
+  const map = {};
+  st.parts.forEach(function (p) { map[p.key] = p.pct; });
+
+  return TERRAIN_KEYS.map(function (k) {
+    const pct = map[k] || 0;
+    return { key: k, name: EX.PART_CN[k] || k, pct: pct, trained: pct > 0 };
+  });
+}
+
+/**
+ * 近 n 周的训练量（吨），给柱状图用。
+ * 返回从最早到最近：[{ label, ton }]
+ */
+function weeklyVolume(n) {
+  const weeks = Number(n) || 8;
+  const wd = D.weekdayMon();
+  const thisMonday = D.shift(D.today(), -wd);
+  const all = allSets().filter(function (s) { return s.done; });
+
+  const out = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const start = D.shift(thisMonday, -i * 7);
+    const end = D.shift(start, 6);
+    const rows = all.filter(function (s) { return s.date >= start && s.date <= end; });
+    out.push({
+      label: i === 0 ? '本周' : '-' + i + 'w',
+      ton: V.toTon(V.totalVolume(rows)),
+      sets: rows.length
+    });
+  }
+  return out;
+}
+
 /* ---------------- 统计 ---------------- */
 
 /** 本周进度：这周练了几天 / 目标几天 */
@@ -682,5 +724,7 @@ module.exports = {
   /* 战报 */
   todayReport, detectPRs,
   /* 统计 */
-  monthlyStats, weeklyProgress
+  monthlyStats, weeklyProgress,
+  /* 可视化 */
+  partTerrain, weeklyVolume
 };
