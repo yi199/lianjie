@@ -624,6 +624,35 @@ function weeklyVolume(n) {
   return out;
 }
 
+/**
+ * 全部历史的总览：累计吨数、单次最高、练过多少天。
+ * 地形页那三个数字卡要的就是这三个。
+ */
+function allTimeStats() {
+  const all = allSets().filter(function (s) { return s.done; });
+
+  const byDay = {};
+  all.forEach(function (s) {
+    if (!byDay[s.date]) byDay[s.date] = [];
+    byDay[s.date].push(s);
+  });
+
+  const dates = Object.keys(byDay);
+  let best = 0;
+  let bestDate = '';
+  dates.forEach(function (d) {
+    const t = V.toTon(V.totalVolume(byDay[d]));
+    if (t > best) { best = t; bestDate = d; }
+  });
+
+  return {
+    days: dates.length,
+    totalTon: V.toTon(V.totalVolume(all)),
+    best: best,
+    bestDate: bestDate
+  };
+}
+
 /* ---------------- 统计 ---------------- */
 
 /** 本周进度：这周练了几天 / 目标几天 */
@@ -726,5 +755,5 @@ module.exports = {
   /* 统计 */
   monthlyStats, weeklyProgress,
   /* 可视化 */
-  partTerrain, weeklyVolume
+  partTerrain, weeklyVolume, allTimeStats
 };

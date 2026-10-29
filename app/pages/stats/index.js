@@ -2,6 +2,23 @@ const db = require('../../utils/db');
 const D = require('../../utils/date');
 const TER = require('../../utils/terrain');
 
+/** 地形下面那句评语：说清哪座山最高、哪块还平，给一个具体建议 */
+function makeComment(parts) {
+  if (!parts || !parts.length) return '';
+  const sorted = parts.slice().sort(function (a, b) { return b.pct - a.pct; });
+  const strong = sorted[0];
+  const weak = sorted[sorted.length - 1];
+
+  if (sorted.length === 1) {
+    return strong.name + '一个人扛下了这个月。别的部位也分一点，地形才不会只有一座孤峰。';
+  }
+  if (weak.pct === 0) {
+    return strong.name + '堆出了主峰，' + weak.name + '还是一片平地。下周补一次' + weak.name + '，地形会更好看。';
+  }
+  return strong.name + '和' + sorted[1].name + '堆出了主峰，' +
+    weak.name + '还是一条浅淡的坡。下周加一次' + weak.name + '，地形会更好看。';
+}
+
 Page({
   data: {
     sbh: 20,
@@ -17,14 +34,16 @@ Page({
     top: [],
     empty: false,
     enter: false,
-    terrain: [],
-    terrainAny: false,
-    weeks: []
+    totalTon: 0,
+    bestTon: 0,
+    totalDays: 0,
+    comment: ''
   },
 
   onLoad() {
     const app = getApp();
     this.setData({ sbh: app.globalData.statusBarHeight });
+    this.heights = [];
   },
 
   onShow() {
@@ -46,22 +65,15 @@ Page({
     const m = D.thisMonth();
     const s = db.monthlyStats(m.y, m.m);
     const wk = db.weeklyProgress();
+    const all = db.allTimeStats();
     const blankN = D.firstWeekdayMon(m.y, m.m);
 
     const blanks = [];
     for (let i = 0; i < blankN; i++) blanks.push(i);
 
-    // 力量地形：6 个部位，没练过的记 0
-    const terrain = db.partTerrain(m.y, m.m);
-    const terrainAny = terrain.some(function (t) { return t.pct > 0; });
-
-    // 近 8 周训练量，柱高按最高一周归一化（留 16% 给标签和顶部空间）
-    const rawWeeks = db.weeklyVolume(8);
-    const maxTon = rawWeeks.reduce(function (a, w) { return Math.max(a, w.ton); }, 0);
-    const weeks = rawWeeks.map(function (w) {
-      const h = maxTon > 0 ? Math.round(w.ton / maxTon * 84) : 0;
-      return { label: w.label, ton: w.ton, h: w.ton > 0 ? Math.max(6, h) : 0 };
-    });
+    // 地形：最近 12 周每周的吨数 → 归一化成 0~1 的高度
+    const wv = db.weeklyVolume(12);
+    this.heights = TER.toHeights(wv.map(function (w) { return w.ton; }));
 
     const self = this;
     this.setData({
@@ -75,16 +87,17 @@ Page({
       parts: s.parts,
       top: s.top,
       empty: s.days === 0,
-      terrain: terrain,
-      terrainAny: terrainAny,
-      weeks: weeks
+      totalTon: all.totalTon,
+      bestTon: all.best,
+      totalDays: all.days,
+      comment: makeComment(s.parts)
     }, function () {
-      // canvas 要等节点渲染出来才能拿到
-      if (terrainAny) self.drawTerrain();
+      // canvas 要等节点渲染完才拿得到
+      if (s.days > 0) self.drawTerrain();
     });
   },
 
-  /** 力量地形：把 6 个部位的强度画成一个有机形状 */
+  /** 力量地形：12 周的山脊线 */
   drawTerrain() {
     const self = this;
     wx.createSelectorQuery()
@@ -109,17 +122,13 @@ Page({
         canvas.height = h * dpr;
         ctx.scale(dpr, dpr);
 
-        TER.draw(ctx, w, h, self.data.terrain);
+        TER.drawRidge(ctx, w, h, self.heights || []);
       });
   },
 
   /** 空态时用来「先看看长什么样」，不是真实数据 */
   loadDemo() {
     const n = db.loadDemo();
-    if (n === -1) {
-      wx.showToast({ title: '已经有记录了，示例不会覆盖', icon: 'none' });
-      return;
-    }
     if (!n) {
       wx.showToast({ title: '还没有计划', icon: 'none' });
       return;

@@ -1,126 +1,84 @@
 /**
- * 力量地形：把各部位的训练强度画成一个有机的多边形。
+ * 力量地形
  *
- * 为什么用 canvas 而不是图片：
- *   形状是由数据算出来的，每个人的地形都不一样，
- *   练得多的部位往外凸，没练的往里凹。所以只能画。
+ * 按原型的设计：横轴是时间（12 周前 → 本周），纵轴是每周的训练量。
+ * 每一周是一个点，点连成山脊，山与山之间的谷就是没练或练得少的周。
+ * 所以它看起来像一条山脉的轮廓，而不是雷达图。
  *
- * 为什么形状是这样：
- *   6 个顶点按部位固定顺序排（胸/背/肩/臂/腿/核心），
- *   每个顶点到中心的距离 = 基础半径 × (0.35 + 0.65 × 该部位占比归一化)。
- *   顶点之间用二次贝塞尔取中点连接，所以边缘是圆的，不是折线，
- *   看起来才像「地形」而不是「雷达图」。
+ * 三个刻意的选择：
+ *   1. 用直线段，不做平滑。锯齿感是「山」的质感，平滑了就变成折线图了。
+ *   2. 填充从山顶往下渐隐，像山体的阴影。
+ *   3. 本周那个点用陶土色标出来，是「你现在站在哪」。
  */
 
-const CX_RATIO = 0.5;
-const CY_RATIO = 0.52;
+/**
+ * @param ctx   canvas 2d context
+ * @param w,h   逻辑尺寸（已按 dpr 缩放）
+ * @param values 0~1 的数组，每个元素是一周的高度
+ */
+function drawRidge(ctx, w, h, values) {
+  const n = values.length;
+  if (!n) return;
 
-/** 平滑闭合路径：以一个顶点的中点为起点，相邻两个顶点之间用二次贝塞尔 */
-function smoothPath(ctx, pts) {
-  const n = pts.length;
-  if (n < 3) return;
+  const pad = 12;      // 上下留白
+  const xPad = 6;      // 左右留白：本周那个圆点才不会被边框裁掉
+  const inner = h - pad * 2;
+  const span = w - xPad * 2;
 
-  const mid = function (a, b) {
-    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-  };
+  const pts = values.map(function (v, i) {
+    return {
+      x: n > 1 ? xPad + (i / (n - 1)) * span : w / 2,
+      y: h - pad - Math.max(0.05, Math.min(1, v)) * inner
+    };
+  });
 
-  const start = mid(pts[n - 1], pts[0]);
+  ctx.clearRect(0, 0, w, h);
+
+  /* ---- 山体：面积填充，山顶深、山脚淡 ---- */
   ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
-
-  for (let i = 0; i < n; i++) {
-    const cur = pts[i];
-    const next = pts[(i + 1) % n];
-    const m = mid(cur, next);
-    ctx.quadraticCurveTo(cur.x, cur.y, m.x, m.y);
-  }
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < n; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.lineTo(pts[n - 1].x, h);
+  ctx.lineTo(pts[0].x, h);
   ctx.closePath();
-}
 
-/** 正多边形顶点（从正上方开始，顺时针） */
-function polygonPoints(cx, cy, r, n) {
-  const pts = [];
-  for (let i = 0; i < n; i++) {
-    const a = -Math.PI / 2 + i * (Math.PI * 2 / n);
-    pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
-  }
-  return pts;
+  const g = ctx.createLinearGradient(0, pad, 0, h);
+  g.addColorStop(0, 'rgba(60, 74, 50, .78)');
+  g.addColorStop(1, 'rgba(60, 74, 50, .08)');
+  ctx.fillStyle = g;
+  ctx.fill();
+
+  /* ---- 山脊线：直线段，保留锯齿 ---- */
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < n; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.strokeStyle = '#2C3826';
+  ctx.lineWidth = 1.5;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  /* ---- 本周：陶土色圆点 ---- */
+  const last = pts[n - 1];
+  ctx.beginPath();
+  ctx.arc(last.x, last.y, 3.4, 0, Math.PI * 2);
+  ctx.fillStyle = '#B4795A';
+  ctx.fill();
+  ctx.strokeStyle = '#F2F0E6';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
 }
 
 /**
- * 绘制
- * @param ctx  canvas 2d context
- * @param w,h  逻辑尺寸（已按 dpr 缩放过的坐标空间）
- * @param parts  [{ key, name, pct }] 长度建议 6
+ * 把每周吨数换算成 0~1 的高度。
+ * 留一个下限 0.12：完全没练的周也不会贴到底，
+ * 不然地形会缺一块，看起来像图画坏了。
  */
-function draw(ctx, w, h, parts) {
-  ctx.clearRect(0, 0, w, h);
-
-  const cx = w * CX_RATIO;
-  const cy = h * CY_RATIO;
-  const R = Math.min(w, h) * 0.38;      // 最外圈半径
-  const n = parts.length;
-  if (!n) return;
-
-  /* ---- 底：三圈同心网格 ---- */
-  const rings = [1, 0.72, 0.44];
-  ctx.lineWidth = 1;
-  ctx.setLineDash([3, 4]);
-  for (let r = 0; r < rings.length; r++) {
-    smoothPath(ctx, polygonPoints(cx, cy, R * rings[r], n));
-    ctx.strokeStyle = 'rgba(60, 74, 50, ' + (0.10 + r * 0.03) + ')';
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-
-  /* ---- 中轴 ---- */
-  const axis = polygonPoints(cx, cy, R, n);
-  ctx.strokeStyle = 'rgba(60, 74, 50, .07)';
-  ctx.lineWidth = 1;
-  axis.forEach(function (p) {
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
+function toHeights(tons) {
+  const max = tons.reduce(function (a, t) { return Math.max(a, t); }, 0);
+  return tons.map(function (t) {
+    if (max <= 0) return 0.12;
+    return 0.12 + 0.88 * (t / max);
   });
-
-  /* ---- 数据形状 ---- */
-  const maxPct = parts.reduce(function (a, p) { return Math.max(a, p.pct || 0); }, 0);
-  const pts = parts.map(function (p, i) {
-    // 归一化：最强的部位到 0.95R，没练过的最小也有 0.28R（不然会缩成一个点）
-    const k = maxPct > 0 ? (p.pct || 0) / maxPct : 0;
-    const r = R * (0.35 + 0.6 * k);
-    const a = -Math.PI / 2 + i * (Math.PI * 2 / n);
-    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, pct: p.pct || 0 };
-  });
-
-  // 填充：从中心往外淡出，像地形的坡
-  const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, R);
-  grad.addColorStop(0, 'rgba(60, 74, 50, .42)');
-  grad.addColorStop(1, 'rgba(60, 74, 50, .14)');
-
-  smoothPath(ctx, pts);
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  ctx.strokeStyle = 'rgba(60, 74, 50, .72)';
-  ctx.lineWidth = 1.6;
-  ctx.stroke();
-
-  /* ---- 顶点小圆 ---- */
-  pts.forEach(function (p, i) {
-    const trained = parts[i].pct > 0;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, trained ? 3 : 2, 0, Math.PI * 2);
-    ctx.fillStyle = trained ? '#3C4A32' : 'rgba(60, 74, 50, .22)';
-    ctx.fill();
-  });
-
-  /* ---- 中心点 ---- */
-  ctx.beginPath();
-  ctx.arc(cx, cy, 1.8, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(60, 74, 50, .5)';
-  ctx.fill();
 }
 
-module.exports = { draw, polygonPoints };
+module.exports = { drawRidge, toHeights };
