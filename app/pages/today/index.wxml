@@ -7,8 +7,8 @@
       <text class="brand">练界</text>
       <text class="kicker">{{weekday}} · {{dateText}}</text>
     </view>
-    <view class="h1">{{h1}}</view>
     <view class="h1en">Today's Session</view>
+    <view class="h1">{{h1}}</view>
   </view>
 
   <!-- 本周进度：练了就算一次，不绑星期几 -->
@@ -21,17 +21,20 @@
 
   <block wx:if="{{plan}}">
 
-    <!-- 今天练什么：一张大卡，主按钮就在卡里，首屏看完就能开始 -->
+    <!-- 今天练什么：一张大白卡，上方留白，内容压在底部 -->
     <view class="card sec">
-      <view class="cardtop">
-        <text class="ckey">{{plan.key}}</text>
-        <text class="cen">{{plan.en}}</text>
-      </view>
-      <view class="cname">{{plan.name}}</view>
-      <view class="cmeta">{{items.length}} 个动作 · 约 {{minutes}} 分钟</view>
-      <view class="cmeta dim">{{lastText}}</view>
-      <view class="cbtn" hover-class="cbtn-hover" bindtap="mainAction">
-        {{allDone ? '看今日战报 →' : (resumed ? '继续训练 →' : '开始训练 →')}}
+      <text class="cmark">{{plan.key}}</text>
+
+      <view class="cbody">
+        <view class="cen">{{plan.en}}</view>
+        <view class="cname">{{plan.name}}</view>
+        <view class="cmeta">{{items.length}} 个动作 · 约 {{minutes}} 分钟</view>
+        <view class="cmeta dim">{{lastText}}</view>
+
+        <view class="cbtn" hover-class="cbtn-hover" bindtap="mainAction">
+          <text>{{allDone ? '看今日战报' : (resumed ? '继续训练' : '开始训练')}}</text>
+          <text class="carrow">→</text>
+        </view>
       </view>
     </view>
 

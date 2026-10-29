@@ -16,7 +16,7 @@
   height: 18rpx;
   border-radius: 50%;
   margin-right: 16rpx;
-  background: #E2DFD1;
+  background: #DEDBCB;
   transition: background .25s;
 }
 
@@ -30,28 +30,37 @@
   color: var(--muted);
 }
 
-/* ================= 今天是哪一天 ================= */
+/* ================= 今天练什么：大白卡 =================
+   结构照杯间餐时的酒谱卡片：上方大片留白，内容压在底部。
+   那个留白不是空的，它让下面的标题显得贵重。
+*/
 
 .card {
-  padding: var(--sp3);
-  border-radius: 28rpx;
+  position: relative;
+  padding: var(--sp3) 36rpx 36rpx;
+  border-radius: 40rpx;
   background: var(--card);
-  border: 1rpx solid var(--line);
+  overflow: hidden;
 }
 
-.cardtop {
-  display: flex;
-  align-items: baseline;
-}
-
-.ckey {
+/* 右上角一个很淡的大字母，代替插画做视觉锚点 */
+.cmark {
+  position: absolute;
+  right: 16rpx;
+  top: -30rpx;
   font-family: Georgia, serif;
-  font-size: var(--fs-h2);
-  color: var(--clay);
+  font-size: 240rpx;
+  line-height: 1;
+  color: rgba(180, 121, 90, .10);
+  pointer-events: none;
+}
+
+.cbody {
+  position: relative;
+  padding-top: 150rpx;      /* 上方留白 */
 }
 
 .cen {
-  margin-left: 16rpx;
   font-family: Georgia, serif;
   font-size: var(--fs-label);
   letter-spacing: .26em;
@@ -60,21 +69,46 @@
 }
 
 .cname {
-  margin-top: var(--sp2);
+  margin-top: var(--sp1);
   font-size: var(--fs-title);
-  line-height: 1.2;
+  line-height: 1.15;
   letter-spacing: .01em;
 }
 
 .cmeta {
-  margin-top: var(--sp1);
+  margin-top: var(--sp2);
   font-size: var(--fs-note);
   color: var(--muted);
   line-height: 1.6;
 }
 
 .cmeta.dim {
+  margin-top: 6rpx;
   color: var(--muted2);
+}
+
+/* 主按钮：浅色胶囊，文字左、箭头右（和「翻开手册 →」一样的排法） */
+.cbtn {
+  margin-top: var(--sp3);
+  height: 100rpx;
+  padding: 0 36rpx;
+  border-radius: 50rpx;
+  background: #F7F6EE;
+  border: 1rpx solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-body);
+  color: var(--ink);
+}
+
+.cbtn-hover {
+  background: var(--soft);
+}
+
+.carrow {
+  font-family: Georgia, serif;
+  color: var(--muted);
 }
 
 /* ================= 动作清单 ================= */
@@ -135,7 +169,7 @@
 
 .tip {
   margin-top: var(--sp3);
-  padding: var(--sp2) var(--sp2);
+  padding: var(--sp2);
   border-radius: 22rpx;
   background: var(--soft);
   font-size: var(--fs-note);
@@ -145,9 +179,8 @@
 
 .emptycard {
   padding: var(--sp4) var(--sp3);
-  border-radius: 28rpx;
+  border-radius: 40rpx;
   background: var(--card);
-  border: 1rpx solid var(--line);
   text-align: center;
 }
 
@@ -162,31 +195,13 @@
   color: var(--muted);
 }
 
-/* 卡里的主行动：首屏就能点到，不用滚到底部找按钮 */
-.cbtn {
-  margin-top: var(--sp3);
-  height: 96rpx;
-  border-radius: 48rpx;
-  background: var(--green);
-  color: #F6F4EA;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--fs-body);
-  letter-spacing: .08em;
-}
-
-.cbtn-hover {
-  opacity: .9;
-  transform: scale(.99);
-}
-
 .ebtn {
   margin-top: var(--sp3);
   height: 92rpx;
   border-radius: 46rpx;
-  border: 1rpx solid var(--green);
-  color: var(--green);
+  background: #F7F6EE;
+  border: 1rpx solid var(--line);
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;

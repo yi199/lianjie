@@ -105,7 +105,7 @@
   padding: 34rpx 32rpx;
   border: 1rpx solid #DFDCCE;
   border-radius: 26rpx;
-  background: #FAF8F0;
+  background: #FFFFFF;
   transition: background .15s, border-color .15s;
 }
 
@@ -137,7 +137,7 @@
   margin-right: 20rpx;
   border-radius: 46rpx;
   border: 1rpx solid #DFDCCE;
-  background: #FAF8F0;
+  background: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -190,21 +190,29 @@
 }
 
 .btn.main {
-  height: 100rpx;
-  border-radius: 50rpx;
-  background: #3C4A32;
-  color: #F6F4EA;
+  height: 104rpx;
+  border-radius: 52rpx;
+  background: #FFFFFF;
+  border: 1rpx solid var(--line, #EBE8DC);
+  color: #1F231C;
   font-size: var(--fs-body);
-  letter-spacing: 6rpx;
+  letter-spacing: 1rpx;
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: opacity .15s;
+  justify-content: space-between;
+  padding: 0 40rpx;
+  transition: background .15s;
+}
+
+.btn.main .arw {
+  font-family: Georgia, serif;
+  color: var(--muted, #8B897C);
 }
 
 .btn.main.off {
-  background: #C9C6B8;
-  color: #F6F4EA;
+  background: #F7F6EE;
+  color: #B8B5A6;
+  border-color: #EFEDE2;
 }
 
 .hint {

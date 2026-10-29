@@ -11,7 +11,10 @@
     </view>
 
     <view class="foot">
-      <view class="btn main" bindtap="start">开始</view>
+      <view class="btn main" bindtap="start">
+        <text>开始</text>
+        <text class="arw">→</text>
+      </view>
       <view class="hint">先花 30 秒，告诉我们你的情况</view>
     </view>
   </block>
@@ -73,7 +76,10 @@
     </view>
 
     <view class="foot">
-      <view class="btn main {{canFinish ? '' : 'off'}}" bindtap="finish">开始训练</view>
+      <view class="btn main {{canFinish ? '' : 'off'}}" bindtap="finish">
+        <text>开始训练</text>
+        <text class="arw">→</text>
+      </view>
       <view class="back" bindtap="back">← 返回</view>
     </view>
   </block>

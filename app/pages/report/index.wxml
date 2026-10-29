@@ -4,8 +4,8 @@
 
   <view class="head rise d1">
     <view class="kicker">{{dateText}}</view>
-    <view class="h1">今天练完了。</view>
     <view class="h1en">Session Report</view>
+    <view class="h1">今天练完了。</view>
     <view class="plan">{{r.planName}}</view>
   </view>
 

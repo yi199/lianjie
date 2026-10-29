@@ -7,9 +7,9 @@
       <text class="brand">练界</text>
       <text class="kicker">This Month · {{monthLabel}}</text>
     </view>
+    <view class="h1en">Your Record</view>
     <view class="h1" wx:if="{{!empty}}">你练了 {{days}} 天。</view>
     <view class="h1" wx:else>还没有记录。</view>
-    <view class="h1en">Your Record</view>
   </view>
 
   <block wx:if="{{!empty}}">

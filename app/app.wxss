@@ -17,12 +17,12 @@
 page {
   /* 颜色 */
   --bg: #F2F0E6;
-  --card: #FAF9F3;
+  --card: #FFFFFF;
   --ink: #1F231C;
   --green: #3C4A32;
   --green-deep: #2A3226;
   --soft: #E8EEDC;
-  --line: #DFDCCE;
+  --line: #EBE8DC;
   --muted: #8B897C;
   --muted2: #A9A79A;
   --clay: #B4795A;
@@ -71,14 +71,23 @@ view, text, scroll-view { box-sizing: border-box; }
   font-weight: 400;
 }
 
-/* 中文大标题下面那行英文：整页的双层标题结构 */
+/* 中文大标题上面那行英文：整页的双层标题结构
+   （学杯间餐时：CITY COCKTAILS 在上，「把杭州，调进一杯。」在下） */
 .h1en {
-  margin-top: var(--sp1);
+  margin-top: 0;
   font-family: Georgia, "Times New Roman", serif;
   font-size: var(--fs-label);
   letter-spacing: .3em;
   color: var(--muted2);
   text-transform: uppercase;
+}
+
+.phead .h1en {
+  margin-top: var(--sp2);
+}
+
+.phead .h1 {
+  margin-top: var(--sp1);
 }
 
 .h2 {
@@ -165,8 +174,9 @@ view, text, scroll-view { box-sizing: border-box; }
   justify-content: center;
   height: 104rpx;
   border-radius: 52rpx;
-  background: var(--green);
-  color: #F6F4EA;
+  background: var(--card);
+  border: 1rpx solid var(--line);
+  color: var(--ink);
   font-size: var(--fs-body);
   letter-spacing: .08em;
 }

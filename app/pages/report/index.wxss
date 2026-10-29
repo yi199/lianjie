@@ -32,7 +32,7 @@ page {
 
 /* 深色页的英文锚点：全局 .h1en 是浅灰，在深底上看不见，这里覆盖 */
 .h1en {
-  margin-top: var(--sp1);
+  margin-top: 0;
   font-family: Georgia, "Times New Roman", serif;
   font-size: var(--fs-label);
   letter-spacing: .3em;
