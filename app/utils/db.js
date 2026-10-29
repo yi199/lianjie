@@ -157,6 +157,7 @@ function decorate(p) {
   const sw = swaps();
   return {
     key: p.key,
+    type: p.type,
     name: p.name,
     en: p.en,
     items: p.items.map(function (it, i) {

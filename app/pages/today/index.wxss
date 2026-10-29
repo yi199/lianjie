@@ -1,5 +1,13 @@
 /* ================= 本周进度 ================= */
 
+/* 中文日期不能用 .kicker（那是给英文的 0.26em 字距，中文会被拉散） */
+.date {
+  margin-left: auto;
+  font-size: var(--fs-label);
+  letter-spacing: .06em;
+  color: var(--muted2);
+}
+
 .weekbar {
   margin-top: var(--sp3);
   display: flex;
@@ -43,21 +51,19 @@
   overflow: hidden;
 }
 
-/* 右上角一个很淡的大字母，代替插画做视觉锚点 */
-.cmark {
+/* 卡片主视觉：手绘线稿（自己画的，无版权问题）
+   放在卡片中上部，内容压在它下面 */
+.cart {
   position: absolute;
-  right: 16rpx;
-  top: -30rpx;
-  font-family: Georgia, serif;
-  font-size: 240rpx;
-  line-height: 1;
-  color: rgba(180, 121, 90, .10);
-  pointer-events: none;
+  left: 50%;
+  top: 36rpx;
+  width: 320rpx;
+  margin-left: -160rpx;
 }
 
 .cbody {
   position: relative;
-  padding-top: 150rpx;      /* 上方留白 */
+  padding-top: 336rpx;      /* 上方留白：给线稿让位，也让标题显得贵重 */
 }
 
 .cen {

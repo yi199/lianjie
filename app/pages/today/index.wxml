@@ -5,7 +5,7 @@
   <view class="phead">
     <view class="brandrow">
       <text class="brand">练界</text>
-      <text class="kicker">{{weekday}} · {{dateText}}</text>
+      <text class="date">{{weekday}} · {{dateText}}</text>
     </view>
     <view class="h1en">Today's Session</view>
     <view class="h1">{{h1}}</view>
@@ -23,7 +23,7 @@
 
     <!-- 今天练什么：一张大白卡，上方留白，内容压在底部 -->
     <view class="card sec">
-      <text class="cmark">{{plan.key}}</text>
+      <image class="cart" src="/images/art/{{art}}.png" mode="widthFix" />
 
       <view class="cbody">
         <view class="cen">{{plan.en}}</view>

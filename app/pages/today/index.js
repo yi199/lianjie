@@ -1,6 +1,19 @@
 const db = require('../../utils/db');
 const D = require('../../utils/date');
 
+/** 训练日类型 → 卡片主视觉线稿 */
+const ART = {
+  push: 'press',
+  pull: 'pull',
+  legs: 'squat',
+  upperA: 'press',
+  upperB: 'pull',
+  lowerA: 'squat',
+  lowerB: 'squat',
+  fullA: 'barbell',
+  fullB: 'pull'
+};
+
 Page({
   data: {
     sbh: 20,
@@ -20,7 +33,8 @@ Page({
     weekTarget: 0,
     weekDots: [],
     profileText: '',
-    enter: false
+    enter: false,
+    art: ''
   },
 
   onLoad() {
@@ -131,7 +145,8 @@ Page({
       weekDone: s.week.done,
       weekTarget: s.week.target,
       weekDots: dots,
-      profileText: db.profileText()
+      profileText: db.profileText(),
+      art: plan ? (ART[plan.type] || 'barbell') : ''
     });
   },
 
