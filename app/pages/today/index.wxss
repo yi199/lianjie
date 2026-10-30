@@ -67,7 +67,7 @@
 }
 
 .cen {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-label);
   letter-spacing: .26em;
   color: var(--muted2);
@@ -113,7 +113,7 @@
 }
 
 .carrow {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   color: var(--muted);
 }
 
@@ -154,7 +154,7 @@
 
 .pen {
   margin-top: 4rpx;
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-label);
   letter-spacing: .08em;
   color: var(--muted2);
@@ -200,7 +200,7 @@
 }
 
 .swaparrow {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   opacity: .7;
 }
 
