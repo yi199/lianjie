@@ -34,7 +34,7 @@
 }
 
 .pkkey {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-note);
   color: var(--clay);
   margin-right: 8rpx;
@@ -64,7 +64,7 @@
 }
 
 .changearrow {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
 }
 
 /* ================= 选项 ================= */

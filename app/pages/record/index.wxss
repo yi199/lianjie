@@ -22,7 +22,7 @@
 }
 .nav .en {
   display: block;
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-style: italic;
   font-size: var(--fs-label);
   color: var(--muted2);
@@ -55,7 +55,7 @@
 }
 .exhead .en {
   margin-top: 6rpx;
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-style: italic;
   font-size: var(--fs-label);
   letter-spacing: 1rpx;
@@ -117,7 +117,7 @@
   line-height: 1;
 }
 .bignum .n {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: 114rpx;
   color: var(--ink);
   letter-spacing: -.02em;
@@ -293,7 +293,7 @@
   animation: breathe 9s ease-in-out infinite;
 }
 .core .tm {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-title);
   color: var(--green);
   line-height: 1;
