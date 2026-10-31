@@ -511,6 +511,11 @@ function syncAck(batch, rejectedIds) {
   if (b.config) ackConfig(b.config.updatedAt);
 }
 
+/** 把服务端 rejected 映射成队列 id（id 规则在 storage 里维护，别在这儿复制） */
+function rejectedIds(batch, rejected) {
+  return S.rejectedIds(batch, rejected);
+}
+
 /** 应用服务端下发的结果；返回应用了多少条（配置算 1） */
 function syncApply(pulled) {
   if (!pulled) return 0;
@@ -1691,5 +1696,5 @@ module.exports = {
   packConfig, takeConfig, ackConfig, applyConfigDoc, configPending, configUpdatedAt,
   markConfigDirty,
   /* 同步层接口（sync.js 用，页面不用） */
-  syncPending, syncPullBatch, syncAck, syncApply, syncMarkAll, onDirty
+  syncPending, syncPullBatch, syncAck, syncApply, syncMarkAll, onDirty, rejectedIds
 };

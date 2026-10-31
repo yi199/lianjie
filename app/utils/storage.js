@@ -402,6 +402,25 @@ function pendingCount() {
   return Object.keys(dirtyMap()).length;
 }
 
+/**
+ * 把服务端返回的 rejected 映射成待上传队列里的 id。
+ * id 的生成规则只在本文件里维护（组记录 = date-exId-setNo，训练 = "w:日期"），
+ * 所以映射也放在这里，免得同步层再复制一份规则。
+ * config 被拒不出队（配置只有一份，留着下次再传）。
+ */
+function rejectedIds(batch, rejected) {
+  const out = [];
+  const b = batch || {};
+  (rejected || []).forEach(function (r) {
+    if (r.kind === 'set' && b.rows && b.rows[r.index]) {
+      out.push(rowId(b.rows[r.index]));
+    } else if (r.kind === 'workout' && b.workouts && b.workouts[r.index]) {
+      out.push(wid(b.workouts[r.index].date));
+    }
+  });
+  return out;
+}
+
 /* ---------------- 老版本升级 ---------------- */
 
 /**
@@ -457,5 +476,6 @@ module.exports = {
   workout, workouts, putWorkoutLocal, putWorkouts, removeWorkouts,
   removeAll,
   dirtyMap, markAllDirty, dirtyBatch, ack, applyRemote, applyRemoteWorkouts, pendingCount, onDirty,
+  rejectedIds,
   reset
 };
