@@ -26,6 +26,7 @@ const K_PROFILE = 'lj.profile';
 const K_PLAN = 'lj.plans';
 const K_SWAPS = 'lj.swaps';   // 训练日里「第几个动作 → 换成哪个」，跟着计划走
 const K_CUSTOM = 'lj.customPrograms';   // 用户自己搭的方案（数组）
+const K_CONFIG_META = 'lj.config.meta'; // 配置文档的版本与是否待上传 { updatedAt, dirty }
 
 const LEVEL_CN = { new: '刚开始', some: '练过一阵', trained: '一直在练' };
 
@@ -60,6 +61,7 @@ function saveProfile(p) {
   // 训练日编号的含义变了（A 从「推日」变「上肢 A」），旧的换动作记录不能再用
   if (oldSig && oldSig !== planSig()) wx.removeStorageSync(K_SWAPS);
 
+  markConfigDirty();
   return plans();
 }
 
@@ -93,6 +95,7 @@ function applyProgram(prof) {
 function finishOnboarding(p) {
   saveProfile(p);
   wx.setStorageSync(K_ONBOARDED, true);
+  markConfigDirty();
 }
 
 /**
@@ -223,12 +226,14 @@ function saveCustomProgram(prog) {
   const idx = list.findIndex(function (x) { return x.id === row.id; });
   if (idx >= 0) list[idx] = row; else list.push(row);
   wx.setStorageSync(K_CUSTOM, list);
+  markConfigDirty();
   return row;
 }
 
 function removeCustomProgram(id) {
   const list = customPrograms().filter(function (x) { return x.id !== id; });
   wx.setStorageSync(K_CUSTOM, list);
+  markConfigDirty();
 
   // 正在用这个方案 → 退回自动排，别留一个指向已删方案的 programId
   const prof = profile();
@@ -348,6 +353,7 @@ function setSwap(planKey, slot, exId) {
   else sw[planKey + ':' + slot] = exId;
 
   wx.setStorageSync(K_SWAPS, sw);
+  markConfigDirty();
   return sw;
 }
 
@@ -355,7 +361,179 @@ function clearSwap(planKey, slot) {
   const sw = swaps();
   delete sw[planKey + ':' + slot];
   wx.setStorageSync(K_SWAPS, sw);
+  markConfigDirty();
   return sw;
+}
+
+/* ---------------- 配置文档（设置 + 换动作 + 自定义方案，整份同步） ---------------- */
+
+/**
+ * 这三样为什么打包成一份：
+ * 它们会**联动修改**（启用一个方案 = 改设置 + 换动作表清空，因为训练日编号的含义变了）。
+ * 分成三个资源同步，两台设备交错修改时会出现「设置是 A 设备的、换动作是 B 设备的」这种组合。
+ *
+ * 训练日队列（lj.plans）不在这里：它是「配置 + 包内静态数据」的纯函数，
+ * 拿到配置后重新推导即可，同步它等于同步第二份真相。
+ */
+const CONFIG_VER = 1;
+
+// 应用服务端下发配置的过程中不再标脏，否则「应用」自己会被当成一次本地改动
+let applyingRemote = false;
+const configListeners = [];
+
+function configMeta() {
+  const m = wx.getStorageSync(K_CONFIG_META);
+  return m && typeof m === 'object' ? m : { updatedAt: '', dirty: false };
+}
+
+function configUpdatedAt() {
+  return configMeta().updatedAt || '';
+}
+
+/** 有没有还没上传的配置改动 */
+function configPending() {
+  return !!configMeta().dirty;
+}
+
+function notifyConfig() {
+  configListeners.slice().forEach(function (fn) {
+    try { fn(); } catch (e) { /* 单个监听器出错不影响写入 */ }
+  });
+}
+
+/**
+ * 配置变了：盖一个严格递增的时刻；同步打开时标脏并唤醒同步层。
+ * 同步没打开时只记时刻不标脏——等接上后端由 syncMarkAll() 统一排进队列。
+ */
+function markConfigDirty() {
+  if (applyingRemote) return;
+  const meta = configMeta();
+  meta.updatedAt = S.stamp();
+  if (syncOn()) meta.dirty = true;
+  wx.setStorageSync(K_CONFIG_META, meta);
+  if (meta.dirty) notifyConfig();
+}
+
+/** 打包成契约 §1.3 的 ConfigDoc.body */
+function packConfig() {
+  const prof = profile();
+  return {
+    v: CONFIG_VER,
+    onboarded: hasOnboarded(),
+    profile: prof
+      ? { level: prof.level, days: prof.days, place: prof.place, programId: prof.programId }
+      : null,
+    swaps: swaps(),
+    customPrograms: customPrograms()
+  };
+}
+
+/** 取一份待上传的配置；没有改动返回 null */
+function takeConfig() {
+  if (!configPending()) return null;
+  return { body: packConfig(), updatedAt: configMeta().updatedAt };
+}
+
+/**
+ * 服务端确认已收到。只清「发出去之后没再改过」的——
+ * 上传途中用户又改了设置，updatedAt 已经变了，必须留着下次再传。
+ */
+function ackConfig(updatedAt) {
+  const meta = configMeta();
+  if (!meta.dirty || meta.updatedAt !== updatedAt) return false;
+  meta.dirty = false;
+  wx.setStorageSync(K_CONFIG_META, meta);
+  return true;
+}
+
+/**
+ * 应用服务端下发的配置。
+ * 本地还有没上传的改动 → 整份不覆盖（等它上传后由服务端裁决，赢家下次回来）。
+ * 来自更新版本客户端的 body（v 更大）→ 读不懂就跳过，别写坏数据。
+ * @returns {boolean} 是否应用了
+ */
+function applyConfigDoc(doc) {
+  if (!doc || !doc.body) return false;
+  if (configPending()) return false;
+
+  const body = doc.body;
+  if ((Number(body.v) || 0) > CONFIG_VER) return false;
+
+  applyingRemote = true;
+  try {
+    if (body.profile) {
+      wx.setStorageSync(K_PROFILE, {
+        level: body.profile.level || 'some',
+        days: Number(body.profile.days) || 3,
+        place: body.profile.place === 'home' ? 'home' : 'gym',
+        programId: body.profile.programId || 'auto'
+      });
+    } else {
+      wx.removeStorageSync(K_PROFILE);
+    }
+
+    wx.setStorageSync(K_SWAPS, body.swaps || {});
+    wx.setStorageSync(K_CUSTOM, Array.isArray(body.customPrograms) ? body.customPrograms : []);
+
+    if (body.onboarded) wx.setStorageSync(K_ONBOARDED, true);
+    else wx.removeStorageSync(K_ONBOARDED);
+
+    // 训练日队列不随配置同步：拿到配置后重新推导
+    const prof = profile();
+    if (prof) applyProgram(prof);
+    else wx.removeStorageSync(K_PLAN);
+  } finally {
+    applyingRemote = false;
+  }
+
+  wx.setStorageSync(K_CONFIG_META, { updatedAt: doc.updatedAt || '', dirty: false });
+  return true;
+}
+
+/* ---------------- 同步层接口（sync.js 只用这几个，页面不用） ---------------- */
+
+/** 待上传总数：记录 + 训练 + 配置算 1 */
+function syncPending() {
+  return S.pendingCount() + (configPending() ? 1 : 0);
+}
+
+/** 取一批待上传：{ rows, workouts, sent, config }，config 没改动时为 null */
+function syncPullBatch(limit) {
+  const b = S.dirtyBatch(limit || 500);
+  b.config = takeConfig();
+  return b;
+}
+
+/** 服务端已确认：清队列（只清发出之后没再改过的行） */
+function syncAck(batch, rejectedIds) {
+  const b = batch || {};
+  S.ack(b.sent || {}, rejectedIds || []);
+  if (b.config) ackConfig(b.config.updatedAt);
+}
+
+/** 应用服务端下发的结果；返回应用了多少条（配置算 1） */
+function syncApply(pulled) {
+  if (!pulled) return 0;
+  let n = 0;
+  if (pulled.sets && pulled.sets.length) n += S.applyRemote(pulled.sets);
+  if (pulled.workouts && pulled.workouts.length) n += S.applyRemoteWorkouts(pulled.workouts);
+  if (pulled.config) n += applyConfigDoc(pulled.config) ? 1 : 0;
+  return n;
+}
+
+/** 第一次接上后端：把本地全部真实记录和配置排进上传队列 */
+function syncMarkAll() {
+  S.markAllDirty();
+  const meta = configMeta();
+  if (!meta.updatedAt) meta.updatedAt = S.stamp();
+  meta.dirty = true;
+  wx.setStorageSync(K_CONFIG_META, meta);
+}
+
+/** 有本地改动时通知（组记录 / 训练 / 配置都会触发） */
+function onDirty(fn) {
+  S.onDirty(fn);
+  configListeners.push(fn);
 }
 
 /** 把模板里的动作 id 展开成完整动作，并应用换过的动作 */
@@ -1229,6 +1407,7 @@ function resetAll() {
   wx.removeStorageSync(K_PLAN);
   wx.removeStorageSync(K_SWAPS);
   wx.removeStorageSync(K_CUSTOM);
+  wx.removeStorageSync(K_CONFIG_META);
   S.removeAll();
 }
 
@@ -1507,5 +1686,10 @@ module.exports = {
   /* 统计 */
   monthlyStats, weeklyProgress,
   /* 可视化 */
-  partTerrain, weeklyVolume, allTimeStats
+  partTerrain, weeklyVolume, allTimeStats,
+  /* 配置文档 */
+  packConfig, takeConfig, ackConfig, applyConfigDoc, configPending, configUpdatedAt,
+  markConfigDirty,
+  /* 同步层接口（sync.js 用，页面不用） */
+  syncPending, syncPullBatch, syncAck, syncApply, syncMarkAll, onDirty
 };
