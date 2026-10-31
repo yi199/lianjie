@@ -1,5 +1,6 @@
 const db = require('../../utils/db');
 const D = require('../../utils/date');
+const store = require('../../store/index');
 
 /** 训练日类型 → 卡片主视觉线稿 */
 const ART = {
@@ -40,6 +41,16 @@ Page({
   onLoad() {
     const app = getApp();
     this.setData({ sbh: app.globalData.statusBarHeight });
+
+    // 同步下来的远端变更（别的设备记的组）也要即时反映到页面上，
+    // 否则得切走再切回才看得到。这里不重播入场动画，只刷新数据。
+    const self = this;
+    this.onSetsChange = function () { self.refresh(); };
+    store.on(this.onSetsChange);
+  },
+
+  onUnload() {
+    if (this.onSetsChange) store.off(this.onSetsChange);
   },
 
   onShow() {

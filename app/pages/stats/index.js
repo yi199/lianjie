@@ -1,6 +1,7 @@
 const db = require('../../utils/db');
 const D = require('../../utils/date');
 const TER = require('../../utils/terrain');
+const store = require('../../store/index');
 
 /** 地形下面那句评语：说清哪座山最高、哪块还平，给一个具体建议 */
 function makeComment(parts) {
@@ -44,6 +45,16 @@ Page({
     const app = getApp();
     this.setData({ sbh: app.globalData.statusBarHeight });
     this.heights = [];
+
+    // 远端变更（别的设备记的组）同步下来后即时重算，包括力量地形。
+    // 切 tab 不销毁页面，所以监听会一直挂着——切回来立刻就是最新数据。
+    const self = this;
+    this.onSetsChange = function () { self.refresh(); };
+    store.on(this.onSetsChange);
+  },
+
+  onUnload() {
+    if (this.onSetsChange) store.off(this.onSetsChange);
   },
 
   onShow() {
