@@ -244,6 +244,32 @@ async function main() {
   ok('没配地址时不发任何请求', srv.calls.length === callsBefore && r && r.skipped === 'off',
     JSON.stringify(r));
 
+  /* ---- 8. 环境地址选择（config.js） ---- */
+  console.log('\n=== 环境地址 ===');
+  function env(v) {
+    return function () { return { miniProgram: { envVersion: v } }; };
+  }
+
+  global.wx.getAccountInfoSync = env('develop');
+  CFG.setApiBase(null);
+  ok('develop 用本机地址，且带 /api',
+    CFG.apiBase() === 'http://127.0.0.1:8080/api', CFG.apiBase());
+  ok('develop 时同步默认打开', CFG.syncEnabled() === true);
+
+  global.wx.getAccountInfoSync = env('trial');
+  CFG.setApiBase(null);
+  ok('trial 还没域名 → 纯本地', CFG.apiBase() === '' && CFG.syncEnabled() === false);
+
+  global.wx.getAccountInfoSync = env('release');
+  CFG.setApiBase(null);
+  ok('release 留空 → 纯本地', CFG.apiBase() === '' && CFG.syncEnabled() === false);
+
+  // 换完环境不能拿到旧缓存
+  global.wx.getAccountInfoSync = env('develop');
+  CFG.setApiBase(null);
+  ok('setApiBase 换环境后不拿旧缓存',
+    CFG.apiBase() === 'http://127.0.0.1:8080/api', CFG.apiBase());
+
   sync.stop();
 }
 
