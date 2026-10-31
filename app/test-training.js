@@ -303,5 +303,123 @@ ok('同步模式清空 → 有效记录为 0', db.allSets().length === 0 && db.w
 ok('同步模式清空 → 墓碑进队列', S.dirtyBatch(500).rows.every(function (r) { return r.done === false; }) && S.pendingCount() > 0);
 CFG.setApiBase(null);
 
+/* ---------------- 配置文档（设置 / 换动作 / 自定义方案，整份同步） ---------------- */
+console.log('\n=== 配置文档 ===');
+
+CFG.setApiBase('http://localhost:8080');       // 打开同步
+db.resetAll();
+ok('还没走引导 → 配置不待上传', db.configPending() === false);
+
+db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+ok('走完引导 → 配置待上传', db.configPending() === true);
+ok('配置时刻已盖上', db.configUpdatedAt() !== '');
+
+const c1 = db.takeConfig();
+ok('takeConfig 拿到 body 与 updatedAt', !!c1 && !!c1.body && typeof c1.updatedAt === 'string');
+ok('body.v = 1', c1.body.v === 1);
+ok('body 含 onboarded / profile / swaps / customPrograms',
+  c1.body.onboarded === true && c1.body.profile.days === 3 &&
+  typeof c1.body.swaps === 'object' && Array.isArray(c1.body.customPrograms));
+
+// 时刻严格递增：同一毫秒内连改两次也要拿到不同的值
+db.setSwap('A', 0, 'g15');
+const ts2 = db.configUpdatedAt();
+db.setSwap('A', 1, 'g19');
+const ts3 = db.configUpdatedAt();
+ok('配置改动时刻严格递增', ts2 !== ts3 && ts3 > ts2, ts2 + ' < ' + ts3);
+
+// 确认：只清「发出去之后没再改过」的
+const snap = db.takeConfig();
+ok('ackConfig 确认后不再待上传',
+  db.ackConfig(snap.updatedAt) === true && db.configPending() === false);
+
+// 上传途中又改了 → 旧快照确认不掉它（否则这次改动会被丢掉）
+db.setSwap('A', 2, 'g3');
+const snap2 = db.takeConfig();
+db.saveCustomProgram({ id: 'my-1', name: '我的方案', sessions: [{ name: 'A', exIds: ['g1', 'g27'] }] });
+ok('上传途中又改配置 → 旧快照确认不掉它',
+  db.ackConfig(snap2.updatedAt) === false && db.configPending() === true);
+ok('自定义方案进了打包结果', db.packConfig().customPrograms.length === 1);
+
+// 应用服务端下发的配置
+db.ackConfig(db.takeConfig().updatedAt);        // 先清干净
+const applied = db.applyConfigDoc({
+  body: {
+    v: 1, onboarded: true,
+    profile: { level: 'new', days: 2, place: 'home', programId: 'auto' },
+    swaps: { 'A:0': 'h1' }, customPrograms: []
+  },
+  updatedAt: '2026-10-31T10:00:00.000Z'
+});
+ok('应用下发配置', applied === true);
+ok('profile 被替换',
+  db.profile().days === 2 && db.profile().place === 'home' && db.profile().level === 'new');
+ok('训练日队列按新配置重推（2 练 → A/B）',
+  db.plans().length === 2, db.plans().map(function (p) { return p.key; }).join(''));
+ok('换动作表被替换', db.swaps()['A:0'] === 'h1');
+ok('应用配置本身不产生新的脏（防递归）', db.configPending() === false);
+
+// 本地有未上传改动 → 整份不覆盖
+db.setSwap('A', 1, 'h2');
+const blocked = db.applyConfigDoc({
+  body: {
+    v: 1, onboarded: true,
+    profile: { level: 'trained', days: 4, place: 'gym', programId: 'auto' },
+    swaps: {}, customPrograms: []
+  },
+  updatedAt: '2026-10-31T11:00:00.000Z'
+});
+ok('本地有未上传配置改动时整份不覆盖', blocked === false && db.profile().days === 2);
+
+// 来自更新版本客户端的 body：读不懂就跳过，别写坏数据
+db.ackConfig(db.takeConfig().updatedAt);
+ok('看不懂的 body 版本（v=99）跳过',
+  db.applyConfigDoc({ body: { v: 99 }, updatedAt: 'x' }) === false);
+
+/* ---------------- 同步层接口 ---------------- */
+console.log('\n=== 同步层接口 ===');
+
+db.resetAll();
+db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+set(T, 'g1', 1, 50, 10);
+// 记一组 = 组记录 1 + 自动生成的训练 1 + 配置 1
+ok('syncPending = 记录 + 训练 + 配置', db.syncPending() === 3, 'pending=' + db.syncPending());
+
+const cfgBatch = db.syncPullBatch(500);
+ok('syncPullBatch 同时带 rows、workouts 和 config',
+  cfgBatch.rows.length === 1 && cfgBatch.workouts.length === 1 && !!cfgBatch.config);
+ok('batch.sent 覆盖了所有行',
+  Object.keys(cfgBatch.sent).length === cfgBatch.rows.length + cfgBatch.workouts.length);
+db.syncAck(cfgBatch, []);
+ok('syncAck 后队列清空', db.syncPending() === 0);
+
+// 坏行被服务端拒绝 → 也要出队，否则一条坏数据会让队列永远卡住
+set(T, 'g1', 2, 50, 10);
+const bad = db.syncPullBatch(500);
+db.syncAck(bad, Object.keys(bad.sent));
+ok('被拒绝的行也移出队列', db.syncPending() === 0);
+
+// 首次接入：示例数据不上传
+db.resetAll();
+db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+const demoN = db.loadDemo();
+ok('造出了示例数据', demoN > 0, 'demo=' + demoN);
+db.syncMarkAll();
+const firstAll = db.syncPullBatch(1000);
+ok('syncMarkAll 后配置进队列', !!firstAll.config);
+ok('示例数据不进上传队列', firstAll.rows.length === 0,
+  'queued=' + firstAll.rows.length + '/' + demoN);
+
+// 本地改动会唤醒同步层
+let woken = 0;
+db.onDirty(function () { woken++; });
+set(T, 'g1', 3, 55, 10);
+const afterSet = woken;
+db.saveProfile({ level: 'some', days: 3, place: 'gym' });
+ok('写记录会唤醒同步层', afterSet > 0);
+ok('改设置也会唤醒同步层', woken > afterSet, 'woken=' + woken);
+
+CFG.setApiBase(null);
+
 console.log('\n' + (failed ? ('有 ' + failed + ' 项失败') : '训练数据层测试全部通过') + '\n');
 if (failed) process.exitCode = 1;
