@@ -60,7 +60,70 @@ func validateSet(r *SetRow) string {
 		!shortText(r.PlanKey, 8) || !shortText(r.Sig, 128):
 		return "文本字段过长"
 	}
+
+	// ---- 训练记录模块新增的可空字段：为空一律合法 ----
+	if r.Slot != nil && (*r.Slot < 0 || *r.Slot > 19) {
+		return "slot 必须在 0–19"
+	}
+	if r.Rir != nil && (*r.Rir < 0 || *r.Rir > 10) {
+		return "rir 必须在 0–10"
+	}
+	if r.Assist != nil && (*r.Assist < 0 || *r.Assist > 1000) {
+		return "assist 超出范围"
+	}
+	if r.TargetWeight != nil && (*r.TargetWeight < 0 || *r.TargetWeight > 1000) {
+		return "targetWeight 超出范围"
+	}
+	if r.TargetReps != nil && (*r.TargetReps < 0 || *r.TargetReps > 36000) {
+		return "targetReps 超出范围"
+	}
+	if r.TargetSets != nil && (*r.TargetSets < 1 || *r.TargetSets > 50) {
+		return "targetSets 必须在 1–50"
+	}
+	if r.CompletedAt != nil && !validRFC3339(*r.CompletedAt) {
+		return "completedAt 必须是 RFC3339"
+	}
 	return ""
+}
+
+// validateWorkout：一次训练。startedAt 必填，finishedAt 可空但不能早于 startedAt。
+func validateWorkout(r *WorkoutRow) string {
+	switch {
+	case !validDate(r.Date):
+		return "date 必须是 YYYY-MM-DD"
+	case !shortText(r.PlanKey, 8):
+		return "planKey 过长"
+	case !shortText(r.PlanName, 32):
+		return "planName 过长"
+	case !shortText(r.Sig, 128):
+		return "sig 过长"
+	case !shortText(r.ProgramID, 64):
+		return "programId 过长"
+	case r.StartedAt == "":
+		return "startedAt 必填"
+	case !validRFC3339(r.StartedAt):
+		return "startedAt 必须是 RFC3339"
+	case r.FinishedAt != nil && !validRFC3339(*r.FinishedAt):
+		return "finishedAt 必须是 RFC3339"
+	case r.Feel != nil && (*r.Feel < 1 || *r.Feel > 5):
+		return "feel 必须在 1–5"
+	case !shortText(r.Note, 200):
+		return "note 过长"
+	}
+
+	if r.FinishedAt != nil {
+		start, err1 := time.Parse(time.RFC3339Nano, r.StartedAt)
+		fin, err2 := time.Parse(time.RFC3339Nano, *r.FinishedAt)
+		if err1 == nil && err2 == nil && fin.Before(start) {
+			return "finishedAt 不能早于 startedAt"
+		}
+	}
+	return ""
+}
+
+func validRFC3339(s string) bool {
+	_, err := time.Parse(time.RFC3339Nano, s)
+	return err == nil
 }
 
 func validateMetric(r *MetricRow) string {

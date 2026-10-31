@@ -111,7 +111,7 @@ func (a *app) handleSync(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if len(req.Sets)+len(req.Metrics) > maxPushRows {
+	if len(req.Sets)+len(req.Workouts)+len(req.Metrics) > maxPushRows {
 		writeErr(w, http.StatusBadRequest, "TOO_MANY_ROWS", "单次同步最多 500 条，请分批提交")
 		return
 	}
@@ -164,7 +164,23 @@ func (a *app) handleSync(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	pushed, err := a.st.push(r.Context(), uid, sets, metrics, cfg)
+	workouts := make([]workoutIn, 0, len(req.Workouts))
+	for i := range req.Workouts {
+		row := req.Workouts[i]
+		reason := validateWorkout(&row)
+		at, ok := clientTime(row.UpdatedAt, now)
+		if reason == "" && !ok {
+			reason = "updatedAt 必须是 RFC3339"
+		}
+		if reason != "" {
+			rejected = append(rejected, rejectedRow{Kind: "workout", Index: i, Reason: reason})
+			continue
+		}
+		// startedAt / finishedAt 原样带字符串，由 SQL 转 timestamptz（见 store.go 注释）
+		workouts = append(workouts, workoutIn{WorkoutRow: row, at: at})
+	}
+
+	pushed, err := a.st.push(r.Context(), uid, sets, workouts, metrics, cfg)
 	if err != nil {
 		dbFail(w, "写入", err)
 		return
@@ -184,6 +200,13 @@ func (a *app) handleSync(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		outSets = append(outSets, s)
+	}
+	outWorkouts := make([]WorkoutRow, 0, len(pulled.workouts))
+	for _, wk := range pulled.workouts {
+		if rev, ok := pushed.won[wk.key()]; ok && rev == wk.rev {
+			continue
+		}
+		outWorkouts = append(outWorkouts, wk)
 	}
 	outMetrics := make([]MetricRow, 0, len(pulled.metrics))
 	for _, m := range pulled.metrics {
@@ -205,6 +228,7 @@ func (a *app) handleSync(w http.ResponseWriter, r *http.Request) {
 		Applied:    pushed.applied,
 		Rejected:   rejected,
 		Sets:       outSets,
+		Workouts:   outWorkouts,
 		Metrics:    outMetrics,
 		Config:     outCfg,
 		ServerTime: rfc3339(now),
