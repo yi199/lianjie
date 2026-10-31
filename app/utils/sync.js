@@ -29,6 +29,7 @@ const IDLE_POLL_MS = 30000;  // 还有积压时每 30 秒再试
 const BACKOFF_MIN = 5000;    // 首次失败 5 秒后重试
 const BACKOFF_MAX = 300000;  // 封顶 5 分钟
 const REQUEST_TIMEOUT = 10000;
+const FIRST_WAIT_MS = 4000;  // 冷启动时最多等首次同步这么久，超时也放行
 
 /* ---------------- 传输层（可替换） ---------------- */
 
@@ -66,6 +67,7 @@ function setTransport(fn) {
 let running = false;   // 单飞：同一时刻只跑一个
 let again = false;     // 跑的过程中又有改动 → 结束后再跑一轮
 let listenersBound = false;
+let firstRun = null;   // 首次同步的 Promise（ready() 复用它）
 let debounceTimer = null;
 let pollTimer = null;
 let retryTimer = null;
@@ -279,8 +281,10 @@ function bindOnce() {
 /** 跑一次同步（单飞；跑的时候又来的请求会在结束后补一轮） */
 function run() {
   if (!CFG.syncEnabled()) return Promise.resolve({ skipped: 'off' });
-  if (!db.hasOnboarded()) return Promise.resolve({ skipped: 'onboard' });
 
+  // 注意：这里**不判断 hasOnboarded()**。
+  // 新设备本地没有引导态，但服务端有（配置里 onboarded=true）——
+  // 必须先能拉到配置，才能知道「其实不用重填引导」。
   bindOnce();
 
   if (running) {
@@ -322,9 +326,37 @@ function init() {
     log('未配置后端地址，纯本地模式');
     return Promise.resolve({ skipped: 'off' });
   }
-  if (!db.hasOnboarded()) return Promise.resolve({ skipped: 'onboard' });
-
   return run();      // run() 内部会 bindOnce()
+}
+
+/**
+ * 首次同步完成（或超时）后 resolve。
+ *
+ * 页面用它回答一个问题：「本地没有引导态，是因为真的新用户，还是只是换了设备？」
+ * —— 等服务端配置回来再决定，别急着让人重填一遍表。
+ *
+ * 带 4 秒上限：网络慢不能卡住启动，超时也放行（页面按「没有引导态」继续走）。
+ */
+function ready() {
+  if (!CFG.syncEnabled()) return Promise.resolve({ skipped: 'off' });
+  if (!firstRun) firstRun = run();
+
+  return new Promise(function (resolve) {
+    let settled = false;
+    const timer = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      log('首次同步超过 ' + FIRST_WAIT_MS + 'ms，先放行');
+      resolve({ timeout: true });
+    }, FIRST_WAIT_MS);
+
+    firstRun.then(function (r) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(r);
+    });
+  });
 }
 
 /** 页面的 onShow 或手动触发 */
@@ -337,6 +369,7 @@ function stop() {
   clearTimers();
   again = false;
   retryDelay = 0;
+  firstRun = null;      // 下次 ready() 重新开始「首次同步」
 }
 
 function status() {
@@ -352,7 +385,7 @@ function status() {
 }
 
 module.exports = {
-  init, kick, stop, status, setTransport,
+  init, kick, stop, status, setTransport, ready,
   /* 测试用 */
   __cursor: { get: getCursor, set: setCursor }
 };

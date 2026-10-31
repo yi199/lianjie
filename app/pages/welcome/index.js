@@ -11,7 +11,8 @@ Page({
     place: '',
     canFinish: false,
     summary: '',
-    leaving: false
+    leaving: false,
+    checking: false   // 正在等服务端配置（本地没有引导态时）
   },
 
   onLoad() {
@@ -24,10 +25,25 @@ Page({
     // 已经走过引导，直接进首页（不重复打扰）
     if (db.hasOnboarded()) {
       wx.reLaunch({ url: '/pages/today/index' });
+      return;
     }
+
+    // 本地没有引导态，也可能只是「换了设备」。先等服务端配置回来再决定，
+    // 否则用户明明用过，清个缓存就要重填一遍表。
+    // ready() 自带 4 秒上限，网络慢也不会卡在这里。
+    const self = this;
+    this.setData({ checking: true });
+    sync.ready().then(function () {
+      if (db.hasOnboarded()) {
+        wx.reLaunch({ url: '/pages/today/index' });
+        return;
+      }
+      self.setData({ checking: false });
+    });
   },
 
   start() {
+    if (this.data.checking) return;    // 还在等同步，别让人抢先点进引导
     this.setData({ step: 1 });
   },
 
