@@ -60,7 +60,8 @@ create table if not exists sets (
   target_reps   integer,
   target_sets   smallint,
 
-  completed_at  timestamptz,                         -- 这组完成的时刻（只在勾选时写）
+  completed_at  timestamptz,                         -- 这组完成的时刻（只在勾选时写）；同一动作的顺序按它排
+  warmup      boolean,                               -- 热身组；null 视为正式组（统计、PR、加重建议都排除热身组）
   done        boolean       not null default true,   -- false = 墓碑（取消勾选），不是物理删除
 
   updated_at  timestamptz   not null,
@@ -79,6 +80,7 @@ alter table sets add column if not exists target_weight numeric(6,2);
 alter table sets add column if not exists target_reps   integer;
 alter table sets add column if not exists target_sets   smallint;
 alter table sets add column if not exists completed_at  timestamptz;
+alter table sets add column if not exists warmup        boolean;
 
 -- ============ 一次训练（训练记录模块） ============
 -- 主键 (user_id, date)：一天只算一次训练（模块设计 §11 第 1 条）。

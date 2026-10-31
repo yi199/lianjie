@@ -49,6 +49,7 @@ type SetRow struct {
 	TargetReps   *int     `json:"targetReps"`   // 当时的计划次数
 	TargetSets   *int     `json:"targetSets"`   // 当时的计划组数
 	CompletedAt  *string  `json:"completedAt"`  // 这组完成的时刻（RFC3339）
+	Warmup       *bool    `json:"warmup"`       // 热身组；null 视为正式组
 
 	rev int64 // 服务端版本号，只在服务端内部用（拉增量排序、分页）
 }

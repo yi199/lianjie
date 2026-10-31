@@ -119,9 +119,9 @@ type pushResult struct {
 const upsertSetSQL = `
 insert into sets (user_id, date, ex_id, set_no, ex_cn, part, plan_key, sig,
                   weight, reps, unit, done, updated_at, rev,
-                  slot, rir, assist, target_weight, target_reps, target_sets, completed_at)
+                  slot, rir, assist, target_weight, target_reps, target_sets, completed_at, warmup)
 values ($1, $2::text::date, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19, $20, $21::text::timestamptz)
+        $15, $16, $17, $18, $19, $20, $21::text::timestamptz, $22)
 on conflict (user_id, date, ex_id, set_no) do update set
   ex_cn         = excluded.ex_cn,
   part          = excluded.part,
@@ -138,6 +138,7 @@ on conflict (user_id, date, ex_id, set_no) do update set
   target_reps   = coalesce(excluded.target_reps,   sets.target_reps),
   target_sets   = coalesce(excluded.target_sets,   sets.target_sets),
   completed_at  = coalesce(excluded.completed_at,  sets.completed_at),
+  warmup        = coalesce(excluded.warmup,        sets.warmup),
   updated_at    = excluded.updated_at,
   rev           = excluded.rev
 where sets.updated_at < excluded.updated_at`
@@ -274,7 +275,7 @@ func (s *store) push(ctx context.Context, uid int64, sets []setIn, workouts []wo
 		rev := alloc()
 		b.Queue(upsertSetSQL, uid, r.Date, r.ExID, r.SetNo, r.ExCn, r.Part, r.PlanKey, r.Sig,
 			r.Weight, r.Reps, r.Unit, r.Done, r.at, rev,
-			r.Slot, r.Rir, r.Assist, r.TargetWeight, r.TargetReps, r.TargetSets, r.CompletedAt)
+			r.Slot, r.Rir, r.Assist, r.TargetWeight, r.TargetReps, r.TargetSets, r.CompletedAt, r.Warmup)
 		order = append(order, pending{r.key(), rev, lost{bumpSetSQL, []any{uid, r.Date, r.ExID, r.SetNo, rev}}})
 	}
 	for _, r := range workouts {
@@ -411,7 +412,7 @@ type pullResult struct {
 const setColumns = `date::text, ex_id, set_no, ex_cn, part, plan_key, sig,
                     weight::float8, reps, unit, done, updated_at, rev,
                     slot, rir, assist::float8, target_weight::float8,
-                    target_reps, target_sets, completed_at`
+                    target_reps, target_sets, completed_at, warmup`
 
 const workoutColumns = `date::text, plan_key, plan_name, sig, program_id,
                         started_at, finished_at, feel, note, done, updated_at, rev`
@@ -557,7 +558,7 @@ func scanSets(rows pgx.Rows) ([]SetRow, error) {
 		)
 		if err := rows.Scan(&r.Date, &r.ExID, &r.SetNo, &r.ExCn, &r.Part, &r.PlanKey,
 			&r.Sig, &r.Weight, &r.Reps, &r.Unit, &r.Done, &ts, &r.rev,
-			&r.Slot, &r.Rir, &r.Assist, &r.TargetWeight, &r.TargetReps, &r.TargetSets, &ca); err != nil {
+			&r.Slot, &r.Rir, &r.Assist, &r.TargetWeight, &r.TargetReps, &r.TargetSets, &ca, &r.Warmup); err != nil {
 			return nil, err
 		}
 		r.UpdatedAt = rfc3339(ts)
@@ -678,7 +679,7 @@ select ex_id,
        coalesce((max(date) filter (where unit = 'kg' and weight > 0))::text, '') as pb_date,
        max(date)::text as last_date,
        count(distinct date) as done_days
-from sets where user_id = $1 and done
+from sets where user_id = $1 and done and warmup is not true   -- 热身组不算最好成绩 / 上一次
 group by ex_id
 order by ex_id`
 
@@ -706,9 +707,9 @@ select s.ex_id, s.weight::float8, s.reps, s.set_no
 from sets s
 join (
   select ex_id, max(date) as d
-  from sets where user_id = $1 and done group by ex_id
+  from sets where user_id = $1 and done and warmup is not true group by ex_id
 ) m on m.ex_id = s.ex_id and m.d = s.date
-where s.user_id = $1 and s.done
+where s.user_id = $1 and s.done and s.warmup is not true
 order by s.ex_id, s.set_no`
 
 	rows2, err := s.pool.Query(ctx, lastQ, uid)
