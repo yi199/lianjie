@@ -618,3 +618,54 @@ func TestIntegrationThreeTablePagination(t *testing.T) {
 		t.Fatalf("总量 %d 应触发多页，实际只用 %d 页", nSet+nWorkout+nMetric, pages)
 	}
 }
+
+// workouts 按字段合并，合并结果可能和上传方手里的不一样，所以必须回传给上传方。
+// 曾经的 bug：沿用 sets 的「赢了就不回传」，后上传但开始得晚的设备永远拿不到较早的 startedAt。
+func TestIntegrationWorkoutMergeEchoedToUploader(t *testing.T) {
+	e := newTestEnv(t)
+	tok := e.login("wecho")
+	const d = "2026-10-29"
+
+	early := mkWorkout(d, "2026-10-29T10:00:10.000Z", ts(10))
+	e.sync(tok, syncRequest{Workouts: []WorkoutRow{early}})
+	_, _, cur := e.pullAll(tok)
+
+	late := mkWorkout(d, "2026-10-29T10:00:40.000Z", ts(40))
+	r := e.sync(tok, syncRequest{Cursor: cur, Workouts: []WorkoutRow{late}})
+	if len(r.Workouts) != 1 {
+		t.Fatalf("上传方应收到合并后的 workout，得到 %d 行", len(r.Workouts))
+	}
+	got, _ := time.Parse(time.RFC3339Nano, r.Workouts[0].StartedAt)
+	want, _ := time.Parse(time.RFC3339Nano, early.StartedAt)
+	if !got.Equal(want) {
+		t.Fatalf("回传的 startedAt 应为较早的 %s，得到 %s", early.StartedAt, r.Workouts[0].StartedAt)
+	}
+}
+
+// 热身标记：能存能取；旧客户端（不带 warmup）重传不会把它清掉；热身组不算最好成绩。
+func TestIntegrationWarmupFlag(t *testing.T) {
+	e := newTestEnv(t)
+	tok := e.login("warmup")
+	yes := true
+
+	warm := mkSet("2026-10-29", "g1", 1, 80, ts(1)) // 热身组故意比正式组重，验证 pb 不取它
+	warm.Warmup = &yes
+	work := mkSet("2026-10-29", "g1", 2, 60, ts(2))
+	e.sync(tok, syncRequest{Sets: []SetRow{warm, work}})
+
+	old := warm
+	old.Warmup = nil
+	old.UpdatedAt = ts(3)
+	e.sync(tok, syncRequest{Sets: []SetRow{old}})
+
+	all, _, _ := e.pullAll(tok)
+	if w := all[warm.key()].Warmup; w == nil || !*w {
+		t.Fatalf("旧客户端重传后热身标记被清掉了: %v", w)
+	}
+
+	var sum historySummary
+	e.do(tok, "GET", "/api/history/summary", nil, &sum, 200)
+	if len(sum.Exercises) != 1 || sum.Exercises[0].PB != 60 {
+		t.Fatalf("最好成绩应排除热身组（60），得到 %+v", sum.Exercises)
+	}
+}

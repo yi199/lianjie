@@ -201,13 +201,10 @@ func (a *app) handleSync(w http.ResponseWriter, r *http.Request) {
 		}
 		outSets = append(outSets, s)
 	}
-	outWorkouts := make([]WorkoutRow, 0, len(pulled.workouts))
-	for _, wk := range pulled.workouts {
-		if rev, ok := pushed.won[wk.key()]; ok && rev == wk.rev {
-			continue
-		}
-		outWorkouts = append(outWorkouts, wk)
-	}
+	// workouts 一律回传，不做去回声：它是按字段合并的（开始取早、结束取晚），
+	// 合并结果可能和客户端刚推上来的不一样。不回传的话，后上传但开始得晚的那台设备
+	// 会一直留着自己的 startedAt，和服务端永远对不上。一天一行，流量可以忽略。
+	outWorkouts := pulled.workouts
 	outMetrics := make([]MetricRow, 0, len(pulled.metrics))
 	for _, m := range pulled.metrics {
 		if rev, ok := pushed.won[m.key()]; ok && rev == m.rev {
