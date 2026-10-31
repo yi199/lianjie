@@ -1,6 +1,5 @@
 const db = require('../../utils/db');
 const D = require('../../utils/date');
-const store = require('../../store/index');
 
 const REST_SECONDS = 90;
 const BREATH_CYCLE = 9;   // 吸 4 秒 + 呼 5 秒
@@ -58,7 +57,7 @@ Page({
 
   onLoad(opts) {
     const app = getApp();
-    this.date = D.today();
+    this.date = db.trainingDate();     // 跨零点：没练完的训练仍记在开始那天
     this.timer = null;
     this.restLeft = REST_SECONDS;
     this.maxBefore = 0;
@@ -111,6 +110,7 @@ Page({
     // 渐进超负荷：上次做够组数、且每组都达标，才加一档
     const sug = db.suggestWeight(it.exId, it.reps, it.sets, this.date);
     const weight = sug.reason === 'first' ? it.weight : sug.weight;
+    this.sugWeight = weight;            // 存进组记录的 targetWeight：当时建议的重量
 
     // 今天已经勾过的组必须还原：否则中途退出再进来，全变回未勾选，用户会以为白练了
     const prevRows = db.todaySets(this.date).filter(function (s) { return s.exId === it.exId; });
@@ -281,6 +281,7 @@ Page({
       // 第一次做这个动作，用它的基线重量，不能一律给 20kg
       weight = sug.reason === 'first' ? db.initialWeight(pick.id) : sug.weight;
     }
+    this.sugWeight = weight;
 
     const prevRows = db.todaySets(this.date).filter(function (s) { return s.exId === pick.id; });
     const byNo = {};
@@ -362,6 +363,8 @@ Page({
       this.startRest();
       try { wx.vibrateShort({ type: 'light' }); } catch (err) { /* 忽略 */ }
     } else {
+      // 取消勾选要落库：以前什么都不写，页面显示没做，统计和战报却还算着这一组
+      db.uncheckSet({ date: this.date, exId: this.data.ex.exId, setNo: no });
       this.stopRest();
     }
 
@@ -461,9 +464,13 @@ Page({
       setNo: row.no,
       weight: row.weight,
       reps: row.reps,
-      unit: row.unit
+      unit: row.unit,
+      // 当时的位置和目标：以后判断「做满没有」拿这个比，换了方案也不变
+      slot: this.data.ex.slot,
+      targetWeight: this.data.ex.unit === 'kg' ? this.sugWeight : null,
+      targetReps: this.data.ex.reps,
+      targetSets: this.data.ex.sets
     });
-    store.touchSets();
   },
 
   /* ---------- 组间休息：呼吸环 ---------- */
