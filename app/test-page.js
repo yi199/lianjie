@@ -64,7 +64,10 @@ function rec(it, no, weight, planKey, date) {
     setNo: no,
     weight: weight === undefined ? (it.weight || 0) : weight,
     reps: it.reps,
-    unit: it.unit
+    unit: it.unit,
+    // 造历史数据要带上当天的完成时刻：不带的话默认是「现在」，
+    // 昨天的训练就会被当成跨零点还没练完的那次（trainingDate 会返回昨天）
+    completedAt: date ? date + 'T18:00:00.000Z' : undefined
   });
 }
 

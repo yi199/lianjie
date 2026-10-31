@@ -191,20 +191,29 @@ function makeDemoSets(plans, target) {
       const p = plans[k % plans.length];
       k++;
 
-      p.items.forEach(function (it) {
+      // 当天 18:00 开练，一组约 2.5 分钟（含组间休息），给完成时刻排出先后
+      const start = new Date(day + 'T18:00:00').getTime();
+      let n = 0;
+
+      p.items.forEach(function (it, slot) {
         const ex = EX.byId(it.exId) || { cn: it.exId, part: 'legs' };
         for (let s = 0; s < it.sets; s++) {
           out.push({
-            id: day + '-' + it.exId + '-' + s,
+            id: day + '-' + it.exId + '-' + (s + 1),
             date: day,
             exId: it.exId,
             exCn: ex.cn,
             part: ex.part,
             planKey: p.key,
+            slot: slot,
             setNo: s + 1,
             weight: it.weight ? roundWeight(it.weight * progress) : 0,
             reps: it.reps,
             unit: it.unit || 'kg',
+            targetReps: it.reps,
+            targetSets: it.sets,
+            completedAt: new Date(start + (n++) * 150000).toISOString(),
+            demo: true,            // 示例数据：永不上传
             done: true
           });
         }

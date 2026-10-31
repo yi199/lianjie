@@ -13,10 +13,11 @@
 ├── app/                微信小程序工程（原生，可直接导入开发者工具）
 │   ├── pages/          welcome（引导）· today（今天练什么）· record（记录）· report（战报）· stats（数据）
 │   ├── components/     set-row（一行组记录）
-│   ├── utils/          db.js（数据层）· date.js · volume.js
+│   ├── utils/          db.js（数据层）· storage.js（按月分片存储）· config.js（后端地址）· date.js · volume.js
 │   ├── data/           exercises.js（动作库）· plan.js（训练日模板 + 渐进超负荷）
 │   ├── test.js         数据层自测（node test.js）
-│   └── test-page.js    页面逻辑自测（node test-page.js，mock 掉 wx 运行时）
+│   ├── test-page.js    页面逻辑自测（node test-page.js，mock 掉 wx 运行时）
+│   └── test-training.js 训练记录数据层自测（选动作、取消、热身组、跨零点、待上传队列）
 ├── docs/               开发文档：技术方案 · 后端接口契约 · 开发计划 · 进步可视化
 │   └── 设计文档/        每个模块的表设计与业务逻辑（训练记录 …）
 ├── 文档/               产品说明 · 加入开发指南
@@ -30,8 +31,9 @@
 
 ```bash
 # 1. 跑自测（不需要微信环境）
-cd app && node test.js        # 数据层 113 项
-cd app && node test-page.js   # 页面逻辑 42 项
+cd app && node test.js            # 数据层 113 项
+cd app && node test-page.js       # 页面逻辑 42 项
+cd app && node test-training.js   # 训练记录数据层 94 项
 
 # 2. 看可交互原型（本地文件，不入库；单文件双击就能开，也能直接发人）
 #    原型/练界_交互原型_v3.html
