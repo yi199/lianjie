@@ -99,7 +99,7 @@ Page({
     const self = this;
     wx.showModal({
       title: '重新引导',
-      content: '会清掉计划设置和所有训练记录，回到第一次打开的状态。',
+      content: '只清本机的计划设置和训练记录。若已接后端，重新登录后服务端的历史记录会自动拉回。',
       confirmText: '重新开始',
       confirmColor: '#B4795A',
       success(res) {

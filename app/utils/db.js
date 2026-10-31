@@ -1413,6 +1413,13 @@ function resetAll() {
   wx.removeStorageSync(K_SWAPS);
   wx.removeStorageSync(K_CUSTOM);
   wx.removeStorageSync(K_CONFIG_META);
+
+  // 同步身份与游标也要清：只清数据不清游标的话，客户端会以为自己已经
+  // 拿到了服务端最新状态，重新登录后一条也不会重新拉 —— 看起来就是「数据全没了」。
+  // 这两个键由 sync.js 拥有，但清空本机数据时必须一起清掉。
+  wx.removeStorageSync('lj.auth');
+  wx.removeStorageSync('lj.sync.cursor');
+
   S.removeAll();
 }
 
