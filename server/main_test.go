@@ -125,14 +125,14 @@ func metricsWithRevs(revs ...int64) []MetricRow {
 
 func TestPagePull(t *testing.T) {
 	t.Run("没取满 → 一次拿全，游标跳到 userRev（跳过空洞）", func(t *testing.T) {
-		s, m, cur, more := pagePull(setsWithRevs(3, 5), metricsWithRevs(4), 10, 9)
+		s, _, m, cur, more := pagePull(setsWithRevs(3, 5), nil, metricsWithRevs(4), 10, 9)
 		if len(s) != 2 || len(m) != 1 || cur != 9 || more {
 			t.Fatalf("得到 sets=%d metrics=%d cursor=%d more=%v", len(s), len(m), cur, more)
 		}
 	})
 
 	t.Run("什么都没有 → 游标仍前进到 userRev", func(t *testing.T) {
-		_, _, cur, more := pagePull(nil, nil, 10, 42)
+		_, _, _, cur, more := pagePull(nil, nil, nil, 10, 42)
 		if cur != 42 || more {
 			t.Fatalf("cursor=%d more=%v", cur, more)
 		}
@@ -140,7 +140,7 @@ func TestPagePull(t *testing.T) {
 
 	t.Run("一张表取满 → 按 rev 归并截断，游标停在最后一条", func(t *testing.T) {
 		// limit=3：sets 取回 1,2,6（满了），metrics 取回 3,4
-		s, m, cur, more := pagePull(setsWithRevs(1, 2, 6), metricsWithRevs(3, 4), 3, 100)
+		s, _, m, cur, more := pagePull(setsWithRevs(1, 2, 6), nil, metricsWithRevs(3, 4), 3, 100)
 		if !more || cur != 3 {
 			t.Fatalf("cursor=%d more=%v", cur, more)
 		}
@@ -152,11 +152,176 @@ func TestPagePull(t *testing.T) {
 	t.Run("被截掉的行 rev 都大于新游标 → 下一页一定取得到", func(t *testing.T) {
 		sets := setsWithRevs(1, 3, 5, 7)
 		metrics := metricsWithRevs(2, 4, 6, 8)
-		_, _, cur, _ := pagePull(sets, metrics, 4, 100)
+		_, _, _, cur, _ := pagePull(sets, nil, metrics, 4, 100)
 		for _, r := range append(setsWithRevs(5, 7), SetRow{rev: 6}, SetRow{rev: 8}) {
 			if r.rev <= cur {
 				t.Fatalf("rev %d 被截掉但不大于游标 %d，会永久漏掉", r.rev, cur)
 			}
+		}
+	})
+
+	t.Run("三张表混合 → 仍按 rev 升序归并，不重不漏", func(t *testing.T) {
+		sets := setsWithRevs(1, 4, 7)
+		workouts := workoutsWithRevs(2, 5, 8)
+		metrics := metricsWithRevs(3, 6, 9)
+		s, wk, m, cur, more := pagePull(sets, workouts, metrics, 5, 100)
+
+		total := len(s) + len(wk) + len(m)
+		if total != 5 || !more {
+			t.Fatalf("应返回 5 条且 more=true，得到 %d 条 more=%v", total, more)
+		}
+		if cur != 5 {
+			t.Fatalf("游标应停在最后一条的 rev=5，得到 %d", cur)
+		}
+		// rev 1,2,3,4,5 → sets 1,4 / workouts 2,5 / metrics 3
+		if len(s) != 2 || len(wk) != 2 || len(m) != 1 {
+			t.Fatalf("归并结果不对：sets=%d workouts=%d metrics=%d", len(s), len(wk), len(m))
+		}
+	})
+}
+
+func workoutsWithRevs(revs ...int64) []WorkoutRow {
+	out := make([]WorkoutRow, 0, len(revs))
+	for _, r := range revs {
+		out = append(out, WorkoutRow{Date: "2026-10-31", rev: r})
+	}
+	return out
+}
+
+/* ---------------- 一次训练的校验 ---------------- */
+
+func TestValidateWorkout(t *testing.T) {
+	base := func() WorkoutRow {
+		return WorkoutRow{
+			Date:      "2026-10-31",
+			PlanKey:   "B",
+			PlanName:  "拉日",
+			Sig:       "some|3|gym|gym-ppl-3",
+			ProgramID: "gym-ppl-3",
+			StartedAt: "2026-10-31T11:02:15.120Z",
+			Note:      "",
+			UpdatedAt: "2026-10-31T11:48:40.002Z",
+		}
+	}
+	ptrInt := func(i int) *int { return &i }
+	ptrStr := func(s string) *string { return &s }
+
+	t.Run("最小合法行", func(t *testing.T) {
+		r := base()
+		if got := validateWorkout(&r); got != "" {
+			t.Fatalf("不该报错: %s", got)
+		}
+	})
+
+	t.Run("startedAt 必填", func(t *testing.T) {
+		r := base()
+		r.StartedAt = ""
+		if validateWorkout(&r) == "" {
+			t.Fatal("缺 startedAt 应该报错")
+		}
+	})
+
+	t.Run("startedAt 必须是 RFC3339", func(t *testing.T) {
+		r := base()
+		r.StartedAt = "2026-10-31 11:02"
+		if validateWorkout(&r) == "" {
+			t.Fatal("格式错应该报错")
+		}
+	})
+
+	t.Run("finishedAt 可空", func(t *testing.T) {
+		r := base()
+		r.FinishedAt = nil
+		if got := validateWorkout(&r); got != "" {
+			t.Fatalf("不该报错: %s", got)
+		}
+	})
+
+	t.Run("finishedAt 不能早于 startedAt", func(t *testing.T) {
+		r := base()
+		r.FinishedAt = ptrStr("2026-10-31T10:00:00.000Z")
+		if validateWorkout(&r) == "" {
+			t.Fatal("结束早于开始应该报错")
+		}
+	})
+
+	t.Run("feel 只能 1–5", func(t *testing.T) {
+		r := base()
+		r.Feel = ptrInt(6)
+		if validateWorkout(&r) == "" {
+			t.Fatal("feel=6 应该报错")
+		}
+		r.Feel = ptrInt(3)
+		if got := validateWorkout(&r); got != "" {
+			t.Fatalf("feel=3 不该报错: %s", got)
+		}
+	})
+
+	t.Run("note 超过 200 字报错", func(t *testing.T) {
+		r := base()
+		long := make([]rune, 201)
+		for i := range long {
+			long[i] = '练'
+		}
+		r.Note = string(long)
+		if validateWorkout(&r) == "" {
+			t.Fatal("note 超长应该报错")
+		}
+	})
+}
+
+func TestValidateSetNewFields(t *testing.T) {
+	base := func() SetRow {
+		return SetRow{
+			Date: "2026-10-31", ExID: "g1", SetNo: 1, Unit: "kg",
+			Weight: 50, Reps: 10, UpdatedAt: "2026-10-31T11:02:15.120Z",
+		}
+	}
+	ptrInt := func(i int) *int { return &i }
+	ptrF := func(f float64) *float64 { return &f }
+	ptrStr := func(s string) *string { return &s }
+
+	t.Run("新字段全空 → 旧版客户端照常通过", func(t *testing.T) {
+		r := base()
+		if got := validateSet(&r); got != "" {
+			t.Fatalf("不该报错: %s", got)
+		}
+	})
+
+	t.Run("新字段全填 → 通过", func(t *testing.T) {
+		r := base()
+		r.Slot = ptrInt(2)
+		r.Rir = ptrInt(2)
+		r.Assist = ptrF(10)
+		r.TargetWeight = ptrF(52.5)
+		r.TargetReps = ptrInt(10)
+		r.TargetSets = ptrInt(4)
+		r.CompletedAt = ptrStr("2026-10-31T11:05:00.000Z")
+		if got := validateSet(&r); got != "" {
+			t.Fatalf("不该报错: %s", got)
+		}
+	})
+
+	t.Run("slot / rir / targetSets 越界", func(t *testing.T) {
+		for name, apply := range map[string]func(*SetRow){
+			"slot=-1":      func(r *SetRow) { r.Slot = ptrInt(-1) },
+			"slot=20":      func(r *SetRow) { r.Slot = ptrInt(20) },
+			"rir=11":       func(r *SetRow) { r.Rir = ptrInt(11) },
+			"targetSets=0": func(r *SetRow) { r.TargetSets = ptrInt(0) },
+		} {
+			r := base()
+			apply(&r)
+			if validateSet(&r) == "" {
+				t.Fatalf("%s 应该报错", name)
+			}
+		}
+	})
+
+	t.Run("completedAt 格式错", func(t *testing.T) {
+		r := base()
+		r.CompletedAt = ptrStr("2026/10/31 11:05")
+		if validateSet(&r) == "" {
+			t.Fatal("格式错应该报错")
 		}
 	})
 }

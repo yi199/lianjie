@@ -86,6 +86,13 @@ type setIn struct {
 	at time.Time
 }
 
+type workoutIn struct {
+	WorkoutRow
+	at       time.Time
+	started  time.Time
+	finished *time.Time
+}
+
 type metricIn struct {
 	MetricRow
 	at time.Time
@@ -103,23 +110,81 @@ type pushResult struct {
 	won map[string]int64
 }
 
-// LWW：只有客户端时刻更新时才覆盖。输了的行不报错，见 bumpXxxSQL。
+// LWW：只有客户端时刻更新时才覆盖。输了的行不报错，见 bumpSetSQL。
+//
+// 训练记录模块新增的 7 个可空字段用 coalesce 合并：
+// 旧版客户端不传这些字段（null），不能把新客户端已经写上来的值清掉。
 const upsertSetSQL = `
 insert into sets (user_id, date, ex_id, set_no, ex_cn, part, plan_key, sig,
-                  weight, reps, unit, done, updated_at, rev)
-values ($1, $2::text::date, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                  weight, reps, unit, done, updated_at, rev,
+                  slot, rir, assist, target_weight, target_reps, target_sets, completed_at)
+values ($1, $2::text::date, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+        $15, $16, $17, $18, $19, $20, $21::text::timestamptz)
 on conflict (user_id, date, ex_id, set_no) do update set
-  ex_cn      = excluded.ex_cn,
-  part       = excluded.part,
-  plan_key   = excluded.plan_key,
-  sig        = excluded.sig,
-  weight     = excluded.weight,
-  reps       = excluded.reps,
-  unit       = excluded.unit,
-  done       = excluded.done,
-  updated_at = excluded.updated_at,
-  rev        = excluded.rev
+  ex_cn         = excluded.ex_cn,
+  part          = excluded.part,
+  plan_key      = excluded.plan_key,
+  sig           = excluded.sig,
+  weight        = excluded.weight,
+  reps          = excluded.reps,
+  unit          = excluded.unit,
+  done          = excluded.done,
+  slot          = coalesce(excluded.slot,          sets.slot),
+  rir           = coalesce(excluded.rir,           sets.rir),
+  assist        = coalesce(excluded.assist,        sets.assist),
+  target_weight = coalesce(excluded.target_weight, sets.target_weight),
+  target_reps   = coalesce(excluded.target_reps,   sets.target_reps),
+  target_sets   = coalesce(excluded.target_sets,   sets.target_sets),
+  completed_at  = coalesce(excluded.completed_at,  sets.completed_at),
+  updated_at    = excluded.updated_at,
+  rev           = excluded.rev
 where sets.updated_at < excluded.updated_at`
+
+// workouts 按字段合并，不是整行 LWW（模块设计 §6.2）。
+//
+// 两台设备同一天都练过时，整行 LWW 会丢掉较早的开始时刻：
+//
+//	started_at  取较早的     —— 训练从什么时候开始，不该被晚到的上传改晚
+//	finished_at 取较晚的     —— 结束时刻同理
+//	其余字段    按 updated_at LWW
+//	done        不在这里合并 —— 同一事务里按 sets 重新计算（见 refreshWorkoutDone）
+//
+// 这些规则与到达顺序无关，所以各设备最终结果一致。
+const upsertWorkoutSQL = `
+insert into workouts (user_id, date, plan_key, plan_name, sig, program_id,
+                      started_at, finished_at, feel, note, done, updated_at, rev)
+values ($1, $2::text::date, $3, $4, $5, $6, $7::text::timestamptz, $8::text::timestamptz,
+        $9, $10, $11, $12, $13)
+on conflict (user_id, date) do update set
+  started_at  = least(workouts.started_at, excluded.started_at),
+  finished_at = case
+                  when workouts.finished_at is null then excluded.finished_at
+                  when excluded.finished_at is null then workouts.finished_at
+                  else greatest(workouts.finished_at, excluded.finished_at)
+                end,
+  plan_key    = case when excluded.updated_at > workouts.updated_at then excluded.plan_key   else workouts.plan_key   end,
+  plan_name   = case when excluded.updated_at > workouts.updated_at then excluded.plan_name  else workouts.plan_name  end,
+  sig         = case when excluded.updated_at > workouts.updated_at then excluded.sig        else workouts.sig        end,
+  program_id  = case when excluded.updated_at > workouts.updated_at then excluded.program_id else workouts.program_id end,
+  feel        = case when excluded.updated_at > workouts.updated_at then excluded.feel       else workouts.feel       end,
+  note        = case when excluded.updated_at > workouts.updated_at then excluded.note       else workouts.note       end,
+  updated_at  = greatest(workouts.updated_at, excluded.updated_at),
+  rev         = excluded.rev`
+
+// 哪些日期的 workouts.done 需要变：以 sets 为准（模块设计 §4.4 / §6.2）。
+const workoutDoneDiffSQL = `
+select w.date::text, w.done,
+       exists (select 1 from sets s
+               where s.user_id = w.user_id and s.date = w.date and s.done) as should
+from workouts w
+where w.user_id = $1 and w.date = any($2::text[]::date[])`
+
+const workoutDoneSetSQL = `
+update workouts w
+set done = exists (select 1 from sets s
+                   where s.user_id = w.user_id and s.date = w.date and s.done),
+    rev  = $3
+where w.user_id = $1 and w.date = $2::text::date`
 
 // 输掉 LWW 的行也要换一个新 rev：这样它会出现在本次的拉取结果里，
 // 客户端拿到的是服务端的赢家版本，而不是留着自己那份旧的。没有这一步，
@@ -163,9 +228,9 @@ const bumpConfigSQL = `update user_config set rev = $2 where user_id = $1`
 //     保证「rev 小的一定先提交」，拉增量的游标才不会跳过还没提交的行。
 //
 // 不同用户之间互不阻塞。
-func (s *store) push(ctx context.Context, uid int64, sets []setIn, metrics []metricIn, cfg *configIn) (pushResult, error) {
+func (s *store) push(ctx context.Context, uid int64, sets []setIn, workouts []workoutIn, metrics []metricIn, cfg *configIn) (pushResult, error) {
 	res := pushResult{won: map[string]int64{}}
-	n := len(sets) + len(metrics)
+	n := len(sets) + len(workouts) + len(metrics)
 	if cfg != nil {
 		n++
 	}
@@ -199,15 +264,22 @@ func (s *store) push(ctx context.Context, uid int64, sets []setIn, metrics []met
 	type pending struct {
 		key  string
 		rev  int64
-		bump lost
+		bump lost // sql 为空表示这一行不会「输」（workouts 是按字段合并，永远生效）
 	}
 	var order []pending
 
 	for _, r := range sets {
 		rev := alloc()
 		b.Queue(upsertSetSQL, uid, r.Date, r.ExID, r.SetNo, r.ExCn, r.Part, r.PlanKey, r.Sig,
-			r.Weight, r.Reps, r.Unit, r.Done, r.at, rev)
+			r.Weight, r.Reps, r.Unit, r.Done, r.at, rev,
+			r.Slot, r.Rir, r.Assist, r.TargetWeight, r.TargetReps, r.TargetSets, r.CompletedAt)
 		order = append(order, pending{r.key(), rev, lost{bumpSetSQL, []any{uid, r.Date, r.ExID, r.SetNo, rev}}})
+	}
+	for _, r := range workouts {
+		rev := alloc()
+		b.Queue(upsertWorkoutSQL, uid, r.Date, r.PlanKey, r.PlanName, r.Sig, r.ProgramID,
+			r.started, r.finished, r.Feel, r.Note, r.Done, r.at, rev)
+		order = append(order, pending{r.key(), rev, lost{}})
 	}
 	for _, r := range metrics {
 		rev := alloc()
@@ -230,7 +302,7 @@ func (s *store) push(ctx context.Context, uid int64, sets []setIn, metrics []met
 		if ct.RowsAffected() > 0 {
 			res.applied++
 			res.won[p.key] = p.rev
-		} else {
+		} else if p.bump.sql != "" {
 			losers = append(losers, p.bump)
 		}
 	}
@@ -248,7 +320,77 @@ func (s *store) push(ctx context.Context, uid int64, sets []setIn, metrics []met
 		}
 	}
 
+	if err := s.refreshWorkoutDone(ctx, tx, uid, sets, workouts); err != nil {
+		return res, err
+	}
+
 	return res, tx.Commit(ctx)
+}
+
+// refreshWorkoutDone：以 sets 为准重新计算受影响日期的 workouts.done。
+//
+// 这样「当天的组全部取消 → 这次训练消失」「再完成一组 → 训练恢复」
+// 都由服务端保证，和上传顺序无关（模块设计 §6.2 / §7.3）。
+// done 真的发生变化的行要分配新 rev，其他设备才能拉到。
+func (s *store) refreshWorkoutDone(ctx context.Context, tx pgx.Tx, uid int64,
+	sets []setIn, workouts []workoutIn) error {
+
+	affected := map[string]bool{}
+	for _, r := range sets {
+		affected[r.Date] = true
+	}
+	for _, r := range workouts {
+		affected[r.Date] = true
+	}
+	if len(affected) == 0 {
+		return nil
+	}
+
+	dates := make([]string, 0, len(affected))
+	for d := range affected {
+		dates = append(dates, d)
+	}
+
+	rows, err := tx.Query(ctx, workoutDoneDiffSQL, uid, dates)
+	if err != nil {
+		return fmt.Errorf("检查训练完成状态: %w", err)
+	}
+	var flip []string
+	for rows.Next() {
+		var (
+			d      string
+			done   bool
+			should bool
+		)
+		if err := rows.Scan(&d, &done, &should); err != nil {
+			rows.Close()
+			return err
+		}
+		if done != should {
+			flip = append(flip, d)
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(flip) == 0 {
+		return nil
+	}
+
+	var end int64
+	if err := tx.QueryRow(ctx,
+		`update users set rev = rev + $2 where id = $1 returning rev`, uid, len(flip)).Scan(&end); err != nil {
+		return fmt.Errorf("为训练状态分配版本号: %w", err)
+	}
+	next := end - int64(len(flip))
+	for _, d := range flip {
+		next++
+		if _, err := tx.Exec(ctx, workoutDoneSetSQL, uid, d, next); err != nil {
+			return fmt.Errorf("刷新训练完成状态: %w", err)
+		}
+	}
+	return nil
 }
 
 var errUserGone = errors.New("用户不存在")
@@ -256,15 +398,21 @@ var errUserGone = errors.New("用户不存在")
 /* ---------------- 拉：按 rev 取增量 ---------------- */
 
 type pullResult struct {
-	sets    []SetRow
-	metrics []MetricRow
-	config  *ConfigDoc
-	cursor  int64
-	hasMore bool
+	sets     []SetRow
+	workouts []WorkoutRow
+	metrics  []MetricRow
+	config   *ConfigDoc
+	cursor   int64
+	hasMore  bool
 }
 
 const setColumns = `date::text, ex_id, set_no, ex_cn, part, plan_key, sig,
-                    weight::float8, reps, unit, done, updated_at, rev`
+                    weight::float8, reps, unit, done, updated_at, rev,
+                    slot, rir, assist::float8, target_weight::float8,
+                    target_reps, target_sets, completed_at`
+
+const workoutColumns = `date::text, plan_key, plan_name, sig, program_id,
+                        started_at, finished_at, feel, note, done, updated_at, rev`
 
 const metricColumns = `kind, date::text, value::float8, unit, note, done, updated_at, rev`
 
@@ -302,6 +450,16 @@ func (s *store) pull(ctx context.Context, uid int64, cursor int64, limit int) (p
 		return out, err
 	}
 
+	rows, err = tx.Query(ctx, `select `+workoutColumns+` from workouts
+		where user_id = $1 and rev > $2 order by rev limit $3`, uid, cursor, limit)
+	if err != nil {
+		return out, err
+	}
+	workouts, err := scanWorkouts(rows)
+	if err != nil {
+		return out, err
+	}
+
 	rows, err = tx.Query(ctx, `select `+metricColumns+` from metrics
 		where user_id = $1 and rev > $2 order by rev limit $3`, uid, cursor, limit)
 	if err != nil {
@@ -327,32 +485,43 @@ func (s *store) pull(ctx context.Context, uid int64, cursor int64, limit int) (p
 		return out, err
 	}
 
-	out.sets, out.metrics, out.cursor, out.hasMore = pagePull(sets, metrics, limit, userRev)
+	out.sets, out.workouts, out.metrics, out.cursor, out.hasMore =
+		pagePull(sets, workouts, metrics, limit, userRev)
 	return out, nil
 }
 
-// pagePull 把两张表各自按 rev 取回的结果合成一页。
+// pagePull 把三张表各自按 rev 取回的结果合成一页。
 //
-// 两边都没取满 → 这个快照里的增量已经全部拿到，游标直接跳到 userRev（跳过空洞）；
+// 三边都没取满 → 这个快照里的增量已经全部拿到，游标直接跳到 userRev（跳过空洞）；
 // 否则按 rev 归并取前 limit 条，游标停在最后一条，hasMore=true。
 // 被截掉的行 rev 都大于新游标，下一页一定能取到——不会漏。
-func pagePull(sets []SetRow, metrics []MetricRow, limit int, userRev int64) ([]SetRow, []MetricRow, int64, bool) {
-	total := len(sets) + len(metrics)
-	if len(sets) < limit && len(metrics) < limit && total <= limit {
-		return sets, metrics, userRev, false
+func pagePull(sets []SetRow, workouts []WorkoutRow, metrics []MetricRow,
+	limit int, userRev int64) ([]SetRow, []WorkoutRow, []MetricRow, int64, bool) {
+
+	total := len(sets) + len(workouts) + len(metrics)
+	if len(sets) < limit && len(workouts) < limit && len(metrics) < limit && total <= limit {
+		return sets, workouts, metrics, userRev, false
 	}
 
+	const (
+		kindSet = iota
+		kindWorkout
+		kindMetric
+	)
 	type ref struct {
-		rev int64
-		set bool
-		i   int
+		rev  int64
+		kind int
+		i    int
 	}
 	refs := make([]ref, 0, total)
 	for i, r := range sets {
-		refs = append(refs, ref{r.rev, true, i})
+		refs = append(refs, ref{r.rev, kindSet, i})
+	}
+	for i, r := range workouts {
+		refs = append(refs, ref{r.rev, kindWorkout, i})
 	}
 	for i, r := range metrics {
-		refs = append(refs, ref{r.rev, false, i})
+		refs = append(refs, ref{r.rev, kindMetric, i})
 	}
 	sort.Slice(refs, func(a, b int) bool { return refs[a].rev < refs[b].rev })
 	if len(refs) > limit {
@@ -360,15 +529,19 @@ func pagePull(sets []SetRow, metrics []MetricRow, limit int, userRev int64) ([]S
 	}
 
 	outS := []SetRow{}
+	outW := []WorkoutRow{}
 	outM := []MetricRow{}
 	for _, r := range refs {
-		if r.set {
+		switch r.kind {
+		case kindSet:
 			outS = append(outS, sets[r.i])
-		} else {
+		case kindWorkout:
+			outW = append(outW, workouts[r.i])
+		default:
 			outM = append(outM, metrics[r.i])
 		}
 	}
-	return outS, outM, refs[len(refs)-1].rev, true
+	return outS, outW, outM, refs[len(refs)-1].rev, true
 }
 
 func scanSets(rows pgx.Rows) ([]SetRow, error) {
@@ -378,12 +551,43 @@ func scanSets(rows pgx.Rows) ([]SetRow, error) {
 		var (
 			r  SetRow
 			ts time.Time
+			ca *time.Time
 		)
 		if err := rows.Scan(&r.Date, &r.ExID, &r.SetNo, &r.ExCn, &r.Part, &r.PlanKey,
-			&r.Sig, &r.Weight, &r.Reps, &r.Unit, &r.Done, &ts, &r.rev); err != nil {
+			&r.Sig, &r.Weight, &r.Reps, &r.Unit, &r.Done, &ts, &r.rev,
+			&r.Slot, &r.Rir, &r.Assist, &r.TargetWeight, &r.TargetReps, &r.TargetSets, &ca); err != nil {
 			return nil, err
 		}
 		r.UpdatedAt = rfc3339(ts)
+		if ca != nil {
+			s := rfc3339(*ca)
+			r.CompletedAt = &s
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+func scanWorkouts(rows pgx.Rows) ([]WorkoutRow, error) {
+	defer rows.Close()
+	out := []WorkoutRow{}
+	for rows.Next() {
+		var (
+			r  WorkoutRow
+			sa time.Time
+			fa *time.Time
+			ts time.Time
+		)
+		if err := rows.Scan(&r.Date, &r.PlanKey, &r.PlanName, &r.Sig, &r.ProgramID,
+			&sa, &fa, &r.Feel, &r.Note, &r.Done, &ts, &r.rev); err != nil {
+			return nil, err
+		}
+		r.StartedAt = rfc3339(sa)
+		r.UpdatedAt = rfc3339(ts)
+		if fa != nil {
+			s := rfc3339(*fa)
+			r.FinishedAt = &s
+		}
 		out = append(out, r)
 	}
 	return out, rows.Err()

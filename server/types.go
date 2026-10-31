@@ -40,12 +40,43 @@ type SetRow struct {
 	Done      bool    `json:"done"` // false = 墓碑
 	UpdatedAt string  `json:"updatedAt"`
 
+	// ---- 训练记录模块新增（均可为 null）----
+	// 服务端对这批可空字段用 coalesce 合并：旧版客户端传 null 不会清空已有值。
+	Slot         *int     `json:"slot"`         // 动作位置，0 起；自由加练为空
+	Rir          *int     `json:"rir"`          // 还剩几次力气
+	Assist       *float64 `json:"assist"`       // 助力重量
+	TargetWeight *float64 `json:"targetWeight"` // 当时的建议重量
+	TargetReps   *int     `json:"targetReps"`   // 当时的计划次数
+	TargetSets   *int     `json:"targetSets"`   // 当时的计划组数
+	CompletedAt  *string  `json:"completedAt"`  // 这组完成的时刻（RFC3339）
+
 	rev int64 // 服务端版本号，只在服务端内部用（拉增量排序、分页）
 }
 
 func (r SetRow) key() string {
 	return "s|" + r.Date + "|" + r.ExID + "|" + itoa(r.SetNo)
 }
+
+// ============ 一次训练 ============
+
+// WorkoutRow：一天一行。done 不按上传值——服务端按「这一天是否还有 done=true 的组」算。
+type WorkoutRow struct {
+	Date       string  `json:"date"` // 训练归属的日期（跨零点算开始的那天）
+	PlanKey    string  `json:"planKey"`
+	PlanName   string  `json:"planName"`
+	Sig        string  `json:"sig"`
+	ProgramID  string  `json:"programId"`
+	StartedAt  string  `json:"startedAt"`  // 必填
+	FinishedAt *string `json:"finishedAt"` // 空 = 还没点「完成训练」
+	Feel       *int    `json:"feel"`
+	Note       string  `json:"note"`
+	Done       bool    `json:"done"`
+	UpdatedAt  string  `json:"updatedAt"`
+
+	rev int64
+}
+
+func (r WorkoutRow) key() string { return "w|" + r.Date }
 
 // ============ 身体指标 ============
 
@@ -80,16 +111,17 @@ type ConfigDoc struct {
 // ============ 同步 ============
 
 type syncRequest struct {
-	Cursor  int64       `json:"cursor"` // 上次拿到的 cursor；首次传 0
-	Sets    []SetRow    `json:"sets"`
-	Metrics []MetricRow `json:"metrics"`
-	Config  *ConfigDoc  `json:"config"` // 本地配置没改过就传 null
+	Cursor   int64        `json:"cursor"` // 上次拿到的 cursor；首次传 0
+	Sets     []SetRow     `json:"sets"`
+	Workouts []WorkoutRow `json:"workouts"`
+	Metrics  []MetricRow  `json:"metrics"`
+	Config   *ConfigDoc   `json:"config"` // 本地配置没改过就传 null
 }
 
 // rejectedRow：校验不过的行。客户端收到后应把它移出待上传队列，
 // 否则一条坏数据会让队列永远卡住（每次重试都 400）。
 type rejectedRow struct {
-	Kind   string `json:"kind"` // set | metric | config
+	Kind   string `json:"kind"` // set | workout | metric | config
 	Index  int    `json:"index"`
 	Reason string `json:"reason"`
 }
@@ -100,6 +132,7 @@ type syncResponse struct {
 	Applied    int           `json:"applied"`
 	Rejected   []rejectedRow `json:"rejected"`
 	Sets       []SetRow      `json:"sets"`
+	Workouts   []WorkoutRow  `json:"workouts"`
 	Metrics    []MetricRow   `json:"metrics"`
 	Config     *ConfigDoc    `json:"config"`
 	ServerTime string        `json:"serverTime"`
