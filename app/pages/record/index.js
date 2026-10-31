@@ -1,5 +1,4 @@
 const db = require('../../utils/db');
-const D = require('../../utils/date');
 
 const REST_SECONDS = 90;
 const BREATH_CYCLE = 9;   // 吸 4 秒 + 呼 5 秒
