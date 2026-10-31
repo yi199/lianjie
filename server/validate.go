@@ -83,6 +83,15 @@ func validateSet(r *SetRow) string {
 	if r.CompletedAt != nil && !validRFC3339(*r.CompletedAt) {
 		return "completedAt 必须是 RFC3339"
 	}
+
+	// ---- 训练日程（训练记录 v0.3）----
+	// blockId 是计划线 id（"t-..."）或 "adhoc:<id>"，32 字符足够；老客户端不传 = null
+	if r.BlockID != nil && !shortText(*r.BlockID, 32) {
+		return "blockId 过长"
+	}
+	if r.TrackVer != nil && *r.TrackVer < 0 {
+		return "trackVer 不能为负"
+	}
 	return ""
 }
 
