@@ -250,10 +250,12 @@ async function main() {
     return function () { return { miniProgram: { envVersion: v } }; };
   }
 
+  // 端口是每台机器的事（Docker Desktop 常占 8080），这里只钉住「本机 + 带 /api」
+  const LOCAL_API = /^http:\/\/127\.0\.0\.1:\d+\/api$/;
+
   global.wx.getAccountInfoSync = env('develop');
   CFG.setApiBase(null);
-  ok('develop 用本机地址，且带 /api',
-    CFG.apiBase() === 'http://127.0.0.1:8080/api', CFG.apiBase());
+  ok('develop 用本机地址，且带 /api', LOCAL_API.test(CFG.apiBase()), CFG.apiBase());
   ok('develop 时同步默认打开', CFG.syncEnabled() === true);
 
   global.wx.getAccountInfoSync = env('trial');
@@ -267,8 +269,34 @@ async function main() {
   // 换完环境不能拿到旧缓存
   global.wx.getAccountInfoSync = env('develop');
   CFG.setApiBase(null);
-  ok('setApiBase 换环境后不拿旧缓存',
-    CFG.apiBase() === 'http://127.0.0.1:8080/api', CFG.apiBase());
+  ok('setApiBase 换环境后不拿旧缓存', LOCAL_API.test(CFG.apiBase()), CFG.apiBase());
+
+  /* ---- 9. 开发版固定身份 ---- */
+  console.log('\n=== 开发版固定身份 ===');
+  // wx.login 每次给的 code 都不同，DEV_MODE 下每次登录都会变成新用户 ——
+  // 清缓存 / 换设备就拿不回数据，多设备同步没法验证。
+  global.wx.getAccountInfoSync = env('develop');
+  ok('develop 有固定登录 code', CFG.devCode() === 'local-1', CFG.devCode());
+
+  global.wx.getAccountInfoSync = env('release');
+  ok('release 不用固定 code（走真实 wx.login）', CFG.devCode() === '', CFG.devCode());
+
+  // 确认登录请求里真的带的是固定 code
+  global.wx.getAccountInfoSync = env('develop');
+  CFG.setApiBase('http://fake');
+  anotherDevice();
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  set(T, 'g9', 1, 30);
+
+  const beforeDev = srv.calls.length;
+  r = await sync.kick();
+  const loginCall = srv.calls.slice(beforeDev).filter(function (c) {
+    return c.url.indexOf('/login') >= 0;
+  })[0];
+  ok('登录请求用的是固定 code',
+    !!loginCall && loginCall.data.code === 'local-1',
+    loginCall ? loginCall.data.code : '(没有登录请求)');
+  ok('固定身份下同步成功', !r.error && db.syncPending() === 0, JSON.stringify(r));
 
   sync.stop();
 }

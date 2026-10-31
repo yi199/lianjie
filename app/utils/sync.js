@@ -100,6 +100,12 @@ function clearAuth() {
 }
 
 function wxLogin() {
+  // 开发版：用固定 code，见 config.js 里 DEV_LOGIN_CODE 的说明。
+  // 否则 wx.login 每次给的 code 都不同，DEV_MODE 下每次登录都是新用户，
+  // 清缓存/换设备就拿不回数据，多设备同步没法验证。
+  const dev = CFG.devCode();
+  if (dev) return Promise.resolve(dev);
+
   return new Promise(function (resolve, reject) {
     wx.login({
       success: function (r) {
