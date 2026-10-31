@@ -125,14 +125,15 @@ func metricsWithRevs(revs ...int64) []MetricRow {
 
 func TestPagePull(t *testing.T) {
 	t.Run("没取满 → 一次拿全，游标跳到 userRev（跳过空洞）", func(t *testing.T) {
-		s, _, m, cur, more := pagePull(setsWithRevs(3, 5), nil, metricsWithRevs(4), 10, 9)
-		if len(s) != 2 || len(m) != 1 || cur != 9 || more {
-			t.Fatalf("得到 sets=%d metrics=%d cursor=%d more=%v", len(s), len(m), cur, more)
+		p, cur, more := pagePull(setsWithRevs(3, 5), nil, metricsWithRevs(4), 10, 9)
+		if len(p.sets) != 2 || len(p.metrics) != 1 || cur != 9 || more {
+			t.Fatalf("得到 sets=%d metrics=%d cursor=%d more=%v",
+				len(p.sets), len(p.metrics), cur, more)
 		}
 	})
 
 	t.Run("什么都没有 → 游标仍前进到 userRev", func(t *testing.T) {
-		_, _, _, cur, more := pagePull(nil, nil, nil, 10, 42)
+		_, cur, more := pagePull(nil, nil, nil, 10, 42)
 		if cur != 42 || more {
 			t.Fatalf("cursor=%d more=%v", cur, more)
 		}
@@ -140,19 +141,19 @@ func TestPagePull(t *testing.T) {
 
 	t.Run("一张表取满 → 按 rev 归并截断，游标停在最后一条", func(t *testing.T) {
 		// limit=3：sets 取回 1,2,6（满了），metrics 取回 3,4
-		s, _, m, cur, more := pagePull(setsWithRevs(1, 2, 6), nil, metricsWithRevs(3, 4), 3, 100)
+		p, cur, more := pagePull(setsWithRevs(1, 2, 6), nil, metricsWithRevs(3, 4), 3, 100)
 		if !more || cur != 3 {
 			t.Fatalf("cursor=%d more=%v", cur, more)
 		}
-		if len(s) != 2 || len(m) != 1 {
-			t.Fatalf("应返回 rev 1,2,3：sets=%d metrics=%d", len(s), len(m))
+		if len(p.sets) != 2 || len(p.metrics) != 1 {
+			t.Fatalf("应返回 rev 1,2,3：sets=%d metrics=%d", len(p.sets), len(p.metrics))
 		}
 	})
 
 	t.Run("被截掉的行 rev 都大于新游标 → 下一页一定取得到", func(t *testing.T) {
 		sets := setsWithRevs(1, 3, 5, 7)
 		metrics := metricsWithRevs(2, 4, 6, 8)
-		_, _, _, cur, _ := pagePull(sets, nil, metrics, 4, 100)
+		_, cur, _ := pagePull(sets, nil, metrics, 4, 100)
 		for _, r := range append(setsWithRevs(5, 7), SetRow{rev: 6}, SetRow{rev: 8}) {
 			if r.rev <= cur {
 				t.Fatalf("rev %d 被截掉但不大于游标 %d，会永久漏掉", r.rev, cur)
@@ -164,9 +165,9 @@ func TestPagePull(t *testing.T) {
 		sets := setsWithRevs(1, 4, 7)
 		workouts := workoutsWithRevs(2, 5, 8)
 		metrics := metricsWithRevs(3, 6, 9)
-		s, wk, m, cur, more := pagePull(sets, workouts, metrics, 5, 100)
+		p, cur, more := pagePull(sets, workouts, metrics, 5, 100)
 
-		total := len(s) + len(wk) + len(m)
+		total := len(p.sets) + len(p.workouts) + len(p.metrics)
 		if total != 5 || !more {
 			t.Fatalf("应返回 5 条且 more=true，得到 %d 条 more=%v", total, more)
 		}
@@ -174,8 +175,31 @@ func TestPagePull(t *testing.T) {
 			t.Fatalf("游标应停在最后一条的 rev=5，得到 %d", cur)
 		}
 		// rev 1,2,3,4,5 → sets 1,4 / workouts 2,5 / metrics 3
-		if len(s) != 2 || len(wk) != 2 || len(m) != 1 {
-			t.Fatalf("归并结果不对：sets=%d workouts=%d metrics=%d", len(s), len(wk), len(m))
+		if len(p.sets) != 2 || len(p.workouts) != 2 || len(p.metrics) != 1 {
+			t.Fatalf("归并结果不对：sets=%d workouts=%d metrics=%d",
+				len(p.sets), len(p.workouts), len(p.metrics))
+		}
+	})
+
+	t.Run("只有一张表有数据也走同一条路径", func(t *testing.T) {
+		p, cur, more := pagePull(nil, workoutsWithRevs(2, 4, 6), nil, 2, 100)
+		if !more || cur != 4 {
+			t.Fatalf("cursor=%d more=%v", cur, more)
+		}
+		if len(p.workouts) != 2 || len(p.sets) != 0 || len(p.metrics) != 0 {
+			t.Fatalf("workouts=%d sets=%d metrics=%d", len(p.workouts), len(p.sets), len(p.metrics))
+		}
+	})
+
+	t.Run("limit 是跨表总量上限，不是每张表上限", func(t *testing.T) {
+		// 每张表都只有 2 行（都没「取满」），但合计 6 > limit=4
+		p, cur, more := pagePull(setsWithRevs(1, 2), workoutsWithRevs(3, 4), metricsWithRevs(5, 6), 4, 100)
+		total := len(p.sets) + len(p.workouts) + len(p.metrics)
+		if total != 4 || !more {
+			t.Fatalf("合计应截到 4 条且 more=true，得到 %d 条 more=%v", total, more)
+		}
+		if cur != 4 {
+			t.Fatalf("游标应停在 4，得到 %d", cur)
 		}
 	})
 }

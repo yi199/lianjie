@@ -119,9 +119,10 @@ type pushResult struct {
 const upsertSetSQL = `
 insert into sets (user_id, date, ex_id, set_no, ex_cn, part, plan_key, sig,
                   weight, reps, unit, done, updated_at, rev,
-                  slot, rir, assist, target_weight, target_reps, target_sets, completed_at, warmup)
+                  slot, rir, assist, target_weight, target_reps, target_sets, completed_at, warmup,
+                  block_id, track_ver)
 values ($1, $2::text::date, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19, $20, $21::text::timestamptz, $22)
+        $15, $16, $17, $18, $19, $20, $21::text::timestamptz, $22, $23, $24)
 on conflict (user_id, date, ex_id, set_no) do update set
   ex_cn         = excluded.ex_cn,
   part          = excluded.part,
@@ -139,6 +140,8 @@ on conflict (user_id, date, ex_id, set_no) do update set
   target_sets   = coalesce(excluded.target_sets,   sets.target_sets),
   completed_at  = coalesce(excluded.completed_at,  sets.completed_at),
   warmup        = coalesce(excluded.warmup,        sets.warmup),
+  block_id      = coalesce(excluded.block_id,      sets.block_id),
+  track_ver     = coalesce(excluded.track_ver,     sets.track_ver),
   updated_at    = excluded.updated_at,
   rev           = excluded.rev
 where sets.updated_at < excluded.updated_at`
@@ -275,7 +278,8 @@ func (s *store) push(ctx context.Context, uid int64, sets []setIn, workouts []wo
 		rev := alloc()
 		b.Queue(upsertSetSQL, uid, r.Date, r.ExID, r.SetNo, r.ExCn, r.Part, r.PlanKey, r.Sig,
 			r.Weight, r.Reps, r.Unit, r.Done, r.at, rev,
-			r.Slot, r.Rir, r.Assist, r.TargetWeight, r.TargetReps, r.TargetSets, r.CompletedAt, r.Warmup)
+			r.Slot, r.Rir, r.Assist, r.TargetWeight, r.TargetReps, r.TargetSets, r.CompletedAt, r.Warmup,
+			r.BlockID, r.TrackVer)
 		order = append(order, pending{r.key(), rev, lost{bumpSetSQL, []any{uid, r.Date, r.ExID, r.SetNo, rev}}})
 	}
 	for _, r := range workouts {
@@ -412,7 +416,7 @@ type pullResult struct {
 const setColumns = `date::text, ex_id, set_no, ex_cn, part, plan_key, sig,
                     weight::float8, reps, unit, done, updated_at, rev,
                     slot, rir, assist::float8, target_weight::float8,
-                    target_reps, target_sets, completed_at, warmup`
+                    target_reps, target_sets, completed_at, warmup, block_id, track_ver`
 
 const workoutColumns = `date::text, plan_key, plan_name, sig, program_id,
                         started_at, finished_at, feel, note, done, updated_at, rev`
@@ -488,63 +492,89 @@ func (s *store) pull(ctx context.Context, uid int64, cursor int64, limit int) (p
 		return out, err
 	}
 
-	out.sets, out.workouts, out.metrics, out.cursor, out.hasMore =
-		pagePull(sets, workouts, metrics, limit, userRev)
+	page, cur, more := pagePull(sets, workouts, metrics, limit, userRev)
+	out.sets, out.workouts, out.metrics = page.sets, page.workouts, page.metrics
+	out.cursor, out.hasMore = cur, more
 	return out, nil
 }
 
-// pagePull 把三张表各自按 rev 取回的结果合成一页。
+// pageKind 标明一行来自哪张表。
 //
-// 三边都没取满 → 这个快照里的增量已经全部拿到，游标直接跳到 userRev（跳过空洞）；
+// 加新表（cardio / agendas）时只需要三处：
+//  1. 这里加一个常量
+//  2. pullPage 加一个切片字段
+//  3. pagePull 里加一行 addRefs + 一个 case
+//
+// 排序、截断、游标推进这些容易写错的逻辑完全不用动。
+type pageKind int
+
+const (
+	pageSet pageKind = iota
+	pageWorkout
+	pageMetric
+)
+
+// pageRef 是「某一类结果里的第 i 行」，带 rev 用于跨表统一排序。
+type pageRef struct {
+	rev  int64
+	kind pageKind
+	i    int
+}
+
+// pullPage 是一次拉取合成后的一页
+type pullPage struct {
+	sets     []SetRow
+	workouts []WorkoutRow
+	metrics  []MetricRow
+}
+
+// addRefs 把一批行摊平成 pageRef
+func addRefs[T revRow](refs []pageRef, kind pageKind, rows []T) []pageRef {
+	for i := range rows {
+		refs = append(refs, pageRef{rev: rows[i].revOf(), kind: kind, i: i})
+	}
+	return refs
+}
+
+// pagePull 把各表各自按 rev 取回的结果合成一页。
+//
+// 每张表都没取满 → 这个快照里的增量已经全部拿到，游标直接跳到 userRev（跳过空洞）；
 // 否则按 rev 归并取前 limit 条，游标停在最后一条，hasMore=true。
 // 被截掉的行 rev 都大于新游标，下一页一定能取到——不会漏。
 func pagePull(sets []SetRow, workouts []WorkoutRow, metrics []MetricRow,
-	limit int, userRev int64) ([]SetRow, []WorkoutRow, []MetricRow, int64, bool) {
+	limit int, userRev int64) (pullPage, int64, bool) {
 
-	total := len(sets) + len(workouts) + len(metrics)
-	if len(sets) < limit && len(workouts) < limit && len(metrics) < limit && total <= limit {
-		return sets, workouts, metrics, userRev, false
+	// 边界：一页就装得下，且每张表都没取满
+	if len(sets) < limit && len(workouts) < limit && len(metrics) < limit &&
+		len(sets)+len(workouts)+len(metrics) <= limit {
+		return pullPage{sets: sets, workouts: workouts, metrics: metrics}, userRev, false
 	}
 
-	const (
-		kindSet = iota
-		kindWorkout
-		kindMetric
-	)
-	type ref struct {
-		rev  int64
-		kind int
-		i    int
-	}
-	refs := make([]ref, 0, total)
-	for i, r := range sets {
-		refs = append(refs, ref{r.rev, kindSet, i})
-	}
-	for i, r := range workouts {
-		refs = append(refs, ref{r.rev, kindWorkout, i})
-	}
-	for i, r := range metrics {
-		refs = append(refs, ref{r.rev, kindMetric, i})
-	}
+	refs := make([]pageRef, 0, len(sets)+len(workouts)+len(metrics))
+	refs = addRefs(refs, pageSet, sets)
+	refs = addRefs(refs, pageWorkout, workouts)
+	refs = addRefs(refs, pageMetric, metrics)
+
 	sort.Slice(refs, func(a, b int) bool { return refs[a].rev < refs[b].rev })
 	if len(refs) > limit {
 		refs = refs[:limit]
 	}
+	if len(refs) == 0 {
+		return pullPage{}, userRev, false
+	}
 
-	outS := []SetRow{}
-	outW := []WorkoutRow{}
-	outM := []MetricRow{}
+	out := pullPage{}
 	for _, r := range refs {
 		switch r.kind {
-		case kindSet:
-			outS = append(outS, sets[r.i])
-		case kindWorkout:
-			outW = append(outW, workouts[r.i])
-		default:
-			outM = append(outM, metrics[r.i])
+		case pageSet:
+			out.sets = append(out.sets, sets[r.i])
+		case pageWorkout:
+			out.workouts = append(out.workouts, workouts[r.i])
+		case pageMetric:
+			out.metrics = append(out.metrics, metrics[r.i])
 		}
 	}
-	return outS, outW, outM, refs[len(refs)-1].rev, true
+	return out, refs[len(refs)-1].rev, true
 }
 
 func scanSets(rows pgx.Rows) ([]SetRow, error) {
@@ -558,7 +588,8 @@ func scanSets(rows pgx.Rows) ([]SetRow, error) {
 		)
 		if err := rows.Scan(&r.Date, &r.ExID, &r.SetNo, &r.ExCn, &r.Part, &r.PlanKey,
 			&r.Sig, &r.Weight, &r.Reps, &r.Unit, &r.Done, &ts, &r.rev,
-			&r.Slot, &r.Rir, &r.Assist, &r.TargetWeight, &r.TargetReps, &r.TargetSets, &ca, &r.Warmup); err != nil {
+			&r.Slot, &r.Rir, &r.Assist, &r.TargetWeight, &r.TargetReps, &r.TargetSets, &ca, &r.Warmup,
+			&r.BlockID, &r.TrackVer); err != nil {
 			return nil, err
 		}
 		r.UpdatedAt = rfc3339(ts)

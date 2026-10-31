@@ -669,3 +669,42 @@ func TestIntegrationWarmupFlag(t *testing.T) {
 		t.Fatalf("最好成绩应排除热身组（60），得到 %+v", sum.Exercises)
 	}
 }
+
+// 训练日程字段（blockId / trackVer）：能存能取；旧客户端（不带这两个字段）重传不会清空。
+// 老记录这两列为 null，客户端读取时一律视为 blockId = "main"。
+func TestIntegrationBlockFields(t *testing.T) {
+	e := newTestEnv(t)
+	tok := e.login("block")
+	block := "t-1761700000000"
+	ver := 3
+
+	row := mkSet("2026-10-29", "g1", 1, 50, ts(1))
+	row.BlockID = &block
+	row.TrackVer = &ver
+	e.sync(tok, syncRequest{Sets: []SetRow{row}})
+
+	// 旧客户端：不带 blockId / trackVer，但 updatedAt 更晚、改了重量
+	old := mkSet("2026-10-29", "g1", 1, 55, ts(9))
+	e.sync(tok, syncRequest{Sets: []SetRow{old}})
+
+	all, _, _ := e.pullAll(tok)
+	got := all[row.key()]
+	if got.Weight != 55 {
+		t.Fatalf("LWW 应让新重量生效，得到 %v", got.Weight)
+	}
+	if got.BlockID == nil || *got.BlockID != block {
+		t.Fatalf("blockId 被旧客户端清空了: %v", got.BlockID)
+	}
+	if got.TrackVer == nil || *got.TrackVer != ver {
+		t.Fatalf("trackVer 被清空了: %v", got.TrackVer)
+	}
+
+	// 从没写过这两个字段的记录，读出来必须是 null（客户端据此判断「视为 main」）
+	legacy := mkSet("2026-10-29", "g2", 1, 40, ts(2))
+	e.sync(tok, syncRequest{Sets: []SetRow{legacy}})
+	all2, _, _ := e.pullAll(tok)
+	lg := all2[legacy.key()]
+	if lg.BlockID != nil || lg.TrackVer != nil {
+		t.Fatalf("没传过的字段应为 null，得到 blockId=%v trackVer=%v", lg.BlockID, lg.TrackVer)
+	}
+}

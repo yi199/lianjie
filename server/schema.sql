@@ -62,6 +62,8 @@ create table if not exists sets (
 
   completed_at  timestamptz,                         -- 这组完成的时刻（只在勾选时写）；同一动作的顺序按它排
   warmup      boolean,                               -- 热身组；null 视为正式组（统计、PR、加重建议都排除热身组）
+  block_id    text,                                  -- 训练日程：属于哪条计划线；空视为 'main'
+  track_ver   integer,                               -- 训练日程：记录时计划线的版本号
   done        boolean       not null default true,   -- false = 墓碑（取消勾选），不是物理删除
 
   updated_at  timestamptz   not null,
@@ -81,6 +83,10 @@ alter table sets add column if not exists target_reps   integer;
 alter table sets add column if not exists target_sets   smallint;
 alter table sets add column if not exists completed_at  timestamptz;
 alter table sets add column if not exists warmup        boolean;
+
+-- 训练日程（训练记录 v0.3）：记录归属哪条计划线 + 当时的计划线版本
+alter table sets add column if not exists block_id      text;
+alter table sets add column if not exists track_ver     integer;
 
 -- ============ 一次训练（训练记录模块） ============
 -- 主键 (user_id, date)：一天只算一次训练（模块设计 §11 第 1 条）。

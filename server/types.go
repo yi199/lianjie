@@ -51,8 +51,21 @@ type SetRow struct {
 	CompletedAt  *string  `json:"completedAt"`  // 这组完成的时刻（RFC3339）
 	Warmup       *bool    `json:"warmup"`       // 热身组；null 视为正式组
 
+	// ---- 训练日程（训练记录 v0.3）----
+	// 同一天可能有多条计划线含同一动作，靠 blockId 分清哪几组算哪条线。
+	BlockID  *string `json:"blockId"`  // 计划线 id；临时自由训练 = "adhoc:<id>"；空视为 "main"
+	TrackVer *int    `json:"trackVer"` // 记录时计划线的版本号：判断「换了结构之后旧记录不参与轮转」
+
 	rev int64 // 服务端版本号，只在服务端内部用（拉增量排序、分页）
 }
+
+// revRow 让各表的行能被 pagePull 统一摊平成「rev + 类型 + 下标」，
+// 加新表时只要实现这个方法，排序与切页逻辑一行都不用改。
+type revRow interface{ revOf() int64 }
+
+func (r SetRow) revOf() int64     { return r.rev }
+func (r WorkoutRow) revOf() int64 { return r.rev }
+func (r MetricRow) revOf() int64  { return r.rev }
 
 func (r SetRow) key() string {
 	return "s|" + r.Date + "|" + r.ExID + "|" + itoa(r.SetNo)
