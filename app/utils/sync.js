@@ -65,6 +65,7 @@ function setTransport(fn) {
 
 let running = false;   // 单飞：同一时刻只跑一个
 let again = false;     // 跑的过程中又有改动 → 结束后再跑一轮
+let listenersBound = false;
 let debounceTimer = null;
 let pollTimer = null;
 let retryTimer = null;
@@ -256,10 +257,26 @@ function debounce() {
   debounceTimer = setTimeout(function () { debounceTimer = null; run(); }, DEBOUNCE_MS);
 }
 
+/**
+ * 注册「本地改动 → 2 秒后上传」。只注册一次。
+ *
+ * init() 和 run() 都会调它：引导没走完时 init() 会直接跳过，但用户走完引导后
+ * App.onLaunch 不会重跑——靠 kick() → run() 把监听补上，否则之后手动记的组
+ * 永远等不到「改动后 2 秒上传」。
+ */
+function bindOnce() {
+  if (listenersBound) return;
+  listenersBound = true;
+  db.onDirty(debounce);      // 组记录 / 训练 / 配置 三类改动都会走到这里
+}
+
 /** 跑一次同步（单飞；跑的时候又来的请求会在结束后补一轮） */
 function run() {
   if (!CFG.syncEnabled()) return Promise.resolve({ skipped: 'off' });
   if (!db.hasOnboarded()) return Promise.resolve({ skipped: 'onboard' });
+
+  bindOnce();
+
   if (running) {
     again = true;
     return Promise.resolve({ skipped: 'running' });
@@ -301,8 +318,7 @@ function init() {
   }
   if (!db.hasOnboarded()) return Promise.resolve({ skipped: 'onboard' });
 
-  db.onDirty(debounce);      // 组记录 / 训练 / 配置 三类改动都会走到这里
-  return run();
+  return run();      // run() 内部会 bindOnce()
 }
 
 /** 页面的 onShow 或手动触发 */
