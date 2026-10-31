@@ -209,6 +209,51 @@ prPage.stopRest();
 ok('完成一组后出现陶土色 PR 片', prPage.data.leftPlates.some(function (x) { return x.pr; }) === true,
   prPage.data.leftPlates.map(function (x) { return x.on ? (x.pr ? 'PR' : '亮') : '·'; }).join(''));
 
+/* ================= 7. 页面订阅远端变更（C5-b） ================= */
+console.log('\n=== 7. 远端变更即时刷新 ===');
+
+const bus = require('./store/index');   // 真 store（上面那个 store 是本地存储 mock）
+
+// 造一条「另一台设备发来的」组记录，直接写存储，绕过 db 的写路径
+function remoteSet(it, no) {
+  return {
+    date: today, exId: it.exId, setNo: no, exCn: it.cn, part: it.part,
+    planKey: 'A', sig: db.planSig(),
+    weight: it.weight || 0, reps: it.reps, unit: it.unit,
+    done: true, updatedAt: new Date().toISOString()
+  };
+}
+
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+const item0 = db.todaySession(today).plan.items[0];
+
+const todayPage = loadPage('./pages/today/index');
+todayPage.onLoad();
+todayPage.onShow();
+ok('today 页初始没做任何动作', todayPage.data.doneCount === 0, 'doneCount=' + todayPage.data.doneCount);
+
+db.syncApply({ sets: [remoteSet(item0, 1)] });
+ok('只写存储、不通知时页面不会自己变', todayPage.data.doneCount === 0);
+
+bus.touchSets();    // sync.js 应用完远端数据后就是这么通知的
+ok('收到通知后 today 页即时刷新（不用切页面）', todayPage.data.doneCount === 1,
+  'doneCount=' + todayPage.data.doneCount);
+todayPage.onUnload();
+
+// stats 页订阅同一个通知；它的 setData 回调在测试里不会触发，所以不会碰 canvas
+const statsPage = loadPage('./pages/stats/index');
+statsPage.onLoad();
+statsPage.onShow();
+const beforeDays = statsPage.data.days;
+
+db.syncApply({ sets: [remoteSet(item0, 2)] });
+bus.touchSets();
+ok('stats 页也订阅了变更（不报错、数据可重算）',
+  typeof statsPage.data.days === 'number' && statsPage.data.days >= beforeDays,
+  'days ' + beforeDays + ' → ' + statsPage.data.days);
+statsPage.onUnload();
+
 /* ================= 结果 ================= */
 console.log('\n' + (failed ? ('有 ' + failed + ' 项失败') : '页面测试全部通过') + '\n');
 if (failed) process.exitCode = 1;

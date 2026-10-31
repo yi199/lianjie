@@ -83,7 +83,7 @@ Page({
     const self = this;
     wx.showModal({
       title: '清空训练记录',
-      content: '所有练过的组都会被删掉，计划设置保留。确定吗？',
+      content: '所有练过的组都会被删掉，计划设置保留。接后端时，其他设备上的记录也会一起清掉。',
       confirmText: '清空',
       confirmColor: '#B4795A',
       success(res) {
