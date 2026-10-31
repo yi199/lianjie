@@ -1,4 +1,5 @@
 const db = require('../../utils/db');
+const sync = require('../../utils/sync');
 const P = require('../../data/plan');
 
 Page({
@@ -73,6 +74,12 @@ Page({
       days: this.data.days,
       place: this.data.place
     });
+
+    // 引导走完之后必须踢一次同步，否则永远不同步：
+    //   App.onLaunch 时还没走完引导，sync.init() 会直接跳过；
+    //   而这里的 wx.reLaunch 不触发 App.onShow，所以没人调 sync.kick()。
+    // 不 await：失败由 sync 自己退避重试，不该挡住「进首页」。
+    sync.kick();
 
     // 先淡出再跳，避免从引导页硬切到首页
     this.setData({ leaving: true });

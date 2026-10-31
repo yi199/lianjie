@@ -298,6 +298,29 @@ async function main() {
     loginCall ? loginCall.data.code : '(没有登录请求)');
   ok('固定身份下同步成功', !r.error && db.syncPending() === 0, JSON.stringify(r));
 
+  /* ---- 10. 清空本机时同步身份要一起清 ---- */
+  console.log('\n=== 清空本机 ===');
+  // 只清数据不清游标的话，客户端会以为自己已拿到服务端最新状态，
+  // 重新登录后一条都不会重新拉 —— 表现就是「重新引导之后数据全没了」。
+  wx.setStorageSync('lj.sync.cursor', 999);
+  wx.setStorageSync('lj.auth', { token: 'tok-stale', expiresAt: '' });
+  db.resetAll();
+  ok('resetAll 清掉游标', wx.getStorageSync('lj.sync.cursor') === '',
+    String(wx.getStorageSync('lj.sync.cursor')));
+  ok('resetAll 清掉 token', wx.getStorageSync('lj.auth') === '',
+    String(wx.getStorageSync('lj.auth')));
+
+  // 清完再引导一次 → 应该重新登录并从 0 开始拉
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  const beforeReset = srv.calls.length;
+  r = await sync.kick();
+  const relogin = srv.calls.slice(beforeReset).filter(function (c) {
+    return c.url.indexOf('/login') >= 0;
+  })[0];
+  ok('清空后重新登录（不是复用旧 token）', !!relogin);
+  ok('清空后从 0 开始拉，拿到旧数据', !r.error && db.allSets().length > 0,
+    'sets=' + db.allSets().length);
+
   sync.stop();
 }
 
