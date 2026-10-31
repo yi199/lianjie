@@ -321,6 +321,32 @@ async function main() {
   ok('清空后从 0 开始拉，拿到旧数据', !r.error && db.allSets().length > 0,
     'sets=' + db.allSets().length);
 
+  /* ---- 11. 换设备：引导态从服务端恢复（C5-a） ---- */
+  console.log('\n=== 引导态从服务端恢复 ===');
+
+  // 没配地址时立即返回，不挡启动
+  global.wx.getAccountInfoSync = env('release');   // 别让上一段留下的 develop 环境顶上来
+  CFG.setApiBase(null);
+  const off = await sync.ready();
+  ok('没配地址时 ready() 立即返回', !!off && off.skipped === 'off', JSON.stringify(off));
+
+  CFG.setApiBase('http://fake');
+
+  // 模拟换设备：清空本地（连 onboarded 一起没了），但服务端有配置
+  anotherDevice();
+  ok('清空后本地没有引导态', db.hasOnboarded() === false);
+
+  const readyRes = await sync.ready();
+  ok('ready() 不报错', !readyRes.error, JSON.stringify(readyRes));
+  ok('ready() 之后引导态从服务端恢复（不用重填引导）', db.hasOnboarded() === true);
+  ok('训练日队列也跟着重推了', db.plans().length > 0, 'plans=' + db.plans().length);
+
+  // 未引导时也要真的发请求（以前会返回 skipped:'onboard' 什么都不做）
+  anotherDevice();
+  const unonboarded = await sync.kick();
+  ok('未引导时也会同步（不再是 skipped:onboard）',
+    !(unonboarded && unonboarded.skipped === 'onboard'), JSON.stringify(unonboarded));
+
   sync.stop();
 }
 

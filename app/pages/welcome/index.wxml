@@ -11,11 +11,11 @@
     </view>
 
     <view class="foot">
-      <view class="btn main" bindtap="start">
+      <view class="btn main {{checking ? 'off' : ''}}" bindtap="start">
         <text>开始</text>
         <text class="arw">→</text>
       </view>
-      <view class="hint">先花 30 秒，告诉我们你的情况</view>
+      <view class="hint">{{checking ? '正在同步你之前的记录…' : '先花 30 秒，告诉我们你的情况'}}</view>
     </view>
   </block>
 
