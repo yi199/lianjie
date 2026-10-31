@@ -68,6 +68,7 @@ let running = false;   // 单飞：同一时刻只跑一个
 let again = false;     // 跑的过程中又有改动 → 结束后再跑一轮
 let listenersBound = false;
 let firstRun = null;   // 首次同步的 Promise（ready() 复用它）
+let inflight = null;   // 当前正在跑的那次同步（单飞时让调用方等它，而不是立刻返回）
 let debounceTimer = null;
 let pollTimer = null;
 let retryTimer = null;
@@ -289,13 +290,16 @@ function run() {
 
   if (running) {
     again = true;
-    return Promise.resolve({ skipped: 'running' });
+    // 返回**正在跑的那一次**，不是合成一个 skipped 结果。
+    // 否则 ready() 会立刻 resolve，调用方以为「同步完了」，
+    // 实际上远端数据还没落地 —— 表现就是「清缓存后还是看到引导页」。
+    return inflight || Promise.resolve({ skipped: 'running' });
   }
 
   running = true;
   clearTimers();
 
-  return ensureToken()
+  inflight = ensureToken()
     .then(function (token) { return syncOnce(token); })
     .then(function (r) {
       lastSyncAt = new Date().toISOString();
@@ -311,6 +315,7 @@ function run() {
     })
     .then(function (r) {
       running = false;
+      inflight = null;
       if (again) {
         again = false;
         return run();
@@ -318,6 +323,8 @@ function run() {
       scheduleIdlePoll();
       return r;
     });
+
+  return inflight;
 }
 
 /** app.js 的 onLaunch 调一次 */
@@ -370,6 +377,7 @@ function stop() {
   again = false;
   retryDelay = 0;
   firstRun = null;      // 下次 ready() 重新开始「首次同步」
+  inflight = null;
 }
 
 function status() {

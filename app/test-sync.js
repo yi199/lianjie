@@ -347,6 +347,23 @@ async function main() {
   ok('未引导时也会同步（不再是 skipped:onboard）',
     !(unonboarded && unonboarded.skipped === 'onboard'), JSON.stringify(unonboarded));
 
+  /* ---- 12. 竞态：init 已在跑时，ready() 必须等那一次 ---- */
+  console.log('\n=== ready() 与已在跑的同步 ===');
+  // 场景：App.onLaunch 已经调了 init() 开始同步；页面紧接着调 ready()。
+  // 如果 run() 在「已在跑」时返回合成的 skipped，ready() 会立刻 resolve，
+  // 调用方以为同步完了 —— 表现就是「清缓存后还是看到引导页」。
+  anotherDevice();
+  ok('竞态前本地没有引导态', db.hasOnboarded() === false);
+
+  const kicked = sync.kick();        // 模拟 init() 已经启动一次
+  const readied = sync.ready();      // 紧接着 ready()
+  const both = await Promise.all([kicked, readied]);
+
+  ok('ready() 与 kick() 都拿到结果', !!both[0] && !!both[1], JSON.stringify(both[1]));
+  ok('ready() 等到了真正那次同步：引导态已恢复', db.hasOnboarded() === true,
+    'hasOnboarded=' + db.hasOnboarded());
+  ok('数据也落地了', db.allSets().length > 0, 'sets=' + db.allSets().length);
+
   sync.stop();
 }
 
