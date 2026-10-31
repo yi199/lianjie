@@ -176,17 +176,8 @@ func (a *app) handleSync(w http.ResponseWriter, r *http.Request) {
 			rejected = append(rejected, rejectedRow{Kind: "workout", Index: i, Reason: reason})
 			continue
 		}
-		started, _ := time.Parse(time.RFC3339Nano, row.StartedAt)
-		var finished *time.Time
-		if row.FinishedAt != nil {
-			if fin, err := time.Parse(time.RFC3339Nano, *row.FinishedAt); err == nil {
-				u := fin.UTC()
-				finished = &u
-			}
-		}
-		workouts = append(workouts, workoutIn{
-			WorkoutRow: row, at: at, started: started.UTC(), finished: finished,
-		})
+		// startedAt / finishedAt 原样带字符串，由 SQL 转 timestamptz（见 store.go 注释）
+		workouts = append(workouts, workoutIn{WorkoutRow: row, at: at})
 	}
 
 	pushed, err := a.st.push(r.Context(), uid, sets, workouts, metrics, cfg)

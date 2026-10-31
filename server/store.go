@@ -86,11 +86,13 @@ type setIn struct {
 	at time.Time
 }
 
+// workoutIn：started_at / finished_at 直接带客户端的 RFC3339 字符串，
+// 由 SQL 里的 ::text::timestamptz 转换。
+// 不能传 time.Time —— 参数被声明为 text 时，pgx 会用 Go 的默认格式
+// "2006-01-02 15:04:05 +0000 UTC" 编码，Postgres 解析不了（SQLSTATE 22007）。
 type workoutIn struct {
 	WorkoutRow
-	at       time.Time
-	started  time.Time
-	finished *time.Time
+	at time.Time
 }
 
 type metricIn struct {
@@ -278,7 +280,7 @@ func (s *store) push(ctx context.Context, uid int64, sets []setIn, workouts []wo
 	for _, r := range workouts {
 		rev := alloc()
 		b.Queue(upsertWorkoutSQL, uid, r.Date, r.PlanKey, r.PlanName, r.Sig, r.ProgramID,
-			r.started, r.finished, r.Feel, r.Note, r.Done, r.at, rev)
+			r.StartedAt, r.FinishedAt, r.Feel, r.Note, r.Done, r.at, rev)
 		order = append(order, pending{r.key(), rev, lost{}})
 	}
 	for _, r := range metrics {
