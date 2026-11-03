@@ -124,6 +124,7 @@ docs/                   文档体系（见下）
 | **Go 依赖下不来** | `go build` 报 `proxy.golang.org ... connection failed` | `export GOPROXY=https://goproxy.cn,direct`。本机直连不通，不加这条永远编译不了 |
 | **改中文文案漏字** | 新字显示成方框（只在真机/工具里看得见） | 重做字体子集（命令见下）。先跑 `node _cache/check_font_chars.js` 看缺几个字 |
 | **测试把日期写死** | 过几天跑就红，误以为是回归 | **已修（2026-11-03）**：`weeklyProgress(date)` / `alternatives(exId, planKey, date)` 都接受可选日期，测试传固定日期；示例数据改成「最近五周含今天」。以后新增用例别用 `D.today()` 当真值 |
+| **换字体后文字被挤断** | 「4 × 10」断成两行、`一周 2 练` 的「练」掉下去压住标签行 | Space Grotesk 比 Georgia 宽。flex 行里的数字/短句加 `flex-shrink: 0; white-space: nowrap`（`.pss` / `.pm` 已加） |
 | **分支被删 / 推错** | `git fetch --prune` 后本地跟踪分支 `[deleted]`；或推了非当前分支显示 up-to-date | 先 `git branch --show-current`；工作分支 = `feat/fonts-on-main` |
 | **Edge headless 截图** | 目标 HTML 被浏览器进程锁住，写入失败 | 换文件名再写 |
 | **中文日期字距** | 套英文的 `0.26em` → "周 三 · 1 0 月 2 9 日" | 中文用 `.date`，字距 `0.06em` |
@@ -141,6 +142,11 @@ cd app && node test.js && node test-page.js && node test-sync.js && node test-tr
 
 # 语法 / JSON / db 方法 / 字体缺字，一把过（有失败项退出码 1）
 bash _cache/check_app.sh
+
+# 没有开发者工具时看页面效果：渲染 8 页成 HTML → 逐页截图 → 拼成对照图
+node _cache/render_pages.js       # 模拟 wx/Page/Component，跑 onLoad 拿 data，wxml 求值成 HTML
+bash _cache/shot.sh               # Edge headless 截 375×812 @2x
+python3.12 _cache/stitch.py       # 拼成 _cache/grid1.png / grid2.png
 
 # 双远端推送（先确认当前分支）
 git branch --show-current
