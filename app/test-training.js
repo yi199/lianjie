@@ -221,7 +221,7 @@ fresh();
 const planA = db.todaySession(T).plan;
 const inPlan = planA.items.map(function (it) { return it.exId; });
 set(T, 'g16', 1, 10, 12, { completedAt: at(2026, 10, 31, 10) });   // 今天练过哑铃飞鸟
-const alts = db.alternatives('g1', 'A').map(function (e) { return e.id; });
+const alts = db.alternatives('g1', 'A', T).map(function (e) { return e.id; });
 ok('换动作候选排除训练日里已有的动作', alts.every(function (id) { return inPlan.indexOf(id) < 0; }), alts.join(','));
 ok('换动作候选排除今天已练的动作', alts.indexOf('g16') < 0);
 ok('不传训练日时行为不变', db.alternatives('g1').some(function (e) { return e.id === 'g16'; }));

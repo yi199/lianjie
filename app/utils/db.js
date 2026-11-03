@@ -1622,7 +1622,7 @@ function todayReport(date) {
     parts: parts,
     prs: detectPRs(day),
     blocks: view.exercises.filter(function (b) { return b.status !== 'todo'; }),
-    week: weeklyProgress()
+    week: weeklyProgress(day)
   };
 }
 
@@ -1700,10 +1700,9 @@ function allTimeStats() {
 /* ---------------- 统计 ---------------- */
 
 /** 本周进度：这周练了几天 / 目标几天 */
-function weeklyProgress() {
+function weeklyProgress(date) {
   const p = wx.getStorageSync(K_PROFILE) || {};
-  const today = D.today();
-  const week = weekDates();
+  const week = weekDates(date);
 
   const daySet = {};
   allSets().filter(function (s) { return s.done; }).forEach(function (s) {

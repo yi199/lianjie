@@ -163,7 +163,7 @@ function initialWeight(exId, level) {
 /* ---------------- 示例数据（用户主动点了才生成） ---------------- */
 
 /**
- * 造过去四周的假记录，让数据页第一次不是空的。
+ * 造最近五周的假记录（含今天），让数据页第一眼就有东西看。
  * 按新的排法：每周练 target 次，模板顺序循环，重量逐周微增。
  */
 function makeDemoSets(plans, target) {
@@ -172,28 +172,34 @@ function makeDemoSets(plans, target) {
   if (!plans || !plans.length) return out;
 
   const n = Number(target) || plans.length;
-  const offsets = n >= 4 ? [1, 2, 4, 5] : (n === 3 ? [1, 3, 5] : [1, 4]);
+  // 距「今天」几天练一次（0 = 今天）。必须含今天和昨天：
+  // 今天正好是月初的周一时，若按「周一起算」排，最近一周全落在上个月，
+  // 本月一条记录都没有，数据页是空的——示例数据就白点了。
+  const offsets = n >= 4 ? [0, 1, 3, 5] : (n === 3 ? [0, 1, 3] : [0, 1]);
 
   const today = D.today();
-  const wd = D.weekdayMon();
-  const thisMonday = D.shift(today, -wd);
+  const now = Date.now();
 
   let k = 0;   // 模板按顺序取
 
   for (let w = 4; w >= 0; w--) {
-    const monday = D.shift(thisMonday, -w * 7);
     const progress = 1 + (4 - w) * 0.02;    // 越近的周越重，看得出进步
 
     offsets.forEach(function (off) {
-      const day = D.shift(monday, off);
-      if (day >= today) return;             // 今天及以后不生成
+      const day = D.shift(today, -(off + w * 7));
+      if (day > today) return;              // 兜底，正常到不了
 
       const p = plans[k % plans.length];
       k++;
 
-      // 当天 18:00 开练，一组约 2.5 分钟（含组间休息），给完成时刻排出先后
-      const start = new Date(day + 'T18:00:00').getTime();
-      let n = 0;
+      // 过去的训练日 18:00 开练，一组约 2.5 分钟（含组间休息），给完成时刻排出先后。
+      // 今天的这次不能排到 18:00——用户可能上午就点了「示例数据」，
+      // 所以从此刻往回推最长可能时长，保证不出现「未来的记录」。
+      const totalMs = p.items.reduce(function (a, it) { return a + it.sets; }, 0) * 150000;
+      const start = day === today
+        ? now - totalMs - 60000
+        : new Date(day + 'T18:00:00').getTime();
+      let idx = 0;
 
       p.items.forEach(function (it, slot) {
         // 兜底 part 给空串，不要静默归到腿（会污染部位统计）
@@ -213,7 +219,7 @@ function makeDemoSets(plans, target) {
             unit: it.unit || 'kg',
             targetReps: it.reps,
             targetSets: it.sets,
-            completedAt: new Date(start + (n++) * 150000).toISOString(),
+            completedAt: new Date(start + (idx++) * 150000).toISOString(),
             demo: true,            // 示例数据：永不上传
             done: true
           });
