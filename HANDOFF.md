@@ -123,7 +123,7 @@ docs/                   文档体系（见下）
 |---|---|---|
 | **Go 依赖下不来** | `go build` 报 `proxy.golang.org ... connection failed` | `export GOPROXY=https://goproxy.cn,direct`。本机直连不通，不加这条永远编译不了 |
 | **改中文文案漏字** | 新字显示成方框（只在真机/工具里看得见） | 重做字体子集（命令见下）。先跑 `node _cache/check_font_chars.js` 看缺几个字 |
-| **测试把日期写死** | 过几天跑就红，误以为是回归 | 现在有 3 处已知红：`test.js:85`（把 2026-10-26 当本周）、`test.js:184`（示例数据落在上个月，本月 0 天）、`test-training.js:226`（`T=2026-10-31` 当今天）。改成相对今天算 |
+| **测试把日期写死** | 过几天跑就红，误以为是回归 | **已修（2026-11-03）**：`weeklyProgress(date)` / `alternatives(exId, planKey, date)` 都接受可选日期，测试传固定日期；示例数据改成「最近五周含今天」。以后新增用例别用 `D.today()` 当真值 |
 | **分支被删 / 推错** | `git fetch --prune` 后本地跟踪分支 `[deleted]`；或推了非当前分支显示 up-to-date | 先 `git branch --show-current`；工作分支 = `feat/fonts-on-main` |
 | **Edge headless 截图** | 目标 HTML 被浏览器进程锁住，写入失败 | 换文件名再写 |
 | **中文日期字距** | 套英文的 `0.26em` → "周 三 · 1 0 月 2 9 日" | 中文用 `.date`，字距 `0.06em` |
@@ -136,6 +136,12 @@ docs/                   文档体系（见下）
 ## 常用操作
 
 ```bash
+# 四套自测（改完必跑，现在全绿）
+cd app && node test.js && node test-page.js && node test-sync.js && node test-training.js
+
+# 语法 / JSON / db 方法 / 字体缺字，一把过（有失败项退出码 1）
+bash _cache/check_app.sh
+
 # 双远端推送（先确认当前分支）
 git branch --show-current
 git push gitee <当前分支> && git push github <当前分支>

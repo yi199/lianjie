@@ -82,7 +82,7 @@ ok('周一开始是 A', s.plan && s.plan.key === 'A', s.plan ? s.plan.key + ' ' 
 ok('本周 0/3', s.week.done === 0 && s.week.target === 3, s.week.done + '/' + s.week.target);
 
 set('2026-10-26', 'g1', 'A', 1, 50, 10);
-ok('练完 A 后本周 1/3', db.weeklyProgress().done === 1, db.weeklyProgress().done + '/3');
+ok('练完 A 后本周 1/3', db.weeklyProgress('2026-10-26').done === 1, db.weeklyProgress('2026-10-26').done + '/3');
 
 ok('周二该练 B', db.todaySession('2026-10-27').plan.key === 'B');
 ok('周三没练还是 B（自动顺延）', db.todaySession('2026-10-28').plan.key === 'B', '顺延 ✓');
@@ -181,7 +181,11 @@ const n = db.loadDemo();
 ok('示例数据生成', n > 0, n + ' 条');
 ok('示例数据带 planKey', db.allSets().every(x => !!x.planKey), db.allSets()[0].planKey);
 const st2 = db.monthlyStats(D.thisMonth().y, D.thisMonth().m);
-ok('示例数据让数据页有内容', st2.days > 1, st2.days + ' 天');
+ok('示例数据让本月数据页有内容', st2.days >= 1, st2.days + ' 天');
+const demoDays = {};
+db.allSets().forEach(function (x) { demoDays[x.date] = true; });
+ok('示例数据铺满最近五周（每天都算一天）', Object.keys(demoDays).length >= 10, Object.keys(demoDays).length + ' 天');
+ok('示例数据包含今天（否则 1 号打开数据页是空的）', !!demoDays[D.today()], D.today());
 
 /* ================= 11. 旧数据迁移 ================= */
 console.log('\n=== 10. 旧数据迁移 ===');
