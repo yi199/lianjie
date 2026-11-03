@@ -122,6 +122,8 @@
 }
 
 .pm {
+  flex-shrink: 0;          /* 「一周 2 练」不能被挤断成两行（换字体后数字更宽） */
+  white-space: nowrap;
   font-size: var(--fs-note);
   color: var(--muted2);
 }

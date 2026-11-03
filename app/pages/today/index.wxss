@@ -161,6 +161,8 @@
 }
 
 .pss {
+  flex-shrink: 0;          /* 换字体后 Space Grotesk 的数字更宽，不加这条「4 × 10」会被挤成两行 */
+  white-space: nowrap;
   font-size: var(--fs-note);
   color: var(--muted);
 }
