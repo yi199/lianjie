@@ -1,0 +1,167 @@
+# 练界 — 项目交接（新对话开工先读这份）
+
+> 换新对话时，第一句话直接说：**读一下 E:\wx小程序\HANDOFF.md，我们接着做**。
+> 最后更新：2026-11-02（`feat/fonts-on-main` = `github/main` 5c530a9 + 字体两个提交 + 本文件）
+
+## 一句话
+
+微信**原生**小程序：健身训练记录 + 训练数据可视化，带**多设备同步**（自建 Go 后端）。单人用、纯本地优先、不社交、不卖课。
+
+对标产品是「杯间餐时」（居家调饮社区），**只借视觉语言和产品形态，不抄内容结构**（用户明确反对换皮）。
+
+## 分支地图（先看这里，别推错）
+
+| 位置 | 分支 | 指向 | 状态 |
+|---|---|---|---|
+| **本地** | **`feat/fonts-on-main`** | `5c530a9` + `03fee98`（字体）+ `5ef3a7c`（重建子集） | **当前工作分支，最完整**：他全部代码 + 字体。未推 |
+| github | `main` | `5c530a9` 2026-11-01 | 朋友 `Jaserのaiyi` 的主线，22 个提交，同步已跑通 |
+| 本地 | `feat/backend-sync-design` | `f055522` | **已废弃**（上游被删）。只留历史，别再基于它做 |
+| gitee | `main` / 两个旧分支 | `452ad47` / `f055522` | **旧镜像，落后一大截**，没跟上他这条线 |
+
+远端：`gitee`(man-qianyi/lianjie) + `github`(yi199/lianjie，ssh://git@ssh.github.com:443)。
+
+## 怎么跑
+
+```bash
+# 数据层 / 页面逻辑 / 同步 / 训练记录，四套都要绿
+cd app && node test.js && node test-page.js && node test-sync.js && node test-training.js
+
+# 语法 / JSON / wxml 类名 / db 方法检查
+bash _cache/check_app.sh
+
+# 后端（★必须带 GOPROXY，否则 proxy.golang.org 连不上）
+cd server && export GOPROXY=https://goproxy.cn,direct
+go build ./... && go test ./...                                 # 43 项（集成测试自动跳过）
+TEST_DATABASE_URL=... go test ./...                             # 起了 Postgres 才跑集成
+
+# 真机 / 模拟器
+# 微信开发者工具 → 导入 E:\wx小程序\app → AppID: wxfbe33a79e7898c0a
+# 详情 → 本地设置 → 勾「不校验合法域名」，后端走 http://localhost:8080
+```
+
+Windows + git-bash。`_cache/` 是本地产物目录（脚本、截图、字体源文件），**不进版本库**。
+
+## 目录
+
+```
+app/                    小程序源码（唯一需要改的前端）
+  pages/                8 页：welcome 引导 / today 今天 / record 记录 /
+                        report 战报 / stats 数据 / my 我的 /
+                        programs 方案中心 / builder 自建方案
+  components/set-row/   单组记录行（重量/次数可编辑，受控 input）
+  data/                 exercises.js 105 个动作 / plan.js 训练日队列 /
+                        programs.js 6 个官方方案 / fonts.js 字体 base64（勿手改）
+  utils/                db.js 数据层（唯一读写入口）/ storage.js 分片存储+上传队列 /
+                        sync.js 同步调度 / terrain.js 力量地形绘制 /
+                        config.js 后端地址 / date.js / volume.js
+  store/index.js        极简跨页通知
+  test.js test-page.js test-sync.js test-training.js   四套自测
+server/                 Go 后端（v2/v3 已实现，单体 + Postgres）
+docs/                   文档体系（见下）
+文档/                   产品说明 / 加入开发指南
+原型/                   早期原型 HTML（本地保留、不入版本库；与工程是两份代码）
+```
+
+**docs/ 现在的结构**（朋友 11-01 重组，一份事实只写一处）：
+
+```
+技术方案.md              为什么这么设计（架构 / 同步协议 / 一致性取舍）
+开发计划.md              阶段、模块、验收，带「状态」列
+开发标准.md              「改动怎么做才不算错」：文档纪律 / 接口纪律 / 硬约束
+接口/HTTP契约.md         端点、字段、校验、错误码（原「后端接口契约」）
+接口/训练记录.md          客户端数据层函数签名、状态
+设计文档/<模块>.md        每个模块的表、业务规则、边界（动作库 / 训练记录 / 训练日程 / 有氧记录 / 进步可视化）
+```
+
+## 架构与约定（破坏这些就会重蹈覆辙）
+
+1. **原生小程序，不用 uni-app**。调试直接对应源码，不要引入编译层。
+2. **所有数据读写只走 `app/utils/db.js`**。页面里不准直接碰 `wx.getStorageSync`；`storage.js` 只准 `db.js` 和 `sync.js` 引用。将来换后端只改这两个文件。
+3. **本地存储按月分 key**（`lj.sets.YYYY-MM`），训练记录按年分（`lj.workouts.YYYY`）。单 key 上限 1MB，塞一个 key 约 31 个月写满。
+4. **字号只用令牌**（`app.wxss` 的 `--fs-*`，现在 **8 档**：19/24/30/38/46/60/76/96rpx）。曾经出现过 19–25rpx 七个近似字号用了 59 次，整页糊成一片灰。颜色同理，只用 CSS 变量。
+5. **字体**：中文 `LJSans`（思源黑体 VF 子集）+ 英文数字 `LJGrotesk`（Space Grotesk），OFL 1.1 可商用，全部 base64 在 `data/fonts.js`，`wx.loadFontFace` 异步加载，失败静默回落系统黑体。**改中文文案必须重做子集**（见「常用操作」）。
+6. **计划模型是「训练日排队」**：本周 N 次，A→B→C 轮流，跳过自动顺延。**不是**「周一推日、周三拉日」。
+7. **力量地形是山脊线**：横轴 12 周，每周一个峰，折线不做平滑。**不是**部位雷达图（犯过一次，commit 88f0166 修的）。
+8. **同步协议**：本地优先 + 服务端 `rev` 版本号游标 + LWW（客户端时刻，夹紧 2 分钟）+ 墓碑 `done=false`。撤销删除永远不物理删（会复活）。配置文档整份同步、服务端不解析。
+9. **原型与工程是两份代码**。改工程的视觉后要同步 `练界_小程序演示.html`（生成脚本 `_cache/make_interactive.py`）。
+10. **一个 PR 一件事，PR 描述写 `Closes #issue`**（见 `CONTRIBUTING.md` 和 `.github/pull_request_template.md`）。
+
+## 红线（用户反复强调过）
+
+- **不许照抄杯间餐时**：不能只把酒换成健身。文案、结构、图形都要自己长出来。
+- **版权**：不用第三方图片、图标库、字体文件。图形用 Pillow/SVG 自绘，字体用 OFL 开源字体子集化。
+- **不做**：付费抽奖/盲盒、排行榜、身材对比图、AR 体型扫描。
+- 不输出任何令牌、密码、连接字符串到聊天或文件。
+
+## 当前状态
+
+### 已完成
+
+- **P1 后端 S1–S8**：鉴权、存储与迁移、`/sync` 推拉（rev 游标 / LWW / 时钟夹紧 / 落败行回推 / 去回声）、只读查询、限流探针、集成测试。**只差 S7 的 `deploy/`**（Nginx 配置、备份脚本）——目录还不存在。
+- **P2 前端存储 C1/C2**：`storage.js` 分片 + 待上传队列；`db.js` 全部改走它；`uncheckSet` 修掉「取消勾选不落库」的老 bug。**对页面的方法签名一个没变**。
+- **P3 接入同步 C3/C4/C5**：`sync.js`（单飞 / 防抖 / 分批 / 退避 / 401 重登）；`config.js` 按环境选地址，留空 = 纯本地；`app.js` 启动链路；welcome 从服务端恢复引导态；today/stats 收到远端变更刷新；my 页清空文案。
+- **★ M1 端到端**：朋友已在微信开发者工具里跑通（记录 → 上传 → 换设备拉回、断网补传）。
+- **训练记录 v0.3（部分）**：`workouts` 表、`sets` 新增 `blockId` / `trackVer` / `rir` / `assist`，「先选动作再记组」「热身组」「跨零点算哪天」。**多训练块还没实现**。
+- **字体（我们这条线独有）**：思源黑体 VF + Space Grotesk，956 字子集，370KB。
+- **文档体系**：拆成 `接口/` + `设计文档/`，新增 `开发标准.md`、`CONTRIBUTING.md`、PR 模板。
+
+### 未完成 / 在飞
+
+- **C6 测试补强**：双设备并发、分页、时钟偏差；`test-sync.js` 现在只有「顺序模拟换设备」，没有两套独立状态。
+- **S7 部署**：`server/deploy/`（Nginx TLS + `limit_req` + `X-Real-IP`、每日 `pg_dump` 保留 14 天）。
+- **P0 备案**：域名 + ICP。**只卡上线不卡开发**，第一天就该提交，现在还没开始。
+- **P4 真机联调**：两台真机互相同步、弱网、杀进程、改时钟——**一次都没做过**（开发者工具≠真机）。
+- **P5 身体指标**（M1–M3）：服务端 `metrics` 表和同步已就绪，前端零。
+- **P6 上线准备**：隐私协议、数据导出/注销、监控告警、备份演练、灰度。
+- **P7 进步可视化**（V1–V3）：`docs/设计文档/进步可视化.md` 已有业务设计，代码零。字段部分（`rir`/`assist`）已落库。
+- **动作库 v1.3**：设计定稿（E1–E4 实施方案），未开始实现。
+- **训练日程 / 有氧记录**：只有 v0.1 设计，无代码。
+
+## 已知的坑
+
+| 坑 | 表现 | 解法 |
+|---|---|---|
+| **Go 依赖下不来** | `go build` 报 `proxy.golang.org ... connection failed` | `export GOPROXY=https://goproxy.cn,direct`。本机直连不通，不加这条永远编译不了 |
+| **改中文文案漏字** | 新字显示成方框（只在真机/工具里看得见） | 重做字体子集（命令见下）。先跑 `node _cache/check_font_chars.js` 看缺几个字 |
+| **测试把日期写死** | 过几天跑就红，误以为是回归 | 现在有 3 处已知红：`test.js:85`（把 2026-10-26 当本周）、`test.js:184`（示例数据落在上个月，本月 0 天）、`test-training.js:226`（`T=2026-10-31` 当今天）。改成相对今天算 |
+| **分支被删 / 推错** | `git fetch --prune` 后本地跟踪分支 `[deleted]`；或推了非当前分支显示 up-to-date | 先 `git branch --show-current`；工作分支 = `feat/fonts-on-main` |
+| **Edge headless 截图** | 目标 HTML 被浏览器进程锁住，写入失败 | 换文件名再写 |
+| **中文日期字距** | 套英文的 `0.26em` → "周 三 · 1 0 月 2 9 日" | 中文用 `.date`，字距 `0.06em` |
+| **类名冲突** | `.today` / `.side` 在 demo 里撞名，布局塌 | 加前缀或改名 |
+| **杠铃物理** | 每组加一片是错的 | 片数恒定，颜色逐个点亮表示进度 |
+| **旧版本假数据** | 升级后仍显示 126 条假记录 | `db.migrate()` 清 `lj.seeded` |
+| **8080 被别的进程（Docker）占** | 后端连不上 / 连错了进程 | `netstat -ano \| grep :8080` 找到占用者，再换端口或停它 |
+| **`wx.login` 每次都是新用户** | 开发者工具里重新登录一次，数据就没了 | `config.js` 的 `DEV_LOGIN_CODE`：**开发版返回固定 code**，同步层据此走固定身份；只有非 develop 环境才走真实 `wx.login` |
+
+## 常用操作
+
+```bash
+# 双远端推送（先确认当前分支）
+git branch --show-current
+git push gitee <当前分支> && git push github <当前分支>
+
+# 重新生成演示页（含地形/字体）
+python3.12 _cache/make_interactive.py
+
+# ★ 改文案后重做字体子集（漏字会显示成方框）
+node _cache/check_font_chars.js                                      # 先看缺几个字
+python3.12 _cache/collect_chars.py                                   # 抽字表
+python3.12 -m fontTools.subset C:/Windows/Fonts/NotoSansSC-VF.ttf \
+  --text-file=E:/wx小程序/_cache/fonts/chars.txt --flavor=woff2 \
+  --output-file=E:/wx小程序/_cache/fonts/noto.sub.woff2
+python3.12 _cache/make_fonts_js.py                                   # 生成 data/fonts.js
+
+# 后端
+cd server && export GOPROXY=https://goproxy.cn,direct
+docker compose up -d db
+go test ./...
+```
+
+## 用户偏好（影响怎么做，不只是做什么）
+
+- 要先看效果再定：给对比图/截图，别只描述。
+- 反感术语堆砌，先讲「是什么／跟我什么关系」。
+- 对版权敏感，每个外来素材都要说清授权。
+- 说「改好了」要核实文件，可能只做了一半——**先读文件再信**。
+- 任务进度存桌面或根目录文档（像这份）；但简单答疑直接在对话里答，别为每句话生成文件。
+- 要拍板时用编号选项写在正文里，他不用弹窗。
