@@ -165,8 +165,10 @@ function initialWeight(exId) {
  *
  * 传了训练日 planKey 时，排除这个训练日里已有的动作和今天已经练过的动作——
  * 否则换成同一天已有的动作，两个位置的组会写到同一条记录上互相覆盖（模块设计 §9.2）。
+ *
+ * date 只给测试用：传了就拿它当「今天」，不传走 trainingDate()（含跨零点顺延）。
  */
-function alternatives(exId, planKey) {
+function alternatives(exId, planKey, date) {
   const ex = EX.byId(exId);
   if (!ex) return [];
   const list = EX.alternatives(exId, ex.place);
@@ -175,7 +177,7 @@ function alternatives(exId, planKey) {
   const exclude = {};
   const p = plans().filter(function (x) { return x.key === planKey; })[0];
   if (p) decorate(p).items.forEach(function (it) { exclude[it.exId] = true; });
-  todaySets(trainingDate()).forEach(function (s) { exclude[s.exId] = true; });
+  todaySets(date || trainingDate()).forEach(function (s) { exclude[s.exId] = true; });
   return list.filter(function (e) { return !exclude[e.id]; });
 }
 
@@ -1513,7 +1515,7 @@ function todayReport(date) {
     parts: parts,
     prs: detectPRs(day),
     blocks: view.exercises.filter(function (b) { return b.status !== 'todo'; }),
-    week: weeklyProgress()
+    week: weeklyProgress(day)
   };
 }
 
@@ -1591,10 +1593,9 @@ function allTimeStats() {
 /* ---------------- 统计 ---------------- */
 
 /** 本周进度：这周练了几天 / 目标几天 */
-function weeklyProgress() {
+function weeklyProgress(date) {
   const p = wx.getStorageSync(K_PROFILE) || {};
-  const today = D.today();
-  const week = weekDates();
+  const week = weekDates(date);
 
   const daySet = {};
   allSets().filter(function (s) { return s.done; }).forEach(function (s) {
