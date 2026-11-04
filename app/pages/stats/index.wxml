@@ -36,13 +36,13 @@
     <view class="cards3">
       <view class="cc">
         <text class="t">TOTAL</text>
-        <text class="v num">{{totalTon}}</text>
-        <text class="d">吨 · 累计</text>
+        <text class="v num">{{totalShown}}</text>
+        <text class="d">{{amountUnit}} · 累计</text>
       </view>
       <view class="cc">
         <text class="t">BEST</text>
-        <text class="v num">{{bestTon}}</text>
-        <text class="d">吨 · 单次最高</text>
+        <text class="v num">{{bestShown}}</text>
+        <text class="d">{{amountUnit}} · 单次最高</text>
       </view>
       <view class="cc">
         <text class="t">DAYS</text>

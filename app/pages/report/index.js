@@ -1,13 +1,20 @@
 const db = require('../../utils/db');
 const D = require('../../utils/date');
 
+/** 当天「练了多少」的主数字：负重看吨，自重看次数，计时看秒数 */
+function amountText(r) {
+  if (r.unit === 'bw') return r.reps + ' 次';
+  if (r.unit === 'sec') return r.seconds + ' 秒';
+  return r.ton + ' 吨';
+}
+
 Page({
   data: {
     sbh: 20,
     dateText: '',
     r: {
       planName: '', sets: 0, plannedSets: 0, exercises: 0,
-      ton: 0, parts: [], prs: []
+      ton: 0, reps: 0, seconds: 0, unit: 'kg', parts: [], prs: []
     },
     comment: ''
   },
@@ -50,7 +57,7 @@ Page({
     const r = this.data.r;
     return {
       title: r.sets
-        ? '今天练了 ' + r.sets + ' 组 · ' + r.ton + ' 吨'
+        ? '今天练了 ' + r.sets + ' 组 · ' + amountText(r)
         : '练界 · 把每一次训练留在身体上',
       path: '/pages/welcome/index'
     };

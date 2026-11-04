@@ -202,6 +202,19 @@ console.log('\n=== 11. 容量计算 ===');
 ok('单组容量', V.setVolume({ weight: 24, reps: 12 }) === 288, V.setVolume({ weight: 24, reps: 12 }));
 ok('吨换算', V.toTon(1240) === 1.2, V.toTon(1240));
 
+// 自重 / 计时日的口径兜底：不然战报与地形会显示 0 吨
+const t0 = V.tally([{ weight: 50, reps: 10, unit: 'kg' }]);
+ok('tally：负重日按吨', t0.unit === 'kg' && t0.ton === 0.5, JSON.stringify(t0));
+const t1 = V.tally([{ weight: 0, reps: 12, unit: 'bw' }, { weight: 0, reps: 8, unit: 'bw' }]);
+ok('tally：自重日按次数', t1.unit === 'bw' && t1.reps === 20 && t1.ton === 0, JSON.stringify(t1));
+const t2 = V.tally([{ weight: 0, reps: 60, unit: 'sec' }, { weight: 0, reps: 45, unit: 'sec' }]);
+ok('tally：计时日按秒数', t2.unit === 'sec' && t2.seconds === 105, JSON.stringify(t2));
+const t3 = V.tally([{ weight: 10, reps: 6, unit: 'bw' }]);
+ok('tally：负重引体算容量不算次数', t3.unit === 'kg' && t3.kg === 60 && t3.reps === 0, JSON.stringify(t3));
+const t4 = V.tally([{ weight: 0, reps: 10, unit: 'kg' }]);
+ok('tally：负重动作没填重量退回次数', t4.unit === 'bw' && t4.reps === 10, JSON.stringify(t4));
+ok('tally：空数组不崩', V.tally([]).unit === 'kg' && V.tally([]).kg === 0);
+
 /* ================= 12. 训练日轮转（跨周不漏训练日） ================= */
 console.log('\n=== 12. 训练日轮转 ===');
 db.resetAll();

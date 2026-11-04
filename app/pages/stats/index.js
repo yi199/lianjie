@@ -38,6 +38,9 @@ Page({
     totalTon: 0,
     bestTon: 0,
     totalDays: 0,
+    totalShown: 0,
+    bestShown: 0,
+    amountUnit: '吨',
     comment: ''
   },
 
@@ -88,8 +91,13 @@ Page({
     for (let i = 0; i < blankN; i++) blanks.push(i);
 
     // 地形：最近 12 周每周的吨数 → 归一化成 0~1 的高度
+    // 纯自重 / 计时党没有吨数，退回用组数画，别让地形塌成一条平地
     const wv = db.weeklyVolume(12);
-    this.heights = TER.toHeights(wv.map(function (w) { return w.ton; }));
+    const loaded = wv.some(function (w) { return w.ton > 0; });
+    this.heights = TER.toHeights(wv.map(function (w) { return loaded ? w.ton : w.sets; }));
+
+    // 三个数字卡同理：负重看吨，自重 / 计时看组
+    const hasTon = all.totalTon > 0;
 
     const self = this;
     this.setData({
@@ -106,6 +114,9 @@ Page({
       totalTon: all.totalTon,
       bestTon: all.best,
       totalDays: all.days,
+      totalShown: hasTon ? all.totalTon : all.totalSets,
+      bestShown: hasTon ? all.best : all.bestSets,
+      amountUnit: hasTon ? '吨' : '组',
       comment: makeComment(s.parts)
     }, function () {
       // canvas 要等节点渲染完才拿得到

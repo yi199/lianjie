@@ -173,10 +173,43 @@ ok('加重建议以正式组为基准：50 → 52.5', sugW.reason === 'up' && su
 ok('战报组数、吨数不算热身组', db.todayReport(Y).sets === 4 && db.todayReport(Y).ton === 2, db.todayReport(Y).ton + ' 吨');
 set(T, 'g1', 1, 55, 3, { warmup: true, completedAt: at(2026, 10, 31, 10) });
 ok('今天热身组比历史重也不算 PR', db.detectPRs(T).length === 0);
+
 ok('热身组在明细里带标记、不标 PR', (function () {
   const st = db.todayWorkout(T).exercises[0].sets[0];
   return st.warmup === true && st.pr === false;
 })());
+
+/* ================= 5.1 战报口径：自重 / 计时日 ================= */
+console.log('\n=== 5.1 战报口径 ===');
+fresh();
+// 自重日：引体向上（bw）只记次数
+const BW = '2026-10-29';
+set(BW, 'g5', 1, 0, 8, { completedAt: at(2026, 10, 29, 18) });
+set(BW, 'g5', 2, 0, 7, { completedAt: at(2026, 10, 29, 18, 5) });
+const rBw = db.todayReport(BW);
+ok('自重日口径切到次数，不是 0 吨',
+  rBw.unit === 'bw' && rBw.reps === 15 && rBw.ton === 0,
+  JSON.stringify({ unit: rBw.unit, reps: rBw.reps, ton: rBw.ton }));
+
+// 计时日：平板支撑（sec）只记秒数
+const SEC = '2026-10-28';
+set(SEC, 'g13', 1, 0, 60, { completedAt: at(2026, 10, 28, 18) });
+set(SEC, 'g13', 2, 0, 45, { completedAt: at(2026, 10, 28, 18, 5) });
+const rSec = db.todayReport(SEC);
+ok('计时日口径切到秒数', rSec.unit === 'sec' && rSec.seconds === 105,
+  JSON.stringify({ unit: rSec.unit, seconds: rSec.seconds }));
+
+// 负重与自重同一天：有负重就还是按吨，自重部分不丢组数
+set(BW, 'g1', 3, 50, 10, { completedAt: at(2026, 10, 29, 18, 10) });
+const rMix = db.todayReport(BW);
+ok('负重+自重同一天按吨，组数含自重组',
+  rMix.unit === 'kg' && rMix.ton === 0.5 && rMix.sets === 3 && rMix.reps === 15,
+  JSON.stringify({ unit: rMix.unit, ton: rMix.ton, sets: rMix.sets, reps: rMix.reps }));
+
+// 全历史：纯自重也要有可展示的量
+const allSt = db.allTimeStats();
+ok('全历史给了组数兜底', allSt.totalSets === 5 && allSt.bestSets >= 2,
+  JSON.stringify({ totalTon: allSt.totalTon, totalSets: allSt.totalSets, bestSets: allSt.bestSets }));
 
 /* ================= 6. 预填与加重提示 ================= */
 console.log('\n=== 6. 预填与加重提示 ===');

@@ -16,8 +16,8 @@
       <view class="k">组</view>
     </view>
     <view class="n">
-      <view class="v">{{r.ton}}</view>
-      <view class="k">吨</view>
+      <view class="v">{{r.unit === 'kg' ? r.ton : (r.unit === 'bw' ? r.reps : r.seconds)}}</view>
+      <view class="k">{{r.unit === 'kg' ? '吨' : (r.unit === 'bw' ? '次' : '秒')}}</view>
     </view>
     <view class="n">
       <view class="v">{{r.exercises}}</view>

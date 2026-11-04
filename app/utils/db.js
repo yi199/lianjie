@@ -1723,6 +1723,7 @@ function todayReport(date) {
   if (!planName) planName = '自由训练';
 
   const volume = V.totalVolume(work);
+  const tally = V.tally(work);
   const view = todayWorkout(day);
 
   return {
@@ -1733,6 +1734,10 @@ function todayReport(date) {
     exercises: Object.keys(exSeen).length,
     volume: volume,
     ton: V.toTon(volume),
+    // 自重 / 计时日的展示口径：战报第二张数字卡按 unit 切
+    reps: tally.reps,
+    seconds: tally.seconds,
+    unit: tally.unit,
     minutes: w && w.done ? workoutMinutes(w, rows) : null,
     parts: parts,
     prs: detectPRs(day),
@@ -1799,16 +1804,24 @@ function allTimeStats() {
   const dates = Object.keys(byDay);
   let best = 0;
   let bestDate = '';
+  let bestSets = 0;
+  let bestSetsDate = '';
   dates.forEach(function (d) {
-    const t = V.toTon(V.totalVolume(byDay[d].filter(isWork)));
+    const rows = byDay[d].filter(isWork);
+    const t = V.toTon(V.totalVolume(rows));
     if (t > best) { best = t; bestDate = d; }
+    if (rows.length > bestSets) { bestSets = rows.length; bestSetsDate = d; }
   });
 
+  const workAll = all.filter(isWork);
   return {
     days: dates.length,
-    totalTon: V.toTon(V.totalVolume(all.filter(isWork))),
+    totalTon: V.toTon(V.totalVolume(workAll)),
+    totalSets: workAll.length,
     best: best,
-    bestDate: bestDate
+    bestDate: bestDate,
+    bestSets: bestSets,
+    bestSetsDate: bestSetsDate
   };
 }
 
