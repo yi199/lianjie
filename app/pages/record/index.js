@@ -345,29 +345,68 @@ Page({
   /* ---------- 勾选一组 ---------- */
   onToggle(e) {
     const no = e.detail.no;
-    let target = null;
-    const sets = this.data.sets.map(function (s) {
-      if (s.no === no) {
-        target = Object.assign({}, s, { done: !s.done });
-        return target;
-      }
-      return s;
-    });
+    const cur = (this.data.sets || []).filter(function (s) { return s.no === no; })[0];
+    if (!cur) return;
 
-    this.setData({ sets: sets });
-    if (!target) return;
-
-    if (target.done) {
-      this.persist(target);
-      this.startRest();
-      try { wx.vibrateShort({ type: 'light' }); } catch (err) { /* 忽略 */ }
-    } else {
-      // 取消勾选要落库：以前什么都不写，页面显示没做，统计和战报却还算着这一组
-      db.uncheckSet({ date: this.date, exId: this.data.ex.exId, setNo: no });
-      this.stopRest();
+    // 已经完成的组不再「点一下就撤回」：会弹确认，默认不动它
+    if (cur.done) {
+      this.confirmUncheck(no);
+      return;
     }
 
+    // 没填数字就打勾 = 往库里塞一组 0kg × 0 次，统计和趋势全被污染
+    const bad = this.validateSet(cur);
+    if (bad) {
+      wx.showToast({ title: bad, icon: 'none' });
+      return;
+    }
+
+    const target = Object.assign({}, cur, { done: true });
+    const sets = this.data.sets.map(function (s) { return s.no === no ? target : s; });
+    this.setData({ sets: sets });
+
+    this.persist(target);
+    this.startRest();
+    try { wx.vibrateShort({ type: 'light' }); } catch (err) { /* 忽略 */ }
     this.refreshView();
+  },
+
+  /** 撤销已完成的一组：二次确认，别让手滑把记录删掉 */
+  confirmUncheck(no) {
+    const self = this;
+    const row = (this.data.sets || []).filter(function (s) { return s.no === no; })[0];
+    if (!row) return;
+    const what = row.unit === 'kg'
+      ? row.weight + 'kg × ' + row.reps
+      : row.reps + (row.unit === 'sec' ? ' 秒' : ' 次');
+    wx.showModal({
+      title: '撤销第 ' + no + ' 组？',
+      content: '这组（' + what + '）已经记进今天的训练了。撤销会把它从记录里删掉，统计和进步曲线也会跟着变。',
+      confirmText: '撤销',
+      cancelText: '不动它',
+      confirmColor: '#B4795A',
+      success(res) {
+        if (!res.confirm) return;
+        db.uncheckSet({ date: self.date, exId: self.data.ex.exId, setNo: no });
+        const sets = self.data.sets.map(function (s) {
+          return s.no === no ? Object.assign({}, s, { done: false, pr: false }) : s;
+        });
+        self.setData({ sets: sets });
+        self.stopRest();
+        self.refreshView();
+        wx.showToast({ title: '已撤销第 ' + no + ' 组', icon: 'none' });
+      }
+    });
+  },
+
+  /** 打勾前的校验：负重看重量，自重/计时看次数（秒数） */
+  validateSet(row) {
+    const unit = row.unit || 'kg';
+    if (!(Number(row.reps) > 0)) {
+      return unit === 'sec' ? '先填这组撑了几秒' : '先填这组做了几次';
+    }
+    if (unit === 'kg' && !(Number(row.weight) > 0)) return '先填这组的重量';
+    return '';
   },
 
   /**
@@ -386,16 +425,18 @@ Page({
 
   /** 把某一组标成完成（跟手动点勾走同一条路，保证落库一致） */
   completeSet(no) {
-    let target = null;
-    const sets = this.data.sets.map(function (s) {
-      if (s.no === no && !s.done) {
-        target = Object.assign({}, s, { done: true });
-        return target;
-      }
-      return s;
-    });
-    if (!target) return;
+    const cur = (this.data.sets || []).filter(function (s) { return s.no === no && !s.done; })[0];
+    if (!cur) return;
 
+    // 底部按钮和手动打勾用同一条校验：没填数字不许「完成这组」
+    const bad = this.validateSet(cur);
+    if (bad) {
+      wx.showToast({ title: bad, icon: 'none' });
+      return;
+    }
+
+    const target = Object.assign({}, cur, { done: true });
+    const sets = this.data.sets.map(function (s) { return s.no === no ? target : s; });
     this.setData({ sets: sets });
     this.persist(target);
     this.startRest();
@@ -426,9 +467,19 @@ Page({
       }
       return s;
     });
-    this.setData({ sets: sets });
+    if (!target) return;
 
-    if (target && target.done) this.persist(target);
+    // 已完成的组不能被改成不合法的值（比如把重量清空），否则库里就多一条 0kg 的记录
+    if (target.done) {
+      const bad = this.validateSet(target);
+      if (bad) {
+        wx.showToast({ title: bad, icon: 'none' });
+        return;
+      }
+    }
+
+    this.setData({ sets: sets });
+    if (target.done) this.persist(target);
     this.refreshView();
   },
 

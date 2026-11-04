@@ -8,12 +8,17 @@
 
 const store = {};
 const calls = [];
+let modalConfirm = true;      // 测试里控制 showModal 点「确定」还是「取消」
 
 global.wx = {
   getStorageSync(k) { return store[k] === undefined ? '' : store[k]; },
   setStorageSync(k, v) { store[k] = v; },
   removeStorageSync(k) { delete store[k]; },
   showToast(o) { calls.push(['toast', o.title]); },
+  showModal(o) {
+    calls.push(['modal', o.title]);
+    if (o.success) o.success({ confirm: modalConfirm, cancel: !modalConfirm });
+  },
   navigateTo(o) { calls.push(['nav', o.url]); },
   redirectTo(o) { calls.push(['redirect', o.url]); },
   switchTab(o) { calls.push(['tab', o.url]); },
@@ -36,6 +41,9 @@ global.Page = function (obj) {
 
 const db = require('./utils/db');
 const D = require('./utils/date');
+
+// 页面测试不需要真同步：dev 环境下同步默认打开，写记录会真去连本地后端，进程会挂在那儿等超时
+require('./utils/config').setApiBase(null);
 
 let failed = 0;
 function ok(label, cond, extra) {
@@ -346,7 +354,80 @@ function fakeDetail(out) {
     calls.length === 1 && calls[0][1] === '/pages/exercise/index?id=' + exId,
     JSON.stringify(calls));
 
-  /* ---- 10. 进步页（P7 · V2） ---- */
+  /* ---- 11. 打勾校验 / 撤销要确认 ---- */
+  console.log('\n=== 11. 打勾校验 / 撤销确认 ===');
+
+  db.resetAll();
+  db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+  const rc = loadPage('./pages/record/index');
+  rc.onLoad({});
+  const exIdNow = rc.data.ex.exId;
+
+  ok('负重动作：没重量不许打勾（提示先填重量）',
+    rc.validateSet({ unit: 'kg', weight: 0, reps: 8 }) === '先填这组的重量');
+  ok('自重动作：没重量可以打勾（只要填了次数）',
+    rc.validateSet({ unit: 'bw', weight: 0, reps: 8 }) === '');
+  ok('计时动作：没秒数不许打勾',
+    rc.validateSet({ unit: 'sec', weight: 0, reps: 0 }) === '先填这组撑了几秒');
+  ok('次数为 0 一律不许打勾',
+    rc.validateSet({ unit: 'kg', weight: 50, reps: 0 }) === '先填这组做了几次');
+
+  rc.onWeightChange({ detail: { no: 1, value: 0 } });
+  rc.onRepsChange({ detail: { no: 1, value: 8 } });
+  calls.length = 0;
+  rc.onToggle({ detail: { no: 1 } });
+  ok('重量空着点勾 → 只有提示，不算完成',
+    rc.data.sets[0].done === false && calls.some(function (c) { return c[0] === 'toast'; }),
+    JSON.stringify(calls));
+  ok('被拦下的那组没有写进库', db.todaySets(rc.date).length === 0, db.todaySets(rc.date).length);
+
+  rc.onWeightChange({ detail: { no: 1, value: 50 } });
+  rc.onRepsChange({ detail: { no: 1, value: 0 } });
+  rc.onToggle({ detail: { no: 1 } });
+  ok('次数空着点勾 → 也不算完成', rc.data.sets[0].done === false && db.todaySets(rc.date).length === 0);
+
+  rc.onRepsChange({ detail: { no: 1, value: 8 } });
+  rc.onToggle({ detail: { no: 1 } });
+  ok('数字填好之后才能打勾', rc.data.sets[0].done === true && db.todaySets(rc.date).length === 1,
+    db.todaySets(rc.date).length + ' 组');
+
+  // 撤销：默认「不动它」
+  modalConfirm = false;
+  calls.length = 0;
+  rc.onToggle({ detail: { no: 1 } });
+  ok('点已完成的勾 → 弹确认，不是直接删',
+    calls.some(function (c) { return c[0] === 'modal'; }) && db.todaySets(rc.date).length === 1,
+    JSON.stringify(calls));
+  ok('选了「不动它」那组还在', rc.data.sets[0].done === true && db.todaySets(rc.date).length === 1);
+
+  // 确认撤销
+  modalConfirm = true;
+  rc.onToggle({ detail: { no: 1 } });
+  ok('确认之后才真的撤销（记录也跟着删掉）',
+    db.todaySets(rc.date).length === 0 && rc.data.sets[0].done === false);
+
+  // 底部按钮走同一条校验
+  rc.onWeightChange({ detail: { no: 1, value: 0 } });
+  rc.onRepsChange({ detail: { no: 1, value: 8 } });
+  calls.length = 0;
+  rc.mainAction();
+  ok('底部「完成这组」也拦：没重量不算完成',
+    rc.data.sets[0].done === false && calls.some(function (c) { return c[0] === 'toast'; }),
+    JSON.stringify(calls));
+  ok('底部按钮被拦时也没有落库', db.todaySets(rc.date).length === 0);
+
+  // 已完成的组不能被改成不合法值
+  rc.onWeightChange({ detail: { no: 1, value: 50 } });
+  rc.onRepsChange({ detail: { no: 1, value: 8 } });
+  rc.onToggle({ detail: { no: 1 } });
+  calls.length = 0;
+  rc.onWeightChange({ detail: { no: 1, value: 0 } });
+  const kept = db.todaySets(rc.date)[0];
+  ok('已完成的组把重量改成空 → 拒绝，并保留原值',
+    !!kept && kept.weight === 50 && calls.some(function (c) { return c[0] === 'toast'; }),
+    kept && kept.weight);
+
+  /* ---- 12. 进步页（P7 · V2） ---- */
   console.log('\n=== 10. 进步页 ===');
 
   db.resetAll();
@@ -410,6 +491,8 @@ function fakeDetail(out) {
 
 /* ================= 结果 ================= */
 function runResult() {
+  // 同步层会留轮询 / 退避定时器，dev 环境还可能挂着未完成请求；测试跑完直接退出，别让 node 挂着等超时
+  try { require('./utils/sync').stop(); } catch (e) { /* 忽略 */ }
   console.log('\n' + (failed ? ('有 ' + failed + ' 项失败') : '页面测试全部通过') + '\n');
-  if (failed) process.exitCode = 1;
+  process.exit(failed ? 1 : 0);
 }
