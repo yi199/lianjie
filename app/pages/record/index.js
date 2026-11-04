@@ -58,6 +58,7 @@ Page({
     const app = getApp();
     this.date = db.trainingDate();     // 跨零点：没练完的训练仍记在开始那天
     this.timer = null;
+    this.backTimer = null;
     this.restLeft = REST_SECONDS;
     this.maxBefore = 0;
 
@@ -66,7 +67,7 @@ Page({
     const s = db.todaySession();
     if (!s.plan || !s.plan.items.length) {
       wx.showToast({ title: '还没有训练计划', icon: 'none' });
-      setTimeout(function () { wx.navigateBack(); }, 700);
+      this.backTimer = setTimeout(function () { wx.navigateBack(); }, 700);
       return;
     }
 
@@ -99,6 +100,11 @@ Page({
 
   onUnload() {
     this.clearTimer();
+    // 兜底返回的 timer：用户可能已经自己退出了，再退一层会跳错页面
+    if (this.backTimer) {
+      clearTimeout(this.backTimer);
+      this.backTimer = null;
+    }
   },
 
   /* ---------- 载入第 i 个动作 ---------- */

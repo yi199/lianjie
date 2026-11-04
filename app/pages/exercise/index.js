@@ -28,6 +28,7 @@ Page({
   },
 
   onLoad(opts) {
+    this.backTimer = null;
     const app = getApp();
     this.setData({ sbh: app.globalData.statusBarHeight });
 
@@ -37,7 +38,7 @@ Page({
     // 骨架先上：标题、要点、记录方式都是本地字段，断网也能看
     if (!ex) {
       wx.showToast({ title: '没找到这个动作', icon: 'none' });
-      setTimeout(function () { wx.navigateBack(); }, 700);
+      this.backTimer = setTimeout(function () { wx.navigateBack(); }, 700);
       return;
     }
 
@@ -58,6 +59,18 @@ Page({
     }
 
     this.fetch();
+  },
+
+  /**
+   * 兜底返回的 timer 必须在卸载时清掉。
+   * 否则用户自己先点了返回，700ms 后这个 timer 还会再退一层 ——
+   * 多退一层，或者报 routeDone with a webviewId ... is not found。
+   */
+  onUnload() {
+    if (this.backTimer) {
+      clearTimeout(this.backTimer);
+      this.backTimer = null;
+    }
   },
 
   /** 拉 steps + imgDetail：缓存命中直接回来，失败就退成「讲解还没补上」 */
