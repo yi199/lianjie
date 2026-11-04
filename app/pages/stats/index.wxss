@@ -11,6 +11,14 @@
   display: block;
 }
 
+.terr-cap {
+  margin-bottom: 2rpx;
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+  letter-spacing: .04em;
+}
+
 .terr-lab {
   display: flex;
   justify-content: space-between;

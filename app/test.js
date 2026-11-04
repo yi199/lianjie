@@ -173,6 +173,16 @@ ok('近 8 周返回 8 项', wv.length === 8, wv.map(w => w.ton).join(' / '));
 ok('最后一项是本周', wv[7].label === '本周', wv[7].label);
 ok('吨数不为负', wv.every(w => w.ton >= 0));
 
+// 地形刻度：上限定在「好看的数」，高度按上限归一（0 的周贴基线，不虚高）
+const TER = require('./utils/terrain');
+ok('刻度上限取整档（3.2 → 4）', TER.niceScale([0, 1.2, 3.2]) === 4, String(TER.niceScale([0, 1.2, 3.2])));
+ok('刻度上限跨十位也对（12.4 → 15）', TER.niceScale([12.4, 3]) === 15, String(TER.niceScale([12.4, 3])));
+ok('全 0 不把刻度压成 0', TER.niceScale([0, 0]) === 1, String(TER.niceScale([0, 0])));
+const hh = TER.toHeights([0, 8], 10);
+ok('高度 = 值 / 上限（8 / 10 = .8）', Math.abs(hh[1] - 0.8) < 1e-9, String(hh[1]));
+ok('没练的周贴基线但还看得见（0 < h < .05）', hh[0] > 0 && hh[0] < 0.05, String(hh[0]));
+ok('高度不超过 1（最大值也不会顶格）', TER.toHeights([10, 4], 10).every(v => v <= 1), TER.toHeights([10, 4], 10).join('/'));
+
 /* ================= 10. 示例数据 ================= */
 console.log('\n=== 9. 示例数据 ===');
 db.clearSets();

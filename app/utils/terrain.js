@@ -5,44 +5,124 @@
  * 每一周是一个点，点连成山脊，山与山之间的谷就是没练或练得少的周。
  * 所以它看起来像一条山脉的轮廓，而不是雷达图。
  *
- * 三个刻意的选择：
+ * 四个刻意的选择：
  *   1. 用直线段，不做平滑。锯齿感是「山」的质感，平滑了就变成折线图了。
  *   2. 填充从山顶往下渐隐，像山体的阴影。
  *   3. 本周那个点用陶土色标出来，是「你现在站在哪」。
+ *   4. 纵轴只给三档刻度（顶 / 中 / 0）+ 两条极淡的虚线：
+ *      山有多高得说得清，但不能让网格抢了山。单位不写在刻度里，
+ *      由页面上的「每周容量（吨）」那行小字交代——单位会随数据在吨 / 组之间切。
  */
 
+const LAB_W = 30;      // 左侧刻度栏：数字右对齐到 LAB_W - 6，轴线画在 LAB_W 处
+const TOP_PAD = 9;
+const BOT_PAD = 5;
+const X_PAD = 6;       // 右侧留白：本周那个圆点才不会被 canvas 边缘裁掉
+
 /**
- * @param ctx   canvas 2d context
- * @param w,h   逻辑尺寸（已按 dpr 缩放）
- * @param values 0~1 的数组，每个元素是一周的高度
+ * 把一批真实数值收口到一个「好看的」纵轴上限：1 / 1.5 / 2 / 2.5 / 3 / 4 / 5 / 6 / 8 × 10^n。
+ * 这样刻度是整数，最高的那座山也不会顶到最上面那条线。
  */
-function drawRidge(ctx, w, h, values) {
+function niceScale(values) {
+  const raw = (values || []).reduce(function (a, v) {
+    return Math.max(a, Number(v) || 0);
+  }, 0);
+  if (!(raw > 0)) return 1;
+
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const steps = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+  for (let i = 0; i < steps.length; i++) {
+    if (raw <= steps[i] * p * 1.0000001) return steps[i] * p;
+  }
+  return 10 * p;
+}
+
+/** 刻度数字：去掉没意义的小数位（8.0 → 8，4.5 → 4.5） */
+function fmtTick(v) {
+  if (v >= 100) return String(Math.round(v));
+  const r = Math.round(v * 10) / 10;
+  return String(r);
+}
+
+/**
+ * @param ctx    canvas 2d context
+ * @param w,h    逻辑尺寸（已按 dpr 缩放）
+ * @param values 0~1 的数组，每个元素是一周的高度（已经除过 scale）
+ * @param opt    { scale: 纵轴顶端的真实数值（吨 / 组） }
+ */
+function drawRidge(ctx, w, h, values, opt) {
+  const o = opt || {};
+  const scale = o.scale > 0 ? o.scale : 1;
   const n = values.length;
   if (!n) return;
 
-  const pad = 12;      // 上下留白
-  const xPad = 6;      // 左右留白：本周那个圆点才不会被边框裁掉
-  const inner = h - pad * 2;
-  const span = w - xPad * 2;
+  const innerH = h - TOP_PAD - BOT_PAD;
+  const span = w - LAB_W - X_PAD;
+
+  // 高度 → 坐标（0 贴基线，1 贴最上面那条线）
+  const yOf = function (v) {
+    const c = Math.max(0, Math.min(1, v));
+    return h - BOT_PAD - c * innerH;
+  };
 
   const pts = values.map(function (v, i) {
     return {
-      x: n > 1 ? xPad + (i / (n - 1)) * span : w / 2,
-      y: h - pad - Math.max(0.05, Math.min(1, v)) * inner
+      x: n > 1 ? LAB_W + (i / (n - 1)) * span : LAB_W + span / 2,
+      y: yOf(v)
     };
   });
 
   ctx.clearRect(0, 0, w, h);
 
-  /* ---- 山体：面积填充，山顶深、山脚淡 ---- */
+  /* ---- 纵轴：轴线 + 三档刻度（顶 / 中 / 0）+ 两条极淡的虚线 ---- */
+  ctx.lineWidth = 1;
+
+  ctx.strokeStyle = 'rgba(44, 56, 38, .22)';
+  ctx.beginPath();
+  ctx.moveTo(LAB_W, TOP_PAD);
+  ctx.lineTo(LAB_W, h - BOT_PAD);
+  ctx.stroke();
+
+  ctx.font = '9px "LJGrotesk", sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(44, 56, 38, .46)';
+
+  const marks = [1, 0.5, 0];
+  for (let i = 0; i < marks.length; i++) {
+    const k = marks[i];
+    const y = yOf(k);
+
+    // 刻度线：从轴线往右伸一点；顶 / 中部再拉一条极淡的虚线网格
+    ctx.strokeStyle = 'rgba(44, 56, 38, .22)';
+    ctx.beginPath();
+    ctx.moveTo(LAB_W, y);
+    ctx.lineTo(LAB_W + 4, y);
+    ctx.stroke();
+
+    if (k > 0) {
+      ctx.strokeStyle = 'rgba(44, 56, 38, .12)';
+      if (ctx.setLineDash) ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.moveTo(LAB_W + 5, y);
+      ctx.lineTo(w - X_PAD, y);
+      ctx.stroke();
+      if (ctx.setLineDash) ctx.setLineDash([]);
+    }
+
+    ctx.fillText(fmtTick(scale * k), LAB_W - 6, y);
+  }
+
+  /* ---- 山体：面积填充，山顶深、山脚淡（山脚收在 0 那条基线上，不留一道悬空） ---- */
+  const baseY = yOf(0);
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < n; i++) ctx.lineTo(pts[i].x, pts[i].y);
-  ctx.lineTo(pts[n - 1].x, h);
-  ctx.lineTo(pts[0].x, h);
+  ctx.lineTo(pts[n - 1].x, baseY);
+  ctx.lineTo(pts[0].x, baseY);
   ctx.closePath();
 
-  const g = ctx.createLinearGradient(0, pad, 0, h);
+  const g = ctx.createLinearGradient(0, TOP_PAD, 0, baseY);
   g.addColorStop(0, 'rgba(60, 74, 50, .78)');
   g.addColorStop(1, 'rgba(60, 74, 50, .08)');
   ctx.fillStyle = g;
@@ -69,16 +149,16 @@ function drawRidge(ctx, w, h, values) {
 }
 
 /**
- * 把每周吨数换算成 0~1 的高度。
- * 留一个下限 0.12：完全没练的周也不会贴到底，
- * 不然地形会缺一块，看起来像图画坏了。
+ * 把每周吨数换算成 0~1 的高度（相对纵轴上限 scale）。
+ * 留一个下限 0.015：完全没练的周是一条贴着基线的谷，
+ * 山脊线压在轴线上会看不清，抬一点点让它还看得见。
  */
-function toHeights(tons) {
-  const max = tons.reduce(function (a, t) { return Math.max(a, t); }, 0);
-  return tons.map(function (t) {
-    if (max <= 0) return 0.12;
-    return 0.12 + 0.88 * (t / max);
+function toHeights(tons, scale) {
+  const s = scale > 0 ? scale : niceScale(tons);
+  return (tons || []).map(function (t) {
+    const v = Number(t) || 0;
+    return Math.max(0.015, Math.min(1, v / s));
   });
 }
 
-module.exports = { drawRidge, toHeights };
+module.exports = { drawRidge, toHeights, niceScale };

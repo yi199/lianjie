@@ -94,7 +94,10 @@ Page({
     // 纯自重 / 计时党没有吨数，退回用组数画，别让地形塌成一条平地
     const wv = db.weeklyVolume(12);
     const loaded = wv.some(function (w) { return w.ton > 0; });
-    this.heights = TER.toHeights(wv.map(function (w) { return loaded ? w.ton : w.sets; }));
+    const raw = wv.map(function (w) { return loaded ? w.ton : w.sets; });
+    // 纵轴上限定在「好看的数」上（5 / 8 / 12 …），刻度才是整数，最高的山也不顶格
+    this.scale = TER.niceScale(raw);
+    this.heights = TER.toHeights(raw, this.scale);
 
     // 三个数字卡同理：负重看吨，自重 / 计时看组
     const hasTon = all.totalTon > 0;
@@ -117,6 +120,7 @@ Page({
       totalShown: hasTon ? all.totalTon : all.totalSets,
       bestShown: hasTon ? all.best : all.bestSets,
       amountUnit: hasTon ? '吨' : '组',
+      terrUnit: loaded ? '吨' : '组',
       comment: makeComment(s.parts)
     }, function () {
       // canvas 要等节点渲染完才拿得到
@@ -149,7 +153,7 @@ Page({
         canvas.height = h * dpr;
         ctx.scale(dpr, dpr);
 
-        TER.drawRidge(ctx, w, h, self.heights || []);
+        TER.drawRidge(ctx, w, h, self.heights || [], { scale: self.scale });
       });
   },
 
