@@ -1,0 +1,74 @@
+<view class="sb" style="height:{{sbh}}px"></view>
+
+<view class="nav">
+  <view class="back" bindtap="back" hover-class="back-hover" hover-start-time="0" hover-stay-time="120">
+    <text>‹</text>
+  </view>
+  <text class="kicker">Move</text>
+</view>
+
+<view class="page">
+
+  <!-- 标题：本地字段，断网也在 -->
+  <view class="exhead">
+    <view class="ex-tags">
+      <text class="ex-tag">{{partCn}}</text>
+      <text class="dot">·</text>
+      <text class="ex-tag">{{placeCn}}</text>
+      <text class="dot" wx:if="{{unitCn}}">·</text>
+      <text class="ex-tag" wx:if="{{unitCn}}">{{unitCn}}</text>
+    </view>
+    <view class="nm">{{ex.cn}}</view>
+    <view class="en" wx:if="{{ex.en}}">{{ex.en}}</view>
+  </view>
+
+  <!-- 插画：没图给占位，不空白；讲解没拉到就整块不显示（下面空态卡会说明） -->
+  <view class="art sec" wx:if="{{!failed}}">
+    <image wx:if="{{imgUrl}}" class="artimg" src="{{imgUrl}}" mode="widthFix"
+           lazy-load="true" binderror="onImgError" />
+    <view wx:else class="artph">
+      <view class="artph-bar {{loading ? 'is-loading' : ''}}"></view>
+      <view class="artph-t">{{loading ? '插画正在加载' : '这个动作还没配插画'}}</view>
+      <view class="artph-n">{{loading ? '要点和步骤先看下面的' : '没图不影响练：要点和步骤都在下面'}}</view>
+    </view>
+  </view>
+
+  <!-- 一句话要点 -->
+  <view class="card sec" wx:if="{{ex.tips}}">
+    <view class="cardlabel">一句话要点</view>
+    <view class="tipline"></view>
+    <view class="tipstext">{{ex.tips}}</view>
+  </view>
+
+  <!-- 步骤 -->
+  <view class="sec" wx:if="{{steps.length}}">
+    <view class="sec-h">怎么做</view>
+    <view class="steps">
+      <view class="step" wx:for="{{steps}}" wx:key="i">
+        <text class="stepno">{{item.no}}</text>
+        <text class="steptext">{{item.text}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 步骤空：加载完才说，别在加载中就喊没内容 -->
+  <view class="sec" wx:elif="{{!loading}}">
+    <view class="card emptycard">
+      <view class="empty-t">{{failed ? '讲解没拉到' : (custom ? '自己建的动作没有讲解' : '讲解还没补上')}}</view>
+      <view class="empty-n" wx:if="{{failed}}">多半是网络或服务的事。要点和记录都在本地，照常能练。</view>
+      <view class="empty-n" wx:elif="{{custom}}">它是你自己建的动作，只有你写的要点。</view>
+      <view class="empty-n" wx:else>官方讲解按热门程度分批补，先照要点练。</view>
+      <view class="retry" wx:if="{{failed}}" bindtap="retry"
+            hover-class="retry-hover" hover-start-time="0" hover-stay-time="120">再试一次</view>
+    </view>
+  </view>
+
+  <!-- 怎么记 -->
+  <view class="card sec">
+    <view class="cardlabel">怎么记</view>
+    <view class="howtotext">{{howto}}</view>
+  </view>
+
+  <view class="foot">要点和步骤来自动作库，插画按热门程度陆续补</view>
+
+</view>
