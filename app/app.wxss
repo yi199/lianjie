@@ -46,9 +46,12 @@ page {
 
   background: var(--bg);
   color: var(--ink);
-  font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "STSong", SimSun, serif;
+  /* 中文：思源黑体子集（100~900 可变字重）；没加载成功就回落到系统黑体 */
+  font-family: 'LJSans', -apple-system, "PingFang SC", "HarmonyOS Sans SC",
+               "MiSans", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
   font-size: var(--fs-body);
   line-height: 1.6;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -56,28 +59,31 @@ view, text, scroll-view { box-sizing: border-box; }
 
 /* ================= 文字层级 ================= */
 
+/* 英文/数字：Space Grotesk，几何感强，比 Georgia 精神得多 */
 .kicker {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: 'LJGrotesk', -apple-system, "Helvetica Neue", Arial, sans-serif;
   font-size: var(--fs-label);
-  letter-spacing: .26em;
+  font-weight: 500;
+  letter-spacing: .28em;
   color: var(--muted2);
   text-transform: uppercase;
 }
 
 .h1 {
   font-size: var(--fs-title);
-  line-height: 1.24;
-  letter-spacing: .01em;
-  font-weight: 400;
+  line-height: 1.22;
+  letter-spacing: -.022em;
+  font-weight: 800;
 }
 
 /* 中文大标题上面那行英文：整页的双层标题结构
    （学杯间餐时：CITY COCKTAILS 在上，「把杭州，调进一杯。」在下） */
 .h1en {
   margin-top: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: 'LJGrotesk', -apple-system, "Helvetica Neue", Arial, sans-serif;
   font-size: var(--fs-label);
-  letter-spacing: .3em;
+  font-weight: 700;
+  letter-spacing: .32em;
   color: var(--muted2);
   text-transform: uppercase;
 }
@@ -108,7 +114,7 @@ view, text, scroll-view { box-sizing: border-box; }
 }
 
 .num {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
@@ -130,7 +136,7 @@ view, text, scroll-view { box-sizing: border-box; }
 }
 
 .brand {
-  font-family: Georgia, "Songti SC", serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-note);
   letter-spacing: .3em;
   color: var(--ink);

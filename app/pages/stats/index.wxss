@@ -15,7 +15,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: var(--sp1);
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-label);
   color: var(--muted2);
 }
@@ -43,7 +43,7 @@
 }
 
 .cc .t {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-label);
   letter-spacing: .1em;
   color: var(--muted2);
@@ -138,7 +138,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-note);
   color: var(--muted);
 }
@@ -235,3 +235,6 @@
   font-size: var(--fs-note);
   color: var(--muted2);
 }
+
+/* 自定义 tabBar 是固定定位的：页面自己让出它的高度（108rpx + 安全区），否则最后一行被盖住 */
+.page { padding-bottom: calc(var(--sp5) + 104rpx + env(safe-area-inset-bottom)); }

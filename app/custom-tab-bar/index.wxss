@@ -1,0 +1,77 @@
+/* 底部切换栏
+ *
+ * 和页面同一套纸感：
+ *   - 底色用比页面深一档的暖纸 #EDE8D9，上沿一条细线；不再是纯白底 + 白边（那样在米色页面上像贴了张纸）
+ *   - 选中项：图标换成深绿版本 + 文字加粗 + 上沿一道陶土色「小把手」
+ *   - 按下：整体微缩 4%，给出「按到了」的手感
+ */
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  /* 不给固定 height：栏高由 .item 的 108rpx 决定，安全区再用 padding 往下撑。
+     原来固定 height + padding-bottom，在带 Home 指示条的机型上，
+     内容高只剩 (108rpx - 34px) ≈ 20px，图标就直接顶出栏外了。 */
+  padding-bottom: env(safe-area-inset-bottom);
+  /* 兜底：任何东西都不许画到栏外面去 */
+  overflow: hidden;
+  /* 底色比页面深一档的暖纸（#EDE8D9）：底栏是"地面"，不是又一张白纸。
+     之前用 --card(#FBF8EF) 比页面亮，一眼就是条白带；
+     现在靠"更暖更深 + 上沿细线"和内容分开，不再靠"更白"。 */
+  background: #EDE8D9;
+  border-top: 1rpx solid rgba(31, 35, 28, .09);
+}
+
+/* 小把手：贴在栏的内沿，不压到上面的内容 */
+.mark {
+  position: absolute;
+  top: 0;
+  width: 48rpx;
+  height: 5rpx;
+  border-radius: 0 0 6rpx 6rpx;
+  background: var(--clay, #B4795A);
+  transition: left .22s cubic-bezier(.2, .8, .2, 1);
+}
+.mark.at0 { left: calc(16.66% - 24rpx); }
+.mark.at1 { left: calc(50% - 24rpx); }
+.mark.at2 { left: calc(83.33% - 24rpx); }
+
+.item {
+  flex: 1;
+  /* 92rpx：原来 108rpx 在 430 宽的机型上是 62px 高，占了屏高 6.6%，太厚 */
+  height: 92rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* 只让图标和文字参与缩放，底栏本身不动 */
+  transition: transform 120ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.ic {
+  display: block;
+  flex: none;
+  width: 40rpx;
+  height: 40rpx;
+  opacity: .68;
+  transition: opacity 120ms ease;
+}
+
+.lb {
+  margin-top: 4rpx;
+  font-size: 17rpx;
+  letter-spacing: .1em;
+  /* 栏底比页面深，未选中文字不能再这么浅，否则糊成一片 */
+  color: var(--muted2, #97948A);
+  transition: color 120ms ease;
+}
+
+.item.on .ic { opacity: 1; }
+.item.on .lb { color: var(--green, #3C4A32); font-weight: 600; }
+
+/* 按下：整项缩一点点，像指尖按下去 */
+.item-hover { transform: scale(.94); }
+.item-hover .ic { opacity: .9; }
+.item-hover .lb { color: var(--green, #3C4A32); }

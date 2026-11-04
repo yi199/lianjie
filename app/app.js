@@ -1,4 +1,5 @@
 const sync = require('./utils/sync');
+const fonts = require('./data/fonts');
 
 App({
   globalData: {
@@ -13,6 +14,11 @@ App({
     } catch (e) {
       // 低版本基础库没有 getWindowInfo，退回 20
     }
+
+    // 加载自定义字体（失败会自动回落到系统黑体，不影响使用）
+    // 异步加载，不阻塞下面的同步启动
+    fonts.load();
+
     // 这里不再写入任何数据。
     // 动作库是静态的（data/exercises.js），周计划在用户走完引导后生成。
 

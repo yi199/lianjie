@@ -34,7 +34,7 @@
 }
 
 .pkkey {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-note);
   color: var(--clay);
   margin-right: 8rpx;
@@ -65,7 +65,7 @@
 }
 
 .carrow {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   opacity: .8;
 }
 
@@ -100,7 +100,7 @@
 
 .pen {
   margin-left: auto;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-label);
   letter-spacing: .18em;
   color: var(--muted2);
@@ -122,6 +122,8 @@
 }
 
 .pm {
+  flex-shrink: 0;          /* 「一周 2 练」不能被挤断成两行（换字体后数字更宽） */
+  white-space: nowrap;
   font-size: var(--fs-note);
   color: var(--muted2);
 }
@@ -191,7 +193,7 @@
 
 .pexen {
   margin-left: 12rpx;
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-label);
   letter-spacing: .14em;
   color: var(--muted2);

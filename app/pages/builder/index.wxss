@@ -65,7 +65,7 @@
 }
 
 .daykey {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-note);
   color: var(--clay);
   margin-right: 12rpx;
@@ -284,7 +284,7 @@
 
 .exrowen {
   margin-left: 12rpx;
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-label);
   letter-spacing: .1em;
   color: var(--muted2);

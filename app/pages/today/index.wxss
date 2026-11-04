@@ -67,7 +67,7 @@
 }
 
 .cen {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-label);
   letter-spacing: .26em;
   color: var(--muted2);
@@ -113,7 +113,7 @@
 }
 
 .carrow {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   color: var(--muted);
 }
 
@@ -154,13 +154,15 @@
 
 .pen {
   margin-top: 4rpx;
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-label);
   letter-spacing: .08em;
   color: var(--muted2);
 }
 
 .pss {
+  flex-shrink: 0;          /* 换字体后 Space Grotesk 的数字更宽，不加这条「4 × 10」会被挤成两行 */
+  white-space: nowrap;
   font-size: var(--fs-note);
   color: var(--muted);
 }
@@ -200,7 +202,7 @@
 }
 
 .swaparrow {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   opacity: .7;
 }
 
@@ -238,3 +240,6 @@
 .ebtn-hover {
   background: var(--soft);
 }
+
+/* 自定义 tabBar 是固定定位的：页面自己让出它的高度（108rpx + 安全区），否则最后一行被盖住 */
+.page { padding-bottom: calc(var(--sp5) + 104rpx + env(safe-area-inset-bottom)); }
