@@ -114,6 +114,18 @@ async function main() {
     back && back.weight + 'kg × ' + back.reps);
   ok('训练日也回来了', db.hasOnboarded(), db.profile() && db.profile().level);
 
+  /* ---- 2.5 身体指标也要能同步 ---- */
+  console.log('\n=== 2.5 身体指标（P5）跨设备 ===');
+  db.saveMetric({ kind: 'weight', date: '2026-11-03', value: 74.6 });
+  r = await sync.kick();
+  ok('指标上传无报错', !r || !r.error, JSON.stringify(r && r.error));
+  ok('指标上传后队列清空', db.syncPending() === 0, db.syncPending());
+
+  anotherDevice();
+  r = await sync.kick();
+  const m = db.metricOf('weight', '2026-11-03');
+  ok('换设备能拉回体重', m && m.value === 74.6, m && m.value);
+
   /* ---- 3. 时钟偏差：慢时钟设备写旧值，不能覆盖 ---- */
   console.log('\n=== 3. 时钟偏差（旧 updatedAt 不能覆盖新值）===');
   const id = '2026-11-03-g1-1';
