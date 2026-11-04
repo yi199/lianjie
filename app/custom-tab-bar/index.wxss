@@ -11,9 +11,12 @@
   right: 0;
   bottom: 0;
   display: flex;
-  align-items: center;
-  height: 108rpx;
+  /* 不给固定 height：栏高由 .item 的 108rpx 决定，安全区再用 padding 往下撑。
+     原来固定 height + padding-bottom，在带 Home 指示条的机型上，
+     内容高只剩 (108rpx - 34px) ≈ 20px，图标就直接顶出栏外了。 */
   padding-bottom: env(safe-area-inset-bottom);
+  /* 兜底：任何东西都不许画到栏外面去 */
+  overflow: hidden;
   /* 栏要比页面「亮一档」再抬一层，否则和米色页面糊在一起，看着像图标浮在内容上 */
   background: #FFFDF7;
   border-top: 1rpx solid #E6E1D0;
@@ -46,6 +49,8 @@
 }
 
 .ic {
+  display: block;
+  flex: none;
   width: 44rpx;
   height: 44rpx;
   opacity: .62;

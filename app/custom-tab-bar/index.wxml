@@ -12,7 +12,7 @@
     hover-start-time="0"
     hover-stay-time="120"
   >
-    <image class="ic" src="{{selected === index ? item.on : item.icon}}" mode="aspectFit" />
+    <image class="ic" src="{{selected === index ? item.on : item.icon}}" mode="aspectFit" style="width: 44rpx; height: 44rpx;" />
     <text class="lb">{{item.text}}</text>
   </view>
 </view>
