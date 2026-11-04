@@ -109,7 +109,8 @@
 }
 
 .cbtn-hover {
-  background: var(--soft);
+  background: var(--green-deep);
+  transform: translateY(1rpx) scale(.996);
 }
 
 .carrow {
@@ -131,7 +132,7 @@
 }
 
 .pitem-hover {
-  background: var(--card);
+  background: var(--card-press);
 }
 
 .pno {
@@ -198,7 +199,7 @@
 }
 
 .swapline-hover {
-  opacity: .7;
+  background: var(--card-press);
 }
 
 .swaparrow {
@@ -238,5 +239,6 @@
 }
 
 .ebtn-hover {
-  background: var(--soft);
+  background: var(--card-press);
+  transform: translateY(1rpx) scale(.996);
 }

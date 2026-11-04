@@ -5,6 +5,9 @@
   border-radius: 28rpx;
   background: var(--card);
   border: 1rpx solid var(--line);
+  /* 一像素的顶部高光：让卡片像"一张压在底色上的纸"，而不是浮起来的白块 */
+  box-shadow: 0 1rpx 0 rgba(255, 255, 255, .7) inset,
+              0 2rpx 6rpx rgba(31, 35, 28, .03);
 }
 
 .cardlabel {
@@ -57,14 +60,23 @@
   color: var(--green);
   font-size: var(--fs-note);
   letter-spacing: .06em;
+  transition: background-color var(--dur-press) var(--ease-press),
+              transform var(--dur-press) var(--ease-press);
 }
 
+/* 按下：底色压深一档 + 下沉，箭头往前挪一点，暗示"要进去了" */
 .changebtn-hover {
-  opacity: .9;
+  background: #DDE5C8;
+  transform: translateY(1rpx) scale(.997);
 }
 
 .changearrow {
   font-family: 'LJGrotesk', sans-serif;
+  transition: transform var(--dur-press) var(--ease-press);
+}
+
+.changebtn-hover .changearrow {
+  transform: translateX(6rpx);
 }
 
 /* ================= 选项 ================= */
@@ -85,7 +97,16 @@
   justify-content: center;
   font-size: var(--fs-note);
   color: var(--muted);
-  transition: background .15s, color .15s, border-color .15s;
+  transition: background-color .15s var(--ease-press),
+              color .15s var(--ease-press),
+              border-color .15s var(--ease-press),
+              transform var(--dur-press) var(--ease-press);
+}
+
+/* 未选中的选项按下去也有反馈：压深 + 微缩 */
+.chip-hover {
+  background: var(--card-press);
+  transform: scale(.98);
 }
 
 .chip:last-child {
@@ -115,12 +136,17 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 28rpx 0;
+  padding: 28rpx var(--sp2);
+  margin: 0 calc(var(--sp2) * -1);
+  border-radius: 12rpx;
   border-bottom: 1rpx solid var(--line);
+  transition: background-color var(--dur-press) var(--ease-press);
 }
 
+/* 按下：一行被压深，不是变白（原来 hover 到 var(--card) 反而更亮，看着像闪了一下） */
 .row-hover {
-  background: var(--card);
+  background: var(--card-press);
+  border-bottom-color: transparent;
 }
 
 .rowt {

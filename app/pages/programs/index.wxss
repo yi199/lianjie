@@ -60,8 +60,8 @@
 }
 
 .cbtn-hover {
-  opacity: .92;
-  transform: scale(.99);
+  background: var(--green-deep);
+  transform: translateY(1rpx) scale(.996);
 }
 
 .carrow {
@@ -248,7 +248,7 @@
 }
 
 .puse-hover {
-  opacity: .88;
+  background: rgba(60, 74, 50, .1);
 }
 
 .pedit,
@@ -289,7 +289,7 @@
 }
 
 .autorow-hover {
-  background: var(--card);
+  background: var(--card-press);
 }
 
 .autorowl {

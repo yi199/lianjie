@@ -209,7 +209,8 @@ page {
 }
 
 .btn-hover {
-  opacity: .85;
+  opacity: .92;
+  transform: translateY(1rpx) scale(.996);
 }
 
 /* ---------------- 入场：一块块浮上来 ---------------- */

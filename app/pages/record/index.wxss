@@ -15,7 +15,7 @@
   line-height: 1;
   margin-left: -12rpx;
 }
-.back-hover { opacity: .5; }
+.back-hover { background: rgba(31, 35, 28, .06); border-radius: 50%; }
 .nav .tt {
   flex: 1;
   font-size: var(--fs-note);
@@ -37,7 +37,7 @@
   font-size: var(--fs-label);
   color: var(--muted, #8B897C);
 }
-.swap-hover { background: #EFF2E7; }
+.swap-hover { background: var(--card-press); transform: translateY(1rpx) scale(.996); }
 
 .wrap {
   padding: 0 44rpx 220rpx;

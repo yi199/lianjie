@@ -18,7 +18,7 @@
   color: var(--ink);
 }
 
-.back-hover { background: var(--card); border-radius: 50%; }
+.back-hover { background: rgba(31, 35, 28, .06); border-radius: 50%; }
 
 .tt { display: flex; flex-direction: column; }
 .tt text:first-child { font-size: var(--fs-h2); font-weight: 700; letter-spacing: -.01em; }
@@ -280,7 +280,7 @@
   letter-spacing: .06em;
 }
 
-.barsave-hover { background: var(--green-deep); }
+.barsave-hover { background: var(--green-deep); transform: translateY(1rpx) scale(.996); }
 
 /* 今天那条记录右边的删除 */
 .rdel {
