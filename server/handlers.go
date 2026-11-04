@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -111,7 +112,7 @@ func (a *app) handleSync(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if len(req.Sets)+len(req.Workouts)+len(req.Metrics) > maxPushRows {
+	if len(req.Sets)+len(req.Workouts)+len(req.Metrics)+len(req.CustomExercises) > maxPushRows {
 		writeErr(w, http.StatusBadRequest, "TOO_MANY_ROWS", "单次同步最多 500 条，请分批提交")
 		return
 	}
@@ -180,7 +181,24 @@ func (a *app) handleSync(w http.ResponseWriter, r *http.Request) {
 		workouts = append(workouts, workoutIn{WorkoutRow: row, at: at})
 	}
 
-	pushed, err := a.st.push(r.Context(), uid, sets, workouts, metrics, cfg)
+	// 自建动作（动作库）：和 sets 一样的校验 + 时钟夹紧。
+	// 它们是用户输入，最容易被拒——被拒的原因必须回到客户端显示（动作库.md §7.4）。
+	exercises := make([]customExerciseIn, 0, len(req.CustomExercises))
+	for i := range req.CustomExercises {
+		row := req.CustomExercises[i]
+		reason := validateCustomExercise(&row)
+		at, ok := clientTime(row.UpdatedAt, now)
+		if reason == "" && !ok {
+			reason = "updatedAt 必须是 RFC3339"
+		}
+		if reason != "" {
+			rejected = append(rejected, rejectedRow{Kind: "customExercise", Index: i, Reason: reason})
+			continue
+		}
+		exercises = append(exercises, customExerciseIn{CustomExerciseRow: row, at: at})
+	}
+
+	pushed, err := a.st.push(r.Context(), uid, sets, workouts, metrics, exercises, cfg)
 	if err != nil {
 		dbFail(w, "写入", err)
 		return
@@ -218,18 +236,85 @@ func (a *app) handleSync(w http.ResponseWriter, r *http.Request) {
 			outCfg = nil
 		}
 	}
+	// 自建动作和 sets 一样去回声：赢了的行客户端手里就是这份
+	outExercises := make([]CustomExerciseRow, 0, len(pulled.customExercises))
+	for _, x := range pulled.customExercises {
+		if rev, ok := pushed.won[x.key()]; ok && rev == x.rev {
+			continue
+		}
+		outExercises = append(outExercises, x)
+	}
 
 	writeJSON(w, http.StatusOK, syncResponse{
-		Cursor:     pulled.cursor,
-		HasMore:    pulled.hasMore,
-		Applied:    pushed.applied,
-		Rejected:   rejected,
-		Sets:       outSets,
-		Workouts:   outWorkouts,
-		Metrics:    outMetrics,
-		Config:     outCfg,
-		ServerTime: rfc3339(now),
+		Cursor:          pulled.cursor,
+		HasMore:         pulled.hasMore,
+		Applied:         pushed.applied,
+		Rejected:        rejected,
+		Sets:            outSets,
+		Workouts:        outWorkouts,
+		Metrics:         outMetrics,
+		CustomExercises: outExercises,
+		Config:          outCfg,
+		CatalogRev:      pulled.catalogRev,
+		ServerTime:      rfc3339(now),
 	})
+}
+
+/* ---------------- 官方动作库 ---------------- */
+
+// handleCatalog：整份清单，免登录、只给缩略图。
+//
+// since 只决定「要不要给」：since >= 当前 rev 返回 304（空 body），否则整份返回。
+// 客户端因此只有一条写入路径——整份替换，不需要处理增量合并。
+// rev 自愈：客户端存了个比服务端大的 rev（服务端被重置过），since >= rev 恒成立，
+// 清单就再也不刷新；所以本地 rev 大于服务端时，客户端要按 0 处理（契约 §4.6）。
+func (a *app) handleCatalog(w http.ResponseWriter, r *http.Request) {
+	since := int64(-1) // 没传 = 一定给
+	if v := r.URL.Query().Get("since"); v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || n < 0 {
+			writeErr(w, http.StatusBadRequest, "SINCE_INVALID", "since 必须是非负整数")
+			return
+		}
+		since = n
+	}
+
+	rev, err := a.st.catalogRevOf(r.Context())
+	if err != nil {
+		dbFail(w, "读取动作库版本", err)
+		return
+	}
+	if since >= rev {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
+	list, err := a.st.catalogList(r.Context())
+	if err != nil {
+		dbFail(w, "读取动作库", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+// handleExerciseDetail：动作详情（讲解 + 大图），要登录。
+// 图片和 steps 都允许为空；失败不该阻塞页面主体。
+func (a *app) handleExerciseDetail(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" || len(id) > 16 {
+		writeErr(w, http.StatusBadRequest, "ID_INVALID", "动作 id 不合法")
+		return
+	}
+	d, err := a.st.catalogDetail(r.Context(), id)
+	if errors.Is(err, errExerciseNotFound) {
+		writeErr(w, http.StatusNotFound, "EXERCISE_NOT_FOUND", "动作不存在")
+		return
+	}
+	if err != nil {
+		dbFail(w, "读取动作详情", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, d)
 }
 
 /* ---------------- 只读查询 ---------------- */
