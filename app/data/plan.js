@@ -180,6 +180,9 @@ function demoExId(exId, week) {
   return exId;
 }
 
+/** 这两个动作最后几周一直没长：「卡住了」的样子也得在示例数据里看得到 */
+const DEMO_STALLED = ['g5', 'g13'];
+
 /**
  * 造最近 12 周的假记录（含今天），让数据页/进步页第一眼就有东西看。
  * 重量不是线性涨：中间有一段停滞、后面一次突破，这样「停滞提示」「突破高光」都能被看见。
@@ -214,7 +217,6 @@ function makeDemoSets(plans, target) {
 
   for (let w = DEMO_WEEKS - 1; w >= 0; w--) {
     const week = DEMO_WEEKS - 1 - w;        // 0 = 最早的一周，11 = 本周
-    const pace = demoPace(week);
 
     offsets.forEach(function (off) {
       const day = D.shift(today, -(off + w * 7));
@@ -236,6 +238,8 @@ function makeDemoSets(plans, target) {
         const exId = demoExId(it.exId, week);
         // 兜底 part 给空串，不要静默归到腿（会污染部位统计）
         const ex = CAT.find(exId) || { cn: exId, part: '' };
+        // 卡住的动作从第 8 周起就不再进步（停滞提示才有东西可说）
+        const pace = DEMO_STALLED.indexOf(exId) !== -1 ? demoPace(Math.min(week, 7)) : demoPace(week);
         const speed = DEMO_SPEED[ex.part] || 1;
         // 每个动作按自己的部位涨速乘上去，越到后面差距越明显
         const mult = 1 + (pace - 1) * speed;
@@ -243,7 +247,8 @@ function makeDemoSets(plans, target) {
         const b = base[exId] || { weight: it.weight || 0, reps: it.reps };
         // 自重 / 计时动作没有重量，进步体现在次数和秒数上（不然这些动作永远是「持平 1.00×」）。
         // 幅度要克制：12 周自重动作涨 2–3 次、静力涨几秒，比重量动作的 +20% 更接近真实。
-        const extra = Math.round((pace - 1) * speed * (unit === 'sec' ? 45 : 11));
+        // 次数也跟着涨一点点（轻重量 10→12.5 这种小步长，光靠加重量看不出进步）
+        const extra = Math.round((pace - 1) * speed * (unit === 'sec' ? 45 : 18));
         const reps = Math.max(1, (b.reps || it.reps) + extra);
         const w0 = b.weight || 0;
         for (let s = 0; s < it.sets; s++) {

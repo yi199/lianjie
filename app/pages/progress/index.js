@@ -18,7 +18,7 @@ function highlightText(h) {
   return h.cn;
 }
 
-const STATUS_CN = { up: '在涨', flat: '持平', down: '掉了', new: '新动作' };
+const STATUS_CN = { up: '在涨', flat: '持平', down: '掉了', new: '新动作', stalled: '卡住' };
 
 Page({
   data: {

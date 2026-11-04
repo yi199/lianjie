@@ -162,6 +162,9 @@ ok('距最好过了 4 次 → 标成停滞', ts.stall.stalled === true, ts.stall
 ok('说清楚卡的是哪一次的最好成绩', ts.stall.bestValue === 82 && ts.stall.bestDate === '2026-09-05',
   ts.stall.bestValue + ' / ' + ts.stall.bestDate);
 ok('没超过 2.5% 的微涨不算突破', ts.sinceBest === 4, ts.sinceBest);
+const stallAction = P.actions(stallRows).filter(function (a) { return a.exId === 'g1'; })[0];
+ok('动作列表里标成「卡住」而不是「在涨」', stallAction && stallAction.status === 'stalled',
+  stallAction && stallAction.status);
 
 const tinyUp = flat(
   day('2026-09-01', 'g1', [[60, 10]]),

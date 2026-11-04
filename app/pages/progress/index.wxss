@@ -241,6 +241,7 @@
 .astatus.up { color: var(--green); border-color: #CFD8C0; }
 .astatus.flat { color: var(--muted); }
 .astatus.down { color: var(--clay); border-color: #E3C9B8; }
+.astatus.stalled { color: var(--clay); border-color: #E3C9B8; background: rgba(180, 121, 90, .07); }
 .astatus.new { color: var(--muted2); }
 
 .aidx {

@@ -386,7 +386,9 @@ function actions(rows, opts) {
       need: t.need || 0,
       conf: t.ok ? t.conf : '',
       stall: t.ok ? t.stall : null,
-      status: !t.ok ? 'new' : (t.index > 1 + noise ? 'up' : (t.index < 1 - noise ? 'down' : 'flat'))
+      status: !t.ok ? 'new'
+        : (t.stall.stalled ? 'stalled'
+          : (t.index > 1 + noise ? 'up' : (t.index < 1 - noise ? 'down' : 'flat')))
     });
   });
 
