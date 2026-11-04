@@ -28,15 +28,38 @@ cd app && node test.js && node test-page.js && node test-sync.js && node test-tr
 
 # 语法 / JSON / wxml 类名 / db 方法检查
 bash _cache/check_app.sh
+```
 
-# 后端（★必须带 GOPROXY，否则 proxy.golang.org 连不上）
-cd server && export GOPROXY=https://goproxy.cn,direct
-go build ./... && go test ./...                                 # 43 项（集成测试自动跳过）
-TEST_DATABASE_URL=... go test ./...                             # 起了 Postgres 才跑集成
+### 本地起后端（真库联调）
 
+本机没有 Docker，Postgres 装在 **WSL Ubuntu 24.04** 里（PG 16.15），Windows 侧跑 Go 二进制：
+
+```bash
+# 1. 起库（WSL 里）
+wsl -u root -- pg_ctlcluster 16 main start
+
+# 2. 起后端（Windows，DEV_MODE + :18081）
+bash _cache/run_api.sh        # 自动取 WSL IP 拼 DATABASE_URL，日志打在终端
+
+# 3. 真链路自检：登录 / 推 / 幂等重推 / 换设备拉 / 墓碑 / LWW / 用户隔离 / 配置文档
+python3.12 _cache/e2e_test.py
+
+# 4. 后端 30 项测试（含 17 个集成，要真库）
+cd server && TEST_DATABASE_URL="postgres://postgres:postgres@<WSL_IP>:5432/lianjie_test?sslmode=disable" \
+  go test ./... -v
+```
+
+**★ WSL2 的 localhost 转发不可靠**：`DATABASE_URL` 用 `127.0.0.1:5432` 时，单个连接能通，但
+`go test` 一并发就 `connection refused`（17 个集成测试全红）。必须用 WSL 的 IP
+（`wsl -u root -- hostname -I`），`run_api.sh` 已经现取现用。
+
+开发者工具（`E:\微信web开发者工具`，项目名 lianjian）里的 develop 版指向
+`http://127.0.0.1:18081/api`，后端一起来它就会登录成 `dev-local-1` 并上传本地记录。
+
+```bash
 # 真机 / 模拟器
 # 微信开发者工具 → 导入 E:\wx小程序\app → AppID: wxfbe33a79e7898c0a
-# 详情 → 本地设置 → 勾「不校验合法域名」，后端走 http://localhost:8080
+# 详情 → 本地设置 → 勾「不校验合法域名」，后端走 http://127.0.0.1:18081
 ```
 
 Windows + git-bash。`_cache/` 是本地产物目录（脚本、截图、字体源文件），**不进版本库**。
@@ -98,6 +121,10 @@ docs/                   文档体系（见下）
 ### 已完成
 
 - **P1 后端 S1–S8**：鉴权、存储与迁移、`/sync` 推拉（rev 游标 / LWW / 时钟夹紧 / 落败行回推 / 去回声）、只读查询、限流探针、集成测试。**只差 S7 的 `deploy/`**（Nginx 配置、备份脚本）——目录还不存在。
+  - **2026-11-04 已首次跑通真库**：WSL 里装 PG 16，`go test` 30 项全 PASS（含 17 个集成）。
+- **前后端真链路已验证**（2026-11-04）：Go 后端 :18081 + 真 Postgres，`_cache/e2e_test.py` 14 项全过
+  （登录 / 推 3 组 / 幂等重推 applied=0 / 换设备全量拉 / 墓碑可传播 / 旧值不覆盖 / 用户隔离 / 无 token 401 / 配置文档跨设备）。
+  同一时刻开发者工具里的小程序自动登录成 `dev-local-1` 并上传了本地记录（3 组 + 1 次训练 + 配置），库里有据可查。
 - **P2 前端存储 C1/C2**：`storage.js` 分片 + 待上传队列；`db.js` 全部改走它；`uncheckSet` 修掉「取消勾选不落库」的老 bug。**对页面的方法签名一个没变**。
 - **P3 接入同步 C3/C4/C5**：`sync.js`（单飞 / 防抖 / 分批 / 退避 / 401 重登）；`config.js` 按环境选地址，留空 = 纯本地；`app.js` 启动链路；welcome 从服务端恢复引导态；today/stats 收到远端变更刷新；my 页清空文案。
 - **★ M1 端到端**：朋友已在微信开发者工具里跑通（记录 → 上传 → 换设备拉回、断网补传）。
