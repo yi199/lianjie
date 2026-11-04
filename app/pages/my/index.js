@@ -63,6 +63,10 @@ Page({
     wx.navigateTo({ url: '/pages/programs/index' });
   },
 
+  gotoMyExercises() {
+    wx.navigateTo({ url: '/pages/my-exercises/index' });
+  },
+
   setDays(e) {
     this.apply({ days: Number(e.currentTarget.dataset.v) });
   },

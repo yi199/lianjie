@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -97,6 +98,11 @@ type workoutIn struct {
 
 type metricIn struct {
 	MetricRow
+	at time.Time
+}
+
+type customExerciseIn struct {
+	CustomExerciseRow
 	at time.Time
 }
 
@@ -226,6 +232,24 @@ where user_config.updated_at < excluded.updated_at`
 
 const bumpConfigSQL = `update user_config set rev = $2 where user_id = $1`
 
+// 自建动作：和 sets 同一套 LWW（整行覆盖，没有可空字段，所以不需要 coalesce）。
+const upsertCustomExerciseSQL = `
+insert into user_exercises (user_id, ex_id, cn, part, place, unit, tips, done, updated_at, rev)
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+on conflict (user_id, ex_id) do update set
+  cn         = excluded.cn,
+  part       = excluded.part,
+  place      = excluded.place,
+  unit       = excluded.unit,
+  tips       = excluded.tips,
+  done       = excluded.done,
+  updated_at = excluded.updated_at,
+  rev        = excluded.rev
+where user_exercises.updated_at < excluded.updated_at`
+
+const bumpCustomExerciseSQL = `
+update user_exercises set rev = $3 where user_id = $1 and ex_id = $2`
+
 // push 在一个事务里写入一批变更。
 //
 // 并发模型：先 `update users set rev = rev + n` —— 这一句同时做两件事：
@@ -234,9 +258,13 @@ const bumpConfigSQL = `update user_config set rev = $2 where user_id = $1`
 //     保证「rev 小的一定先提交」，拉增量的游标才不会跳过还没提交的行。
 //
 // 不同用户之间互不阻塞。
-func (s *store) push(ctx context.Context, uid int64, sets []setIn, workouts []workoutIn, metrics []metricIn, cfg *configIn) (pushResult, error) {
+func (s *store) push(ctx context.Context, uid int64, sets []setIn, workouts []workoutIn, metrics []metricIn,
+	exercises []customExerciseIn, cfg *configIn) (pushResult, error) {
+
 	res := pushResult{won: map[string]int64{}}
-	n := len(sets) + len(workouts) + len(metrics)
+	// 这个 n 必须覆盖下面每一条 alloc()：漏算会让多出来的行拿到区间外的 rev，
+	// 拉增量时就永远跳不到它（cursor 已经越过），数据静默丢失。
+	n := len(sets) + len(workouts) + len(metrics) + len(exercises)
 	if cfg != nil {
 		n++
 	}
@@ -292,6 +320,11 @@ func (s *store) push(ctx context.Context, uid int64, sets []setIn, workouts []wo
 		rev := alloc()
 		b.Queue(upsertMetricSQL, uid, r.Kind, r.Date, r.Value, r.Unit, r.Note, r.Done, r.at, rev)
 		order = append(order, pending{r.key(), rev, lost{bumpMetricSQL, []any{uid, r.Kind, r.Date, rev}}})
+	}
+	for _, r := range exercises {
+		rev := alloc()
+		b.Queue(upsertCustomExerciseSQL, uid, r.ExID, r.Cn, r.Part, r.Place, r.Unit, r.Tips, r.Done, r.at, rev)
+		order = append(order, pending{r.key(), rev, lost{bumpCustomExerciseSQL, []any{uid, r.ExID, rev}}})
 	}
 	if cfg != nil {
 		rev := alloc()
@@ -405,12 +438,14 @@ var errUserGone = errors.New("用户不存在")
 /* ---------------- 拉：按 rev 取增量 ---------------- */
 
 type pullResult struct {
-	sets     []SetRow
-	workouts []WorkoutRow
-	metrics  []MetricRow
-	config   *ConfigDoc
-	cursor   int64
-	hasMore  bool
+	sets            []SetRow
+	workouts        []WorkoutRow
+	metrics         []MetricRow
+	customExercises []CustomExerciseRow
+	config          *ConfigDoc
+	catalogRev      int64 // 官方动作清单的整份版本号，随每次 /sync 下发
+	cursor          int64
+	hasMore         bool
 }
 
 const setColumns = `date::text, ex_id, set_no, ex_cn, part, plan_key, sig,
@@ -422,6 +457,8 @@ const workoutColumns = `date::text, plan_key, plan_name, sig, program_id,
                         started_at, finished_at, feel, note, done, updated_at, rev`
 
 const metricColumns = `kind, date::text, value::float8, unit, note, done, updated_at, rev`
+
+const customExerciseColumns = `ex_id, cn, part, place, unit, tips, done, updated_at, rev`
 
 // pull 在一个可重复读的只读事务里取增量：users.rev 和各表的行来自同一个快照，
 // 所以「这次已经看全了」的判断（cursor = users.rev）不会和并发写入打架。
@@ -477,6 +514,16 @@ func (s *store) pull(ctx context.Context, uid int64, cursor int64, limit int) (p
 		return out, err
 	}
 
+	rows, err = tx.Query(ctx, `select `+customExerciseColumns+` from user_exercises
+		where user_id = $1 and rev > $2 order by rev limit $3`, uid, cursor, limit)
+	if err != nil {
+		return out, err
+	}
+	exercises, err := scanCustomExercises(rows)
+	if err != nil {
+		return out, err
+	}
+
 	var (
 		body []byte
 		ts   time.Time
@@ -492,9 +539,16 @@ func (s *store) pull(ctx context.Context, uid int64, cursor int64, limit int) (p
 		return out, err
 	}
 
-	page, cur, more := pagePull(sets, workouts, metrics, limit, userRev)
-	out.sets, out.workouts, out.metrics = page.sets, page.workouts, page.metrics
+	page, cur, more := pagePull(sets, workouts, metrics, exercises, limit, userRev)
+	out.sets, out.workouts, out.metrics, out.customExercises = page.sets, page.workouts, page.metrics, page.customExercises
 	out.cursor, out.hasMore = cur, more
+
+	// 官方动作清单的版本号：搭在 /sync 上一次下发，客户端比自己的大就去拉 /api/catalog。
+	// 空库时 catalog_meta 里也有一行（rev=1），所以这里基本不会 ErrNoRows。
+	if err := tx.QueryRow(ctx, `select rev from catalog_meta where id = 1`).Scan(&out.catalogRev); err != nil &&
+		!errors.Is(err, pgx.ErrNoRows) {
+		return out, err
+	}
 	return out, nil
 }
 
@@ -512,6 +566,7 @@ const (
 	pageSet pageKind = iota
 	pageWorkout
 	pageMetric
+	pageCustomExercise
 )
 
 // pageRef 是「某一类结果里的第 i 行」，带 rev 用于跨表统一排序。
@@ -523,9 +578,10 @@ type pageRef struct {
 
 // pullPage 是一次拉取合成后的一页
 type pullPage struct {
-	sets     []SetRow
-	workouts []WorkoutRow
-	metrics  []MetricRow
+	sets            []SetRow
+	workouts        []WorkoutRow
+	metrics         []MetricRow
+	customExercises []CustomExerciseRow
 }
 
 // addRefs 把一批行摊平成 pageRef
@@ -541,19 +597,22 @@ func addRefs[T revRow](refs []pageRef, kind pageKind, rows []T) []pageRef {
 // 每张表都没取满 → 这个快照里的增量已经全部拿到，游标直接跳到 userRev（跳过空洞）；
 // 否则按 rev 归并取前 limit 条，游标停在最后一条，hasMore=true。
 // 被截掉的行 rev 都大于新游标，下一页一定能取到——不会漏。
-func pagePull(sets []SetRow, workouts []WorkoutRow, metrics []MetricRow,
+func pagePull(sets []SetRow, workouts []WorkoutRow, metrics []MetricRow, exercises []CustomExerciseRow,
 	limit int, userRev int64) (pullPage, int64, bool) {
 
+	total := len(sets) + len(workouts) + len(metrics) + len(exercises)
 	// 边界：一页就装得下，且每张表都没取满
-	if len(sets) < limit && len(workouts) < limit && len(metrics) < limit &&
-		len(sets)+len(workouts)+len(metrics) <= limit {
-		return pullPage{sets: sets, workouts: workouts, metrics: metrics}, userRev, false
+	if len(sets) < limit && len(workouts) < limit && len(metrics) < limit && len(exercises) < limit &&
+		total <= limit {
+		return pullPage{sets: sets, workouts: workouts, metrics: metrics, customExercises: exercises},
+			userRev, false
 	}
 
-	refs := make([]pageRef, 0, len(sets)+len(workouts)+len(metrics))
+	refs := make([]pageRef, 0, total)
 	refs = addRefs(refs, pageSet, sets)
 	refs = addRefs(refs, pageWorkout, workouts)
 	refs = addRefs(refs, pageMetric, metrics)
+	refs = addRefs(refs, pageCustomExercise, exercises)
 
 	sort.Slice(refs, func(a, b int) bool { return refs[a].rev < refs[b].rev })
 	if len(refs) > limit {
@@ -572,6 +631,8 @@ func pagePull(sets []SetRow, workouts []WorkoutRow, metrics []MetricRow,
 			out.workouts = append(out.workouts, workouts[r.i])
 		case pageMetric:
 			out.metrics = append(out.metrics, metrics[r.i])
+		case pageCustomExercise:
+			out.customExercises = append(out.customExercises, exercises[r.i])
 		}
 	}
 	return out, refs[len(refs)-1].rev, true
@@ -642,6 +703,88 @@ func scanMetrics(rows pgx.Rows) ([]MetricRow, error) {
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+func scanCustomExercises(rows pgx.Rows) ([]CustomExerciseRow, error) {
+	defer rows.Close()
+	out := []CustomExerciseRow{}
+	for rows.Next() {
+		var (
+			r  CustomExerciseRow
+			ts time.Time
+		)
+		if err := rows.Scan(&r.ExID, &r.Cn, &r.Part, &r.Place, &r.Unit, &r.Tips,
+			&r.Done, &ts, &r.rev); err != nil {
+			return nil, err
+		}
+		r.UpdatedAt = rfc3339(ts)
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+/* ---------------- 官方动作库（全局内容，不进同步） ---------------- */
+
+var errExerciseNotFound = errors.New("动作不存在")
+
+// catalogRevOf：整份版本号。空库时 catalog_meta 也有一行（migrate 里 insert），
+// 但防御性地把「没这行」当 0——客户端 0 < rev 会去拉一次空清单，无害。
+func (s *store) catalogRevOf(ctx context.Context) (int64, error) {
+	var rev int64
+	err := s.pool.QueryRow(ctx, `select rev from catalog_meta where id = 1`).Scan(&rev)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, nil
+	}
+	return rev, err
+}
+
+// catalogList：整份清单。retired=true 的行也照发，由客户端过滤——
+// 整份替换才能覆盖本地旧的「未下架」状态。
+// 顺序由服务端定（hot desc, id）：Postgres 不带 order by 时返回顺序未定义，
+// 两次拉取间顺序跳变会让用户觉得动作位置自己变了。
+func (s *store) catalogList(ctx context.Context) (catalogResponse, error) {
+	out := catalogResponse{Exercises: []catalogExercise{}}
+	rev, err := s.catalogRevOf(ctx)
+	if err != nil {
+		return out, err
+	}
+	out.Rev = rev
+
+	rows, err := s.pool.Query(ctx, `select id, cn, en, part, place, unit, tips, hot, img_thumb, retired
+		from exercises order by hot desc, id`)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var e catalogExercise
+		if err := rows.Scan(&e.ID, &e.Cn, &e.En, &e.Part, &e.Place, &e.Unit, &e.Tips,
+			&e.Hot, &e.ImgThumb, &e.Retired); err != nil {
+			return out, err
+		}
+		out.Exercises = append(out.Exercises, e)
+	}
+	return out, rows.Err()
+}
+
+// catalogDetail：详情页用。大图只在这个接口后面——匿名面拿不到高清插画。
+func (s *store) catalogDetail(ctx context.Context, id string) (exerciseDetail, error) {
+	out := exerciseDetail{ID: id, Steps: []string{}}
+	var steps []byte
+	err := s.pool.QueryRow(ctx, `select steps::text, img_detail from exercises where id = $1`, id).
+		Scan(&steps, &out.ImgDetail)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return out, errExerciseNotFound
+	}
+	if err != nil {
+		return out, err
+	}
+	if len(steps) > 0 {
+		if err := json.Unmarshal(steps, &out.Steps); err != nil {
+			return out, fmt.Errorf("解析 steps: %w", err)
+		}
+	}
+	return out, nil
 }
 
 /* ---------------- 身体指标（图表按区间取） ---------------- */

@@ -530,6 +530,13 @@ Page({
     wx.redirectTo({ url: '/pages/report/index?date=' + this.date });
   },
 
+  /** 动作名旁边的「看讲解」→ 动作详情页（要点/步骤/插画都在那边） */
+  gotoDetail() {
+    const id = this.data.ex && this.data.ex.exId;
+    if (!id) return;
+    wx.navigateTo({ url: '/pages/exercise/index?id=' + encodeURIComponent(id) });
+  },
+
   back() {
     wx.navigateBack({ animationType: 'fade-out', animationDuration: 200 });
   }

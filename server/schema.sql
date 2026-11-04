@@ -7,12 +7,15 @@
 -- 设计依据见 docs/技术方案.md、docs/后端接口契约.md、
 -- docs/设计文档/训练记录.md（模块设计）
 --
--- 五张表：
---   users        身份 + 该用户的版本号计数器 rev
---   sets         组记录（唯一的业务真相）
---   workouts     一次训练（训练记录模块新增）
---   metrics      身体指标
---   user_config  设置 + 换动作 + 自定义方案，一份 JSON 文档整份 LWW
+-- 五张业务表 + 三张动作库表：
+--   users           身份 + 该用户的版本号计数器 rev
+--   sets            组记录（唯一的业务真相）
+--   workouts        一次训练（训练记录模块新增）
+--   metrics         身体指标
+--   user_config     设置 + 换动作 + 自定义方案，一份 JSON 文档整份 LWW
+--   exercises       官方动作库（全局内容，不进同步）
+--   catalog_meta    官方动作清单的整份版本号
+--   user_exercises  用户自建动作（用户数据，跟 sets 一起同步）
 --
 -- 没有 plans 表：训练日队列由客户端按配置 + 包内静态数据确定性推导。
 -- workouts 与 sets 之间**不加外键**：离线时两条记录可能分不同批次到达，
@@ -137,3 +140,51 @@ create table if not exists user_config (
   updated_at  timestamptz not null,
   rev         bigint      not null
 );
+
+-- ============ 动作库：官方动作（全局内容，不进同步） ============
+-- 没有 rev 列：清单版本由 catalog_meta.rev 整份表达，详情缓存用 TTL，
+-- 逐行版本和它的索引没有读写方（设计文档/动作库.md §2.1）。
+create table if not exists exercises (
+  id          text        primary key,               -- 'g1'，永不变、永不复用
+  cn          text        not null,
+  en          text        not null default '',
+  part        text        not null,                  -- chest|shoulders|arms|back|legs|core
+  place       text        not null default 'gym',     -- gym|home（只有两个值）
+  unit        text        not null default 'kg',      -- kg|bw|sec
+  tips        text        not null default '',        -- ≤64 字，列表直接显示
+  hot         boolean     not null default false,     -- 热点：只影响排序和内容制作顺序
+  steps       jsonb       not null default '[]',      -- 分步讲解 string[]，≤10 步，可为空
+  img_thumb   text        not null default '',        -- CDN URL，可为空
+  img_detail  text        not null default '',        -- CDN URL，可为空
+  retired     boolean     not null default false,     -- 下架：客户端过滤，历史记录照常显示
+  updated_at  timestamptz not null default now()      -- 内容维护时间，仅供人看
+);
+create index if not exists exercises_hot_idx on exercises (hot) where hot;
+
+-- ============ 动作库：整份版本号 ============
+-- 每次导入内容，同一个事务里 rev = rev + 1。
+-- 不能用 max(exercises.updated_at) 代替：下架也要让客户端知道，「整份变了」表达不出来。
+create table if not exists catalog_meta (
+  id         int         primary key default 1 check (id = 1),
+  rev        bigint      not null default 1,
+  updated_at timestamptz not null default now()
+);
+insert into catalog_meta (id, rev) values (1, 1) on conflict (id) do nothing;
+
+-- ============ 动作库：用户自建动作（用户数据，跟 sets 一起同步） ============
+-- 与 sets 同一套机制：自然主键 + rev + LWW + 墓碑。
+-- id 必须带 'u-' 前缀，和官方 id 空间结构上不相交（两台设备离线各建也不会撞）。
+create table if not exists user_exercises (
+  user_id    bigint      not null references users(id) on delete cascade,
+  ex_id      text        not null,                   -- 'u-m8f2k9ab-a7x2'
+  cn         text        not null,
+  part       text        not null,
+  place      text        not null default 'gym',
+  unit       text        not null default 'kg',
+  tips       text        not null default '',
+  done       boolean     not null default true,       -- false = 墓碑
+  updated_at timestamptz not null,                    -- 客户端时刻，LWW 用
+  rev        bigint      not null,                    -- 服务端版本号，拉取用
+  primary key (user_id, ex_id)
+);
+create index if not exists user_exercises_rev_idx on user_exercises (user_id, rev);

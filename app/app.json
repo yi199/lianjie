@@ -3,11 +3,13 @@
     "pages/welcome/index",
     "pages/today/index",
     "pages/record/index",
+    "pages/exercise/index",
     "pages/report/index",
     "pages/stats/index",
     "pages/my/index",
     "pages/programs/index",
-    "pages/builder/index"
+    "pages/builder/index",
+    "pages/my-exercises/index"
   ],
   "window": {
     "backgroundTextStyle": "dark",

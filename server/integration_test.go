@@ -50,6 +50,9 @@ func newTestEnv(t *testing.T) *testEnv {
 	mux.HandleFunc("POST /api/login", a.handleLogin)
 	mux.HandleFunc("POST /api/sync", a.requireAuth(lim.byUser(a.handleSync)))
 	mux.HandleFunc("GET /api/history/summary", a.requireAuth(a.handleHistorySummary))
+	// 动作库：清单免登录，详情要登录（和 main.go 的路由一致）
+	mux.HandleFunc("GET /api/catalog", a.handleCatalog)
+	mux.HandleFunc("GET /api/exercises/{id}", a.requireAuth(a.handleExerciseDetail))
 
 	env := &testEnv{t: t, srv: httptest.NewServer(withTimeout(mux, 10*time.Second)), st: st}
 	t.Cleanup(func() { env.srv.Close(); st.close() })
@@ -706,5 +709,378 @@ func TestIntegrationBlockFields(t *testing.T) {
 	lg := all2[legacy.key()]
 	if lg.BlockID != nil || lg.TrackVer != nil {
 		t.Fatalf("没传过的字段应为 null，得到 blockId=%v trackVer=%v", lg.BlockID, lg.TrackVer)
+	}
+}
+
+/* ============ 动作库（E1：自建动作 + 官方清单） ============ */
+
+func mkCustom(id, cn, part string, done bool, at string) CustomExerciseRow {
+	return CustomExerciseRow{
+		ExID: id, Cn: cn, Part: part, Place: "gym", Unit: "kg",
+		Tips: "肩胛下沉", Done: done, UpdatedAt: at,
+	}
+}
+
+// pullCustom：模拟一台新设备，翻页把自建动作全拉下来
+func (e *testEnv) pullCustom(tok string) (map[string]CustomExerciseRow, int64) {
+	e.t.Helper()
+	got := map[string]CustomExerciseRow{}
+	cursor := int64(0)
+	for i := 0; i < 100; i++ {
+		r := e.sync(tok, syncRequest{Cursor: cursor})
+		for _, x := range r.CustomExercises {
+			got[x.key()] = x
+		}
+		cursor = r.Cursor
+		if !r.HasMore {
+			return got, cursor
+		}
+	}
+	e.t.Fatal("翻页 100 次还没拉完")
+	return nil, 0
+}
+
+// 自建动作走整行 LWW：新的赢、旧的被挡且回推服务端赢家。
+func TestIntegrationCustomExerciseLWW(t *testing.T) {
+	e := newTestEnv(t)
+	tok := e.login("custlww")
+
+	first := mkCustom("u-aaa111", "绳索夹胸", "chest", true, ts(1))
+	e.sync(tok, syncRequest{CustomExercises: []CustomExerciseRow{first}})
+
+	// 更新的版本：改名字
+	newer := first
+	newer.Cn = "绳索夹胸（改良）"
+	newer.UpdatedAt = ts(9)
+	e.sync(tok, syncRequest{CustomExercises: []CustomExerciseRow{newer}})
+
+	// 更旧的版本：想改回去，应被 LWW 挡住
+	older := first
+	older.Cn = "旧名字"
+	older.UpdatedAt = ts(3)
+	r := e.sync(tok, syncRequest{CustomExercises: []CustomExerciseRow{older}})
+
+	got, _ := e.pullCustom(tok)
+	x, ok := got[first.key()]
+	if !ok {
+		t.Fatalf("拉不到自建动作 %s", first.key())
+	}
+	if x.Cn != "绳索夹胸（改良）" {
+		t.Fatalf("LWW 后应是新名字，得到 %q", x.Cn)
+	}
+	// 落败行要回推服务端赢家，否则时钟偏慢的设备永远停在自己的旧值上
+	found := false
+	for _, row := range r.CustomExercises {
+		if row.ExID == first.ExID && row.Cn == "绳索夹胸（改良）" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("落败的行应回推服务端赢家，本次响应里没有：%+v", r.CustomExercises)
+	}
+}
+
+// 墓碑：done=false 跨设备传播；而且用自建动作记的组照常存，exCn/part 是冗余的真值。
+func TestIntegrationCustomExerciseTombstone(t *testing.T) {
+	e := newTestEnv(t)
+	tok := e.login("custtomb")
+
+	ex := mkCustom("u-bbb222", "自建划船", "back", true, ts(1))
+	e.sync(tok, syncRequest{CustomExercises: []CustomExerciseRow{ex}})
+
+	// 用这个自建动作记一组：exId 带 u- 前缀、exCn/part 由客户端冗余写进来
+	row := mkSet("2026-10-29", "u-bbb222", 1, 40, ts(2))
+	row.ExCn = "自建划船"
+	row.Part = "back"
+	e.sync(tok, syncRequest{Sets: []SetRow{row}})
+
+	// 删除 = 墓碑，不是物理删
+	tomb := ex
+	tomb.Done = false
+	tomb.UpdatedAt = ts(5)
+	e.sync(tok, syncRequest{CustomExercises: []CustomExerciseRow{tomb}})
+
+	got, _ := e.pullCustom(tok)
+	if x, ok := got[ex.key()]; !ok || x.Done {
+		t.Fatalf("墓碑应作为 done=false 下发，得到 %+v（存在=%v）", x, ok)
+	}
+
+	// 历史记录不受影响：动作删了，那天记的组还在，名字和部位都还对
+	all, _, _ := e.pullAll(tok)
+	s, ok := all[row.key()]
+	if !ok {
+		t.Fatal("删动作不该影响已经记下的组")
+	}
+	if s.ExCn != "自建划船" || s.Part != "back" {
+		t.Fatalf("组的冗余字段走样：exCn=%q part=%q", s.ExCn, s.Part)
+	}
+}
+
+// 坏行隔离：一条非法自建动作进 rejected，同批合法的照常入库——不能整批失败。
+func TestIntegrationCustomExerciseRejected(t *testing.T) {
+	e := newTestEnv(t)
+	tok := e.login("custbad")
+
+	bad := mkCustom("g1", "想冒充官方动作", "chest", true, ts(1)) // 没有 u- 前缀
+	badPart := mkCustom("u-ccc333", "部位乱写", "glutes", true, ts(1))
+	good := mkCustom("u-ddd444", "合法动作", "arms", true, ts(1))
+
+	r := e.sync(tok, syncRequest{CustomExercises: []CustomExerciseRow{bad, badPart, good}})
+
+	if len(r.Rejected) != 2 {
+		t.Fatalf("应有 2 条被拒，得到 %+v", r.Rejected)
+	}
+	for _, rj := range r.Rejected {
+		if rj.Kind != "customExercise" {
+			t.Fatalf("rejected.kind 应是 customExercise，得到 %q", rj.Kind)
+		}
+	}
+	if r.Rejected[0].Index != 0 || r.Rejected[1].Index != 1 {
+		t.Fatalf("rejected.index 应是请求数组下标 0/1，得到 %d/%d", r.Rejected[0].Index, r.Rejected[1].Index)
+	}
+
+	got, _ := e.pullCustom(tok)
+	if len(got) != 1 {
+		t.Fatalf("合法的 1 条应入库，得到 %d 条", len(got))
+	}
+	if _, ok := got[good.key()]; !ok {
+		t.Fatal("合法的那条没存下来")
+	}
+}
+
+// rev 区间不多不少：同一批里混了 sets + 自建动作 + 配置，
+// 参与分配的条数（push 里的 n）漏算任何一个，多出来的行就会拿到区间外的 rev，
+// 被 cursor 永久跳过——数据静默丢失，只有这条测试能发现。
+func TestIntegrationCustomExerciseRevRange(t *testing.T) {
+	e := newTestEnv(t)
+	tok := e.login("custrev")
+
+	sets := []SetRow{
+		mkSet("2026-10-27", "g1", 1, 60, ts(1)),
+		mkSet("2026-10-28", "g2", 1, 40, ts(2)),
+	}
+	exs := []CustomExerciseRow{
+		mkCustom("u-e1", "动作一", "chest", true, ts(1)),
+		mkCustom("u-e2", "动作二", "back", true, ts(2)),
+		mkCustom("u-e3", "动作三", "legs", true, ts(3)),
+	}
+	cfg := &ConfigDoc{Body: []byte(`{"v":1}`), UpdatedAt: ts(1)}
+
+	e.sync(tok, syncRequest{Sets: sets, CustomExercises: exs, Config: cfg})
+
+	// 从 0 全量拉：四类都要到齐
+	allSets, _, _ := e.pullAll(tok)
+	allEx, _ := e.pullCustom(tok)
+	if len(allSets) != len(sets) {
+		t.Fatalf("sets 应拉回 %d 条，得到 %d", len(sets), len(allSets))
+	}
+	if len(allEx) != len(exs) {
+		t.Fatalf("自建动作应拉回 %d 条，得到 %d（rev 区间漏算的典型症状）", len(exs), len(allEx))
+	}
+
+	// 再推一批只有自建动作的，确认连续分配没断档
+	more := mkCustom("u-e4", "动作四", "core", true, ts(9))
+	e.sync(tok, syncRequest{Cursor: 0, CustomExercises: []CustomExerciseRow{more}})
+	allEx2, _ := e.pullCustom(tok)
+	if len(allEx2) != 4 {
+		t.Fatalf("第二批之后应有 4 条，得到 %d", len(allEx2))
+	}
+}
+
+// 四张表混合分页：动作库把三路归并扩到四路，最容易漏的是自建动作那一路。
+func TestIntegrationFourTablePagination(t *testing.T) {
+	e := newTestEnv(t)
+	tok := e.login("fourpage")
+
+	const nSet, nWorkout, nMetric, nCustom = 500, 200, 100, 400
+	day := func(i int) string {
+		return time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, i).Format("2006-01-02")
+	}
+
+	var sets []SetRow
+	for i := 0; i < nSet; i++ {
+		sets = append(sets, mkSet(day(i/10), "g1", i%10+1, 50, ts(1)))
+	}
+	var workouts []WorkoutRow
+	for i := 0; i < nWorkout; i++ {
+		workouts = append(workouts, mkWorkout(day(i), "2024-03-01T10:00:00.000Z", ts(1)))
+	}
+	var metrics []MetricRow
+	for i := 0; i < nMetric; i++ {
+		metrics = append(metrics, MetricRow{Kind: "weight", Date: day(3000 + i), Value: 70,
+			Unit: "kg", Done: true, UpdatedAt: ts(1)})
+	}
+	var exs []CustomExerciseRow
+	for i := 0; i < nCustom; i++ {
+		exs = append(exs, mkCustom("u-p"+itoa(i), "动作"+itoa(i), "chest", true, ts(1)))
+	}
+
+	const batch = 400
+	push := func(req syncRequest) {
+		if err := req.pushInBatches(e, tok, batch); err != nil {
+			t.Fatal(err)
+		}
+	}
+	push(syncRequest{Sets: sets})
+	push(syncRequest{Workouts: workouts})
+	push(syncRequest{Metrics: metrics})
+	push(syncRequest{CustomExercises: exs})
+
+	seenSet := map[string]bool{}
+	seenWk := map[string]bool{}
+	seenMet := map[string]bool{}
+	seenEx := map[string]bool{}
+	cur := int64(0)
+	pages := 0
+	for {
+		r := e.sync(tok, syncRequest{Cursor: cur})
+		for _, x := range r.Sets {
+			if seenSet[x.key()] {
+				t.Fatalf("set %s 重复出现", x.key())
+			}
+			seenSet[x.key()] = true
+		}
+		for _, x := range r.Workouts {
+			if seenWk[x.key()] {
+				t.Fatalf("workout %s 重复出现", x.key())
+			}
+			seenWk[x.key()] = true
+		}
+		for _, x := range r.Metrics {
+			if seenMet[x.key()] {
+				t.Fatalf("metric %s 重复出现", x.key())
+			}
+			seenMet[x.key()] = true
+		}
+		for _, x := range r.CustomExercises {
+			if seenEx[x.key()] {
+				t.Fatalf("自建动作 %s 重复出现", x.key())
+			}
+			seenEx[x.key()] = true
+		}
+		cur = r.Cursor
+		pages++
+		if pages > 50 {
+			t.Fatal("分页没有终止")
+		}
+		if !r.HasMore {
+			break
+		}
+	}
+
+	if len(seenSet) != nSet || len(seenWk) != nWorkout || len(seenMet) != nMetric || len(seenEx) != nCustom {
+		t.Fatalf("四表分页漏行：sets=%d/%d workouts=%d/%d metrics=%d/%d custom=%d/%d（%d 页）",
+			len(seenSet), nSet, len(seenWk), nWorkout, len(seenMet), nMetric, len(seenEx), nCustom, pages)
+	}
+	if pages < 2 {
+		t.Fatalf("总量 %d 应触发多页，实际只用 %d 页", nSet+nWorkout+nMetric+nCustom, pages)
+	}
+}
+
+// pushInBatches：把一批行按服务端上限分批推出去（其余字段为空）
+func (req syncRequest) pushInBatches(e *testEnv, tok string, batch int) error {
+	slices := []struct {
+		name string
+		fn   func(from, to int) syncRequest
+		rows int
+	}{
+		{"sets", func(f, t int) syncRequest { return syncRequest{Sets: req.Sets[f:t]} }, len(req.Sets)},
+		{"workouts", func(f, t int) syncRequest { return syncRequest{Workouts: req.Workouts[f:t]} }, len(req.Workouts)},
+		{"metrics", func(f, t int) syncRequest { return syncRequest{Metrics: req.Metrics[f:t]} }, len(req.Metrics)},
+		{"custom", func(f, t int) syncRequest {
+			return syncRequest{CustomExercises: req.CustomExercises[f:t]}
+		}, len(req.CustomExercises)},
+	}
+	for _, s := range slices {
+		for i := 0; i < s.rows; i += batch {
+			j := min(i+batch, s.rows)
+			e.sync(tok, s.fn(i, j))
+		}
+	}
+	return nil
+}
+
+// 官方动作库：整份下发 + since 304 + 详情要登录。
+func TestIntegrationCatalog(t *testing.T) {
+	e := newTestEnv(t)
+	ctx := context.Background()
+
+	// 测试库里直接插内容（生产走 cmd/seed-catalog）。
+	// exercises 是**全局表**、不像其他用例那样每人一份，所以必须自己覆盖成全量字段——
+	// 只更新一部分的话，重复跑测试会读到上一轮残留的 steps，断言随机红。
+	_, err := e.st.pool.Exec(ctx, `
+insert into exercises (id, cn, en, part, place, unit, tips, hot, steps, retired) values
+  ('g1',  '卧推',   'Bench Press', 'chest', 'gym',  'kg', '肩胛下沉', true,  '["躺下","握杠","下放"]', false),
+  ('h900','俯卧撑', 'Push-up',     'chest', 'home', 'bw', '身体一条线', false, '[]', false),
+  ('g900','下架动作','Retired',    'chest', 'gym',  'kg', '',           false, '[]', true)
+on conflict (id) do update set
+  cn = excluded.cn, en = excluded.en, part = excluded.part, place = excluded.place,
+  unit = excluded.unit, tips = excluded.tips, hot = excluded.hot,
+  steps = excluded.steps, retired = excluded.retired`)
+	if err != nil {
+		t.Fatalf("插入官方动作: %v", err)
+	}
+	var rev int64
+	if err := e.st.pool.QueryRow(ctx, `update catalog_meta set rev = rev + 1 where id = 1 returning rev`).Scan(&rev); err != nil {
+		t.Fatalf("推进 catalog_rev: %v", err)
+	}
+
+	// 1. 整份下发（免登录）
+	var cat catalogResponse
+	e.do("", "GET", "/api/catalog", nil, &cat, 200)
+	if cat.Rev != rev {
+		t.Fatalf("rev 应为 %d，得到 %d", rev, cat.Rev)
+	}
+	if len(cat.Exercises) < 3 {
+		t.Fatalf("应至少下发 3 条（含 retired），得到 %d", len(cat.Exercises))
+	}
+	// 顺序由服务端定：hot 在前
+	hotIdx, coldIdx := -1, -1
+	for i, x := range cat.Exercises {
+		switch {
+		case x.ID == "g1" && hotIdx < 0:
+			hotIdx = i
+		case x.ID == "h900" && coldIdx < 0:
+			coldIdx = i
+		}
+	}
+	if hotIdx < 0 || coldIdx < 0 || hotIdx > coldIdx {
+		t.Fatalf("hot 动作应排在前面：g1@%d h900@%d", hotIdx, coldIdx)
+	}
+	// retired 的行也要下发，由客户端过滤（整份替换才能覆盖本地旧的「未下架」）
+	foundRetired := false
+	for _, x := range cat.Exercises {
+		if x.ID == "g900" && x.Retired {
+			foundRetired = true
+		}
+	}
+	if !foundRetired {
+		t.Fatal("retired=true 的行也必须整份下发")
+	}
+
+	// 2. since >= rev → 304，客户端什么都不做
+	e.do("", "GET", "/api/catalog?since="+itoa64(rev), nil, nil, http.StatusNotModified)
+	// 3. since < rev → 整份
+	e.do("", "GET", "/api/catalog?since=0", nil, &cat, 200)
+	// 4. since 非法 → 400
+	var eb errBody
+	e.do("", "GET", "/api/catalog?since=abc", nil, &eb, 400)
+
+	// 5. 详情要登录；steps 是 string[]
+	tok := e.login("catalogdetail")
+	var d exerciseDetail
+	e.do(tok, "GET", "/api/exercises/g1", nil, &d, 200)
+	if d.ID != "g1" || len(d.Steps) != 3 || d.Steps[0] != "躺下" {
+		t.Fatalf("详情不对：%+v", d)
+	}
+	// 未登录 → 401
+	e.do("", "GET", "/api/exercises/g1", nil, &eb, http.StatusUnauthorized)
+	// 不存在 → 404
+	e.do(tok, "GET", "/api/exercises/g404", nil, &eb, 404)
+
+	// 6. /sync 响应里带 catalogRev，客户端据此判断要不要拉清单
+	r := e.sync(tok, syncRequest{Cursor: 0})
+	if r.CatalogRev != rev {
+		t.Fatalf("/sync 的 catalogRev 应为 %d，得到 %d", rev, r.CatalogRev)
 	}
 }

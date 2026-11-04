@@ -63,9 +63,10 @@ type SetRow struct {
 // 加新表时只要实现这个方法，排序与切页逻辑一行都不用改。
 type revRow interface{ revOf() int64 }
 
-func (r SetRow) revOf() int64     { return r.rev }
-func (r WorkoutRow) revOf() int64 { return r.rev }
-func (r MetricRow) revOf() int64  { return r.rev }
+func (r SetRow) revOf() int64            { return r.rev }
+func (r WorkoutRow) revOf() int64        { return r.rev }
+func (r MetricRow) revOf() int64         { return r.rev }
+func (r CustomExerciseRow) revOf() int64 { return r.rev }
 
 func (r SetRow) key() string {
 	return "s|" + r.Date + "|" + r.ExID + "|" + itoa(r.SetNo)
@@ -122,34 +123,89 @@ type ConfigDoc struct {
 	rev int64
 }
 
+// ============ 自建动作（动作库模块） ============
+
+// CustomExerciseRow：用户自己建的动作。和 sets 同一套机制（自然主键 + rev + LWW + 墓碑）。
+// exId 必须带 "u-" 前缀：官方 id 空间是 g*/h*，自建是 u-*，结构上不相交，
+// 所以两台设备离线各建一个动作也不需要对号段、不需要查重。
+type CustomExerciseRow struct {
+	ExID      string `json:"exId"`
+	Cn        string `json:"cn"`
+	Part      string `json:"part"`  // chest|shoulders|arms|back|legs|core
+	Place     string `json:"place"` // gym|home
+	Unit      string `json:"unit"`  // kg|bw|sec
+	Tips      string `json:"tips"`
+	Done      bool   `json:"done"` // false = 墓碑
+	UpdatedAt string `json:"updatedAt"`
+
+	rev int64
+}
+
+func (r CustomExerciseRow) key() string { return "x|" + r.ExID }
+
+// ============ 官方动作库（只读下发，不进同步） ============
+
+// catalogExercise：清单里的一条。列表接口只给缩略图，详细插画在详情接口后面。
+type catalogExercise struct {
+	ID       string `json:"id"`
+	Cn       string `json:"cn"`
+	En       string `json:"en"`
+	Part     string `json:"part"`
+	Place    string `json:"place"`
+	Unit     string `json:"unit"`
+	Tips     string `json:"tips"`
+	Hot      bool   `json:"hot"`
+	ImgThumb string `json:"imgThumb"`
+	Retired  bool   `json:"retired"` // 由客户端过滤；整份下发才能覆盖本地旧的「未下架」
+}
+
+// catalogResponse：永远是整份清单。客户端只有一条写入路径（整份替换），
+// 不需要处理增量合并，所以 since 只决定「要不要给」，不决定「给多少」。
+type catalogResponse struct {
+	Rev       int64             `json:"rev"`
+	Exercises []catalogExercise `json:"exercises"`
+}
+
+// exerciseDetail：详情页用，要登录才给大图。
+type exerciseDetail struct {
+	ID        string   `json:"id"`
+	Steps     []string `json:"steps"`
+	ImgDetail string   `json:"imgDetail"`
+}
+
 // ============ 同步 ============
 
 type syncRequest struct {
-	Cursor   int64        `json:"cursor"` // 上次拿到的 cursor；首次传 0
-	Sets     []SetRow     `json:"sets"`
-	Workouts []WorkoutRow `json:"workouts"`
-	Metrics  []MetricRow  `json:"metrics"`
-	Config   *ConfigDoc   `json:"config"` // 本地配置没改过就传 null
+	Cursor          int64               `json:"cursor"` // 上次拿到的 cursor；首次传 0
+	Sets            []SetRow            `json:"sets"`
+	Workouts        []WorkoutRow        `json:"workouts"`
+	Metrics         []MetricRow         `json:"metrics"`
+	CustomExercises []CustomExerciseRow `json:"customExercises"` // 动作库：第 4 类资源
+	Config          *ConfigDoc          `json:"config"`          // 本地配置没改过就传 null
 }
 
 // rejectedRow：校验不过的行。客户端收到后应把它移出待上传队列，
 // 否则一条坏数据会让队列永远卡住（每次重试都 400）。
 type rejectedRow struct {
-	Kind   string `json:"kind"` // set | workout | metric | config
+	Kind   string `json:"kind"` // set | workout | metric | customExercise | config
 	Index  int    `json:"index"`
 	Reason string `json:"reason"`
 }
 
 type syncResponse struct {
-	Cursor     int64         `json:"cursor"`
-	HasMore    bool          `json:"hasMore"`
-	Applied    int           `json:"applied"`
-	Rejected   []rejectedRow `json:"rejected"`
-	Sets       []SetRow      `json:"sets"`
-	Workouts   []WorkoutRow  `json:"workouts"`
-	Metrics    []MetricRow   `json:"metrics"`
-	Config     *ConfigDoc    `json:"config"`
-	ServerTime string        `json:"serverTime"`
+	Cursor          int64               `json:"cursor"`
+	HasMore         bool                `json:"hasMore"`
+	Applied         int                 `json:"applied"`
+	Rejected        []rejectedRow       `json:"rejected"`
+	Sets            []SetRow            `json:"sets"`
+	Workouts        []WorkoutRow        `json:"workouts"`
+	Metrics         []MetricRow         `json:"metrics"`
+	CustomExercises []CustomExerciseRow `json:"customExercises"`
+	Config          *ConfigDoc          `json:"config"`
+	// catalogRev：官方动作清单的整份版本号。客户端比自己的大就去拉 /api/catalog。
+	// 搭在 /sync 上而不是独立心跳：/sync 的触发点（onShow、改动后防抖、失败重试）都是现成的。
+	CatalogRev int64  `json:"catalogRev"`
+	ServerTime string `json:"serverTime"`
 }
 
 // ============ 历史摘要 ============

@@ -254,6 +254,104 @@ ok('stats 页也订阅了变更（不报错、数据可重算）',
   'days ' + beforeDays + ' → ' + statsPage.data.days);
 statsPage.onUnload();
 
+/* ================= 9. 动作详情页（E4） ================= */
+console.log('\n=== 9. 动作详情页 ===');
+
+const CAT = require('./utils/catalog');
+
+// 详情页要打后端，这里注一个假 loader，把手动控制返回
+let detailCalls = [];
+function fakeDetail(out) {
+  CAT.setDetailLoader(function (path, opts) {
+    detailCalls.push([path, opts && opts.method]);
+    return Promise.resolve(out);
+  });
+}
+
+(async function () {
+  /* ---- 9.1 骨架：本地字段同步就位，不等网络 ---- */
+  CAT.setDetailLoader(null);
+  let ep = loadPage('./pages/exercise/index');
+  ep.onLoad({ id: 'g1' });
+  ok('详情页标题来自本地动作库', ep.data.ex.cn === '卧推', ep.data.ex.cn);
+  ok('部位 / 场所 / 记法都翻译成中文',
+    ep.data.partCn === '胸' && ep.data.placeCn === '健身房' && ep.data.unitCn === '按重量记',
+    [ep.data.partCn, ep.data.placeCn, ep.data.unitCn].join('/'));
+  ok('点进详情时要点已经在页面上（不必等网络）', String(ep.data.ex.tips).indexOf('肩胛') === 0, ep.data.ex.tips);
+  await new Promise(function (r) { setTimeout(r, 0); });
+  ok('没有 loader 时不卡在加载态（降级成「讲解还没补上」）', ep.data.loading === false && ep.data.failed === true,
+    'loading=' + ep.data.loading + ' failed=' + ep.data.failed);
+  ok('「怎么记」按单位给文案', ep.data.howto.indexOf('按重量记') === 0, ep.data.howto);
+
+  /* ---- 9.2 拉到 steps + 大图 ---- */
+  fakeDetail({ steps: ['躺下，肩胛后收', '起杠，落到胸口', '推起，别锁死肘'], imgDetail: 'https://cdn.example.com/g1.jpg' });
+  ep = loadPage('./pages/exercise/index');
+  ep.onLoad({ id: 'g1' });
+  await new Promise(function (r) { setTimeout(r, 0); });
+  ok('请求路径是 /exercises/{id}', detailCalls.length === 1 && detailCalls[0][0] === '/exercises/g1',
+    JSON.stringify(detailCalls));
+  ok('步骤渲染成 01/02/03', ep.data.steps.length === 3 && ep.data.steps[2].no === '03',
+    ep.data.steps.map(function (s) { return s.no; }).join(','));
+  ok('大图地址进了页面', ep.data.imgUrl === 'https://cdn.example.com/g1.jpg', ep.data.imgUrl);
+  ok('有内容时不算失败、不在加载态', ep.data.loading === false && ep.data.failed === false);
+
+  /* ---- 9.2b 再进来一次走缓存，不重复打后端 ---- */
+  const callsBefore = detailCalls.length;
+  ep = loadPage('./pages/exercise/index');
+  ep.onLoad({ id: 'g1' });
+  await new Promise(function (r) { setTimeout(r, 0); });
+  ok('7 天内再进同一个动作不重复请求（走详情缓存）', detailCalls.length === callsBefore,
+    callsBefore + ' → ' + detailCalls.length);
+  ok('缓存里的步骤照样渲染', ep.data.steps.length === 3, ep.data.steps.length + ' 步');
+
+  /* ---- 9.3 请求失败：不阻塞，要点照旧（换一个没缓存的 id） ---- */
+  CAT.setDetailLoader(function () { return Promise.reject(new Error('network')); });
+  ep = loadPage('./pages/exercise/index');
+  ep.onLoad({ id: 'g15' });
+  await new Promise(function (r) { setTimeout(r, 0); });
+  ok('拉不到讲解 → 标失败并给「再试一次」', ep.data.failed === true && ep.data.steps.length === 0);
+  ok('失败时标题和要点没丢', ep.data.ex.cn === '上斜卧推' && !!ep.data.ex.tips, ep.data.ex.cn);
+  ok('图挂了就当没图（不留破图框）', ep.data.imgUrl === '', ep.data.imgUrl);
+
+  /* ---- 9.4 自建动作：不打后端 ---- */
+  db.resetAll();
+  db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+  const mine = db.saveCustomExercise({ cn: '绳索夹胸', part: 'chest', place: 'gym', unit: 'kg', tips: '肘别乱飞' });
+  detailCalls = [];
+  fakeDetail({ steps: ['不该被调用'], imgDetail: '' });
+  ep = loadPage('./pages/exercise/index');
+  ep.onLoad({ id: mine.exId });
+  await new Promise(function (r) { setTimeout(r, 0); });
+  ok('自建动作不去问服务端（服务端也没有这条）', detailCalls.length === 0, detailCalls.length + ' 次请求');
+  ok('自建动作标记成 custom、直接结束加载', ep.data.custom === true && ep.data.loading === false);
+  ok('自建动作显示自己的要点', ep.data.ex.tips === '肘别乱飞', ep.data.ex.tips);
+
+  /* ---- 9.5 id 不存在 ---- */
+  calls.length = 0;
+  ep = loadPage('./pages/exercise/index');
+  ep.onLoad({ id: 'not-exist' });
+  ok('找不到动作就提示并退回上一页',
+    calls.some(function (c) { return c[0] === 'toast' && c[1] === '没找到这个动作'; }),
+    JSON.stringify(calls));
+
+  /* ---- 9.6 训练页入口：动作名旁的「看讲解」跳对地址 ---- */
+  db.resetAll();
+  db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+  const rp = loadPage('./pages/record/index');
+  rp.onLoad({});
+  calls.length = 0;
+  rp.gotoDetail();
+  const exId = rp.data.ex.exId;
+  ok('训练页「看讲解」跳到详情页并带上动作 id',
+    calls.length === 1 && calls[0][1] === '/pages/exercise/index?id=' + exId,
+    JSON.stringify(calls));
+
+  CAT.setDetailLoader(null);
+  runResult();
+})();
+
 /* ================= 结果 ================= */
-console.log('\n' + (failed ? ('有 ' + failed + ' 项失败') : '页面测试全部通过') + '\n');
-if (failed) process.exitCode = 1;
+function runResult() {
+  console.log('\n' + (failed ? ('有 ' + failed + ' 项失败') : '页面测试全部通过') + '\n');
+  if (failed) process.exitCode = 1;
+}
