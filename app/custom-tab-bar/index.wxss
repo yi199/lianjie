@@ -1,7 +1,7 @@
 /* 底部切换栏
  *
  * 和页面同一套纸感：
- *   - 底色用纸卡色（--card），上沿一条细线；不再是纯白底 + 白边（那样在米色页面上像贴了张纸）
+ *   - 底色用比页面深一档的暖纸 #EDE8D9，上沿一条细线；不再是纯白底 + 白边（那样在米色页面上像贴了张纸）
  *   - 选中项：图标换成深绿版本 + 文字加粗 + 上沿一道陶土色「小把手」
  *   - 按下：整体微缩 4%，给出「按到了」的手感
  */
@@ -17,10 +17,11 @@
   padding-bottom: env(safe-area-inset-bottom);
   /* 兜底：任何东西都不许画到栏外面去 */
   overflow: hidden;
-  /* 栏要比页面「亮一档」再抬一层，否则和米色页面糊在一起，看着像图标浮在内容上 */
-  background: #FFFDF7;
-  border-top: 1rpx solid #E6E1D0;
-  box-shadow: 0 -6rpx 14rpx rgba(31, 35, 28, .06);
+  /* 底色比页面深一档的暖纸（#EDE8D9）：底栏是"地面"，不是又一张白纸。
+     之前用 --card(#FBF8EF) 比页面亮，一眼就是条白带；
+     现在靠"更暖更深 + 上沿细线"和内容分开，不再靠"更白"。 */
+  background: #EDE8D9;
+  border-top: 1rpx solid rgba(31, 35, 28, .09);
 }
 
 /* 小把手：贴在栏的内沿，不压到上面的内容 */
@@ -53,7 +54,7 @@
   flex: none;
   width: 44rpx;
   height: 44rpx;
-  opacity: .62;
+  opacity: .68;
   transition: opacity 120ms ease;
 }
 
@@ -61,7 +62,8 @@
   margin-top: 6rpx;
   font-size: var(--fs-label, 19rpx);
   letter-spacing: .1em;
-  color: var(--muted2, #A9A79A);
+  /* 栏底比页面深，未选中文字不能再这么浅，否则糊成一片 */
+  color: var(--muted2, #97948A);
   transition: color 120ms ease;
 }
 
