@@ -1005,13 +1005,18 @@ func TestIntegrationCatalog(t *testing.T) {
 	e := newTestEnv(t)
 	ctx := context.Background()
 
-	// 测试库里直接插内容（生产走 cmd/seed-catalog）
+	// 测试库里直接插内容（生产走 cmd/seed-catalog）。
+	// exercises 是**全局表**、不像其他用例那样每人一份，所以必须自己覆盖成全量字段——
+	// 只更新一部分的话，重复跑测试会读到上一轮残留的 steps，断言随机红。
 	_, err := e.st.pool.Exec(ctx, `
 insert into exercises (id, cn, en, part, place, unit, tips, hot, steps, retired) values
   ('g1',  '卧推',   'Bench Press', 'chest', 'gym',  'kg', '肩胛下沉', true,  '["躺下","握杠","下放"]', false),
   ('h900','俯卧撑', 'Push-up',     'chest', 'home', 'bw', '身体一条线', false, '[]', false),
   ('g900','下架动作','Retired',    'chest', 'gym',  'kg', '',           false, '[]', true)
-on conflict (id) do update set cn = excluded.cn, hot = excluded.hot, retired = excluded.retired`)
+on conflict (id) do update set
+  cn = excluded.cn, en = excluded.en, part = excluded.part, place = excluded.place,
+  unit = excluded.unit, tips = excluded.tips, hot = excluded.hot,
+  steps = excluded.steps, retired = excluded.retired`)
 	if err != nil {
 		t.Fatalf("插入官方动作: %v", err)
 	}
