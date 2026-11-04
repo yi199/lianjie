@@ -34,7 +34,7 @@
 }
 
 .pkkey {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-note);
   color: var(--clay);
   margin-right: 8rpx;
@@ -64,7 +64,7 @@
 }
 
 .changearrow {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
 }
 
 /* ================= 选项 ================= */
@@ -145,3 +145,6 @@
   letter-spacing: .08em;
   color: var(--muted2);
 }
+
+/* 自定义 tabBar 是固定定位的：页面自己让出它的高度（108rpx + 安全区），否则最后一行被盖住 */
+.page { padding-bottom: calc(var(--sp5) + 104rpx + env(safe-area-inset-bottom)); }

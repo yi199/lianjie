@@ -9,7 +9,7 @@
 .idx {
   width: 36rpx;
   flex-shrink: 0;
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: 24rpx;
   color: var(--muted2, #A9A79A);
 }
@@ -22,7 +22,7 @@
 }
 
 .num {
-  font-family: Georgia, serif;
+  font-family: 'LJGrotesk', sans-serif;
   font-size: 30rpx;
   color: var(--ink, #1F231C);
   background: transparent;
