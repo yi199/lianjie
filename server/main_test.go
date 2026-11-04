@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -125,7 +126,7 @@ func metricsWithRevs(revs ...int64) []MetricRow {
 
 func TestPagePull(t *testing.T) {
 	t.Run("没取满 → 一次拿全，游标跳到 userRev（跳过空洞）", func(t *testing.T) {
-		p, cur, more := pagePull(setsWithRevs(3, 5), nil, metricsWithRevs(4), 10, 9)
+		p, cur, more := pagePull(setsWithRevs(3, 5), nil, metricsWithRevs(4), nil, 10, 9)
 		if len(p.sets) != 2 || len(p.metrics) != 1 || cur != 9 || more {
 			t.Fatalf("得到 sets=%d metrics=%d cursor=%d more=%v",
 				len(p.sets), len(p.metrics), cur, more)
@@ -133,7 +134,7 @@ func TestPagePull(t *testing.T) {
 	})
 
 	t.Run("什么都没有 → 游标仍前进到 userRev", func(t *testing.T) {
-		_, cur, more := pagePull(nil, nil, nil, 10, 42)
+		_, cur, more := pagePull(nil, nil, nil, nil, 10, 42)
 		if cur != 42 || more {
 			t.Fatalf("cursor=%d more=%v", cur, more)
 		}
@@ -141,7 +142,7 @@ func TestPagePull(t *testing.T) {
 
 	t.Run("一张表取满 → 按 rev 归并截断，游标停在最后一条", func(t *testing.T) {
 		// limit=3：sets 取回 1,2,6（满了），metrics 取回 3,4
-		p, cur, more := pagePull(setsWithRevs(1, 2, 6), nil, metricsWithRevs(3, 4), 3, 100)
+		p, cur, more := pagePull(setsWithRevs(1, 2, 6), nil, metricsWithRevs(3, 4), nil, 3, 100)
 		if !more || cur != 3 {
 			t.Fatalf("cursor=%d more=%v", cur, more)
 		}
@@ -153,7 +154,7 @@ func TestPagePull(t *testing.T) {
 	t.Run("被截掉的行 rev 都大于新游标 → 下一页一定取得到", func(t *testing.T) {
 		sets := setsWithRevs(1, 3, 5, 7)
 		metrics := metricsWithRevs(2, 4, 6, 8)
-		_, cur, _ := pagePull(sets, nil, metrics, 4, 100)
+		_, cur, _ := pagePull(sets, nil, metrics, nil, 4, 100)
 		for _, r := range append(setsWithRevs(5, 7), SetRow{rev: 6}, SetRow{rev: 8}) {
 			if r.rev <= cur {
 				t.Fatalf("rev %d 被截掉但不大于游标 %d，会永久漏掉", r.rev, cur)
@@ -165,7 +166,7 @@ func TestPagePull(t *testing.T) {
 		sets := setsWithRevs(1, 4, 7)
 		workouts := workoutsWithRevs(2, 5, 8)
 		metrics := metricsWithRevs(3, 6, 9)
-		p, cur, more := pagePull(sets, workouts, metrics, 5, 100)
+		p, cur, more := pagePull(sets, workouts, metrics, nil, 5, 100)
 
 		total := len(p.sets) + len(p.workouts) + len(p.metrics)
 		if total != 5 || !more {
@@ -182,7 +183,7 @@ func TestPagePull(t *testing.T) {
 	})
 
 	t.Run("只有一张表有数据也走同一条路径", func(t *testing.T) {
-		p, cur, more := pagePull(nil, workoutsWithRevs(2, 4, 6), nil, 2, 100)
+		p, cur, more := pagePull(nil, workoutsWithRevs(2, 4, 6), nil, nil, 2, 100)
 		if !more || cur != 4 {
 			t.Fatalf("cursor=%d more=%v", cur, more)
 		}
@@ -193,7 +194,7 @@ func TestPagePull(t *testing.T) {
 
 	t.Run("limit 是跨表总量上限，不是每张表上限", func(t *testing.T) {
 		// 每张表都只有 2 行（都没「取满」），但合计 6 > limit=4
-		p, cur, more := pagePull(setsWithRevs(1, 2), workoutsWithRevs(3, 4), metricsWithRevs(5, 6), 4, 100)
+		p, cur, more := pagePull(setsWithRevs(1, 2), workoutsWithRevs(3, 4), metricsWithRevs(5, 6), nil, 4, 100)
 		total := len(p.sets) + len(p.workouts) + len(p.metrics)
 		if total != 4 || !more {
 			t.Fatalf("合计应截到 4 条且 more=true，得到 %d 条 more=%v", total, more)
@@ -202,6 +203,51 @@ func TestPagePull(t *testing.T) {
 			t.Fatalf("游标应停在 4，得到 %d", cur)
 		}
 	})
+
+	// 动作库把分页从三路扩到四路：最容易错的是「四张表里的自建动作被漏掉」，
+	// 所以单独钉一条：rev 交错时顺序与归属都要对。
+	t.Run("四张表混合（含自建动作）→ 按 rev 归并，自建动作不丢", func(t *testing.T) {
+		sets := setsWithRevs(1, 5, 9)
+		workouts := workoutsWithRevs(2, 6, 10)
+		metrics := metricsWithRevs(3, 7, 11)
+		exercises := exercisesWithRevs(4, 8, 12)
+		p, cur, more := pagePull(sets, workouts, metrics, exercises, 6, 100)
+
+		total := len(p.sets) + len(p.workouts) + len(p.metrics) + len(p.customExercises)
+		if total != 6 || !more {
+			t.Fatalf("应返回 6 条且 more=true，得到 %d 条 more=%v", total, more)
+		}
+		if cur != 6 {
+			t.Fatalf("游标应停在 rev=6（第 6 条），得到 %d", cur)
+		}
+		// rev 1..6 → sets 1,5 / workouts 2,6 / metrics 3 / exercises 4
+		if len(p.sets) != 2 || len(p.workouts) != 2 || len(p.metrics) != 1 || len(p.customExercises) != 1 {
+			t.Fatalf("归并结果不对：sets=%d workouts=%d metrics=%d exercises=%d",
+				len(p.sets), len(p.workouts), len(p.metrics), len(p.customExercises))
+		}
+		if p.customExercises[0].rev != 4 {
+			t.Fatalf("自建动作应是 rev=4 那条，得到 %d", p.customExercises[0].rev)
+		}
+	})
+
+	t.Run("四张表合计刚好一页 → 游标跳到 userRev，不留 hasMore", func(t *testing.T) {
+		p, cur, more := pagePull(setsWithRevs(1), workoutsWithRevs(2), metricsWithRevs(3),
+			exercisesWithRevs(4), 4, 50)
+		if more || cur != 50 {
+			t.Fatalf("cursor=%d more=%v", cur, more)
+		}
+		if len(p.customExercises) != 1 {
+			t.Fatalf("自建动作应随页返回，得到 %d 条", len(p.customExercises))
+		}
+	})
+}
+
+func exercisesWithRevs(revs ...int64) []CustomExerciseRow {
+	out := make([]CustomExerciseRow, 0, len(revs))
+	for _, r := range revs {
+		out = append(out, CustomExerciseRow{ExID: "u-x", rev: r})
+	}
+	return out
 }
 
 func workoutsWithRevs(revs ...int64) []WorkoutRow {
@@ -448,6 +494,123 @@ func TestStreakFrom(t *testing.T) {
 			}
 		})
 	}
+}
+
+/* ---------------- 其它 ---------------- */
+
+/* ---------------- 自建动作的校验 ---------------- */
+
+func TestValidateCustomExercise(t *testing.T) {
+	base := func() CustomExerciseRow {
+		return CustomExerciseRow{
+			ExID: "u-m8f2k9ab-a7x2", Cn: "绳索夹胸", Part: "chest", Place: "gym",
+			Unit: "kg", Tips: "肘部固定，靠胸发力", Done: true,
+		}
+	}
+
+	t.Run("最小合法行", func(t *testing.T) {
+		r := base()
+		if why := validateCustomExercise(&r); why != "" {
+			t.Fatalf("应通过，得到：%s", why)
+		}
+	})
+
+	t.Run("墓碑行（done=false）也合法", func(t *testing.T) {
+		r := base()
+		r.Done = false
+		if why := validateCustomExercise(&r); why != "" {
+			t.Fatalf("应通过，得到：%s", why)
+		}
+	})
+
+	t.Run("id 必须以 u- 开头（官方 id 空间不共享）", func(t *testing.T) {
+		for _, id := range []string{"g1", "h12", "x-m8f2k9", "u", "u-"} {
+			r := base()
+			r.ExID = id
+			if validateCustomExercise(&r) == "" {
+				t.Fatalf("%q 应被拒（长度不够或不带 u-）", id)
+			}
+		}
+	})
+
+	t.Run("id 总长 16 是边界，17 超长", func(t *testing.T) {
+		ok := base()
+		ok.ExID = "u-" + strings.Repeat("a", 14) // 16
+		if why := validateCustomExercise(&ok); why != "" {
+			t.Fatalf("16 字符应通过，得到：%s", why)
+		}
+		long := base()
+		long.ExID = "u-" + strings.Repeat("a", 15) // 17
+		if validateCustomExercise(&long) == "" {
+			t.Fatal("17 字符应被拒：ex_id 是 sets 主键的一部分，超长会让用它的每一组都被拒收")
+		}
+	})
+
+	t.Run("id 只接受小写字母数字和连字符", func(t *testing.T) {
+		for _, id := range []string{"u-ABC", "u-a_b", "u-a b", "u-ab-"} {
+			r := base()
+			r.ExID = id
+			if validateCustomExercise(&r) == "" {
+				t.Fatalf("%q 应被拒", id)
+			}
+		}
+	})
+
+	t.Run("cn 必填且 ≤24 字", func(t *testing.T) {
+		empty := base()
+		empty.Cn = "   "
+		if validateCustomExercise(&empty) == "" {
+			t.Fatal("空白 cn 应被拒")
+		}
+		long := base()
+		long.Cn = strings.Repeat("动", 25)
+		if validateCustomExercise(&long) == "" {
+			t.Fatal("25 字 cn 应被拒")
+		}
+		ok := base()
+		ok.Cn = strings.Repeat("动", 24)
+		if why := validateCustomExercise(&ok); why != "" {
+			t.Fatalf("24 字应通过，得到：%s", why)
+		}
+	})
+
+	t.Run("part / place / unit 是枚举", func(t *testing.T) {
+		cases := []struct {
+			name string
+			set  func(*CustomExerciseRow)
+		}{
+			{"part", func(r *CustomExerciseRow) { r.Part = "glutes" }},
+			{"place", func(r *CustomExerciseRow) { r.Place = "both" }},
+			{"unit", func(r *CustomExerciseRow) { r.Unit = "lb" }},
+		}
+		for _, c := range cases {
+			r := base()
+			c.set(&r)
+			if validateCustomExercise(&r) == "" {
+				t.Fatalf("%s 的非法枚举值应被拒", c.name)
+			}
+		}
+		// place 只有 gym / home：'both' 会让筛选的等值比较永远过滤掉它
+		for _, p := range []string{"gym", "home"} {
+			r := base()
+			r.Place = p
+			if why := validateCustomExercise(&r); why != "" {
+				t.Fatalf("place=%s 应通过，得到：%s", p, why)
+			}
+		}
+	})
+
+	t.Run("tips ≤64 字", func(t *testing.T) {
+		r := base()
+		r.Tips = strings.Repeat("要", 65)
+		if validateCustomExercise(&r) == "" {
+			t.Fatal("65 字 tips 应被拒")
+		}
+		r.Tips = ""
+		if why := validateCustomExercise(&r); why != "" {
+			t.Fatalf("空 tips 应通过，得到：%s", why)
+		}
+	})
 }
 
 /* ---------------- 其它 ---------------- */

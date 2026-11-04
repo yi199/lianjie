@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -145,6 +146,58 @@ func validateMetric(r *MetricRow) string {
 		return "value 超出范围"
 	case !shortText(r.Unit, 8) || !shortText(r.Note, 200):
 		return "文本字段过长"
+	}
+	return ""
+}
+
+// ============ 自建动作（动作库模块） ============
+
+// validCustomID：自建动作的 id 空间必须和官方（g*/h*）结构上不相交，
+// 所以强制 "u-" 前缀；总长 ≤16 字节——ex_id 是 sets 主键的一部分，
+// 超长会让「用这个动作记的每一组」被拒收，再按 rejected 出队 = 数据静默丢失。
+func validCustomID(s string) bool {
+	if len(s) < 3 || len(s) > 16 || s[:2] != "u-" {
+		return false
+	}
+	body := s[2:]
+	if body[len(body)-1] == '-' {
+		return false
+	}
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+func validPart(s string) bool {
+	switch s {
+	case "chest", "shoulders", "arms", "back", "legs", "core":
+		return true
+	}
+	return false
+}
+
+// validateCustomExercise：自建动作。枚举字段服务端是唯一真相——
+// 客户端对未知值要降级（unit 归一成 kg）再上传，不能赌服务端宽容。
+func validateCustomExercise(r *CustomExerciseRow) string {
+	switch {
+	case !validCustomID(r.ExID):
+		return "exId 必须以 u- 开头、总长 ≤16、只含小写字母数字和连字符"
+	case len(strings.TrimSpace(r.Cn)) == 0:
+		return "cn 必填"
+	case !shortText(r.Cn, 24):
+		return "cn ≤24 字"
+	case !validPart(r.Part):
+		return "part 必须是 chest/shoulders/arms/back/legs/core"
+	case r.Place != "gym" && r.Place != "home":
+		return "place 只能是 gym / home"
+	case r.Unit != "kg" && r.Unit != "bw" && r.Unit != "sec":
+		return "unit 只能是 kg / bw / sec"
+	case !shortText(r.Tips, 64):
+		return "tips ≤64 字"
 	}
 	return ""
 }

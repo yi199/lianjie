@@ -49,6 +49,9 @@ func main() {
 	// 同步：每用户每秒 2 次、突发 20 次。正常客户端 30 秒一次，碰不到上限
 	userLimit := newLimiter(2, 20)
 	ipLimit := newLimiter(1, 10)
+	// 动作库清单：会被 onShow 频繁触发，单独限流。
+	// 复用人 /login 的 ipLimit(1,10) 会让正常用户撞限流，运营商 NAT 下整片 IP 更糟。
+	catalogLimit := newLimiter(2, 60)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", a.handleHealthz)
@@ -58,6 +61,10 @@ func main() {
 	mux.HandleFunc("POST /api/sync", a.requireAuth(userLimit.byUser(a.handleSync)))
 	mux.HandleFunc("GET /api/history/summary", a.requireAuth(userLimit.byUser(a.handleHistorySummary)))
 	mux.HandleFunc("GET /api/metrics", a.requireAuth(userLimit.byUser(a.handleGetMetrics)))
+
+	// 动作库：清单免登录（只给缩略图），详情要登录（大图在登录后面）
+	mux.HandleFunc("GET /api/catalog", catalogLimit.byIP(a.handleCatalog))
+	mux.HandleFunc("GET /api/exercises/{id}", a.requireAuth(a.handleExerciseDetail))
 
 	srv := &http.Server{
 		Addr:              cfg.addr,

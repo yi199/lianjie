@@ -14,14 +14,16 @@
   align-items: center;
   height: 108rpx;
   padding-bottom: env(safe-area-inset-bottom);
-  background: var(--card, #FBF8EF);
-  border-top: 1rpx solid var(--line, #EBE8DC);
+  /* 栏要比页面「亮一档」再抬一层，否则和米色页面糊在一起，看着像图标浮在内容上 */
+  background: #FFFDF7;
+  border-top: 1rpx solid #E6E1D0;
+  box-shadow: 0 -6rpx 14rpx rgba(31, 35, 28, .06);
 }
 
-/* 小把手：只在选中项上方出现 */
+/* 小把手：贴在栏的内沿，不压到上面的内容 */
 .mark {
   position: absolute;
-  top: -1rpx;
+  top: 0;
   width: 56rpx;
   height: 6rpx;
   border-radius: 0 0 6rpx 6rpx;
