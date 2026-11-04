@@ -1,5 +1,6 @@
 const db = require('../../utils/db');
-const EX = require('../../data/exercises');
+const EX = require('../../data/exercises');      // PART_CN / 静态名表
+const CAT = require('../../utils/catalog');      // 动作查表统一走它（官方清单 + 自建动作）
 
 const PARTS = [
   { key: 'all', name: '全部' },
@@ -21,7 +22,7 @@ function hydrate(sessions) {
       name: s.name || ('训练日 ' + letter),
       exIds: exIds,
       exs: exIds.map(function (id) {
-        const ex = EX.byId(id) || { cn: id, en: '', part: '' };
+        const ex = CAT.find(id) || { cn: id, en: '', part: '' };
         return {
           id: id,
           cn: ex.cn,
@@ -174,11 +175,16 @@ Page({
     const part = this.data.sheetPart;
     const picked = this.data.sessions[this.data.sheetDay].exIds;
 
-    const list = EX.EXERCISES.filter(function (ex) {
+    // 自建动作置顶、不吃场所过滤（它可能两处都能做）；官方按场所 + 部位筛
+    const mine = CAT.custom().filter(function (ex) {
+      return part === 'all' || ex.part === part;
+    });
+    const official = CAT.list().filter(function (ex) {
       if (ex.place !== place) return false;
       if (part !== 'all' && ex.part !== part) return false;
       return true;
-    }).map(function (ex) {
+    });
+    const list = mine.concat(official).map(function (ex) {
       return {
         id: ex.id,
         cn: ex.cn,

@@ -124,7 +124,8 @@ docs/                   文档体系（见下）
 
 ### 已完成
 
-- **P1 后端 S1–S8**：鉴权、存储与迁移、`/sync` 推拉（rev 游标 / LWW / 时钟夹紧 / 落败行回推 / 去回声）、只读查询、限流探针、集成测试。**只差 S7 的 `deploy/`**（Nginx 配置、备份脚本）——目录还不存在。
+- **P1 后端 S1–S8**：鉴权、存储与迁移、`/sync` 推拉（rev 游标 / LWW / 时钟夹紧 / 落败行回推 / 去回声）、只读查询、限流探针、集成测试。
+- **S7 部署配置已写好**：`server/deploy/`（`nginx.conf` TLS + `limit_req` + `X-Real-IP`、`proxy_common.conf`、`backup.sh` 每日 pg_dump 留 14 天、`README.md`）。**但一次都没在真服务器上跑过。**
   - **2026-11-04 已首次跑通真库**：WSL 里装 PG 16，`go test` 30 项全 PASS（含 17 个集成）。
 - **前后端真链路已验证**（2026-11-04）：Go 后端 :18081 + 真 Postgres，`_cache/e2e_test.py` 14 项全过
   （登录 / 推 3 组 / 幂等重推 applied=0 / 换设备全量拉 / 墓碑可传播 / 旧值不覆盖 / 用户隔离 / 无 token 401 / 配置文档跨设备）。
@@ -135,12 +136,14 @@ docs/                   文档体系（见下）
 - **训练记录 v0.3（部分）**：`workouts` 表、`sets` 新增 `blockId` / `trackVer` / `rir` / `assist`，「先选动作再记组」「热身组」「跨零点算哪天」。**多训练块还没实现**。
 - **字体（我们这条线独有）**：思源黑体 VF + Space Grotesk，770 字子集，303KB（抽字时跳过注释，注释里的字不进包）。
 - **P5 身体指标 v0.1**（2026-11-04）：`pages/metrics`（体重/体脂率/腰围/静息心率，大数字 + 趋势图 + 最近记录 + 底部录入）、`utils/metricChart.js`、`storage.js` 加 metrics 分片与 `m:` 队列、`db.js` 加 8 个接口、同步载荷接上 `metrics`；40 项自测。评级与自重负荷换算（V3）仍未做。
+- **动作库 E2 客户端数据源**（2026-11-04）：`utils/catalog.js`（269 行）成为动作数据的唯一入口——服务端清单 `/ 自建 / 包内快照` 三路合一，`retired` 过滤、换动作候选、选动作面板、详情缓存（7 天 TTL + 50 条 LRU）、变更通知、清空。`db/storage/sync/plan/builder` 全部改走它；自建动作 `u-` id 规则（≤16 字节）、墓碑、`x:` 上传队列（排在批次最前）、`customExercises` 同步载荷。**`test-catalog.js` 68 项**。
+- **自定义底部 tabBar**（2026-11-04）：`app/custom-tab-bar/`，纸面底 `#EDE8D9`（比页面深一档）+ 上沿细线 + 选中项陶土色小把手 + 按压缩放；栏高 92rpx（≈原生）。三个 tab 页 `onShow` 里 `getTabBar().setData({selected})`，页面自己让出 `104rpx + 安全区`。
 - **文档体系**：拆成 `接口/` + `设计文档/`，新增 `开发标准.md`、`CONTRIBUTING.md`、PR 模板。
 
 ### 未完成 / 在飞
 
 - **C6 测试补强**：双设备并发、分页、时钟偏差；`test-sync.js` 现在只有「顺序模拟换设备」，没有两套独立状态。
-- **S7 部署**：`server/deploy/`（Nginx TLS + `limit_req` + `X-Real-IP`、每日 `pg_dump` 保留 14 天）。
+- **S7 部署实操**：配置齐了，缺「在一台真服务器上照 README 走一遍」——证书签发、`limit_req` 生效、备份还原演练都没验过。
 - **P0 备案**：域名 + ICP。**只卡上线不卡开发**，第一天就该提交，现在还没开始。
 - **P4 真机联调**：两台真机互相同步、弱网、杀进程、改时钟——**一次都没做过**（开发者工具≠真机）。
 - **P5 身体指标**：M1–M3 已做（v0.1）；**剩下**：和进步可视化 V3 对接（体重换算自重负荷、力量水平评级）。
@@ -170,8 +173,8 @@ docs/                   文档体系（见下）
 ## 常用操作
 
 ```bash
-# 四套自测（改完必跑，现在全绿）
-cd app && node test.js && node test-page.js && node test-sync.js && node test-training.js
+# 六套自测（改完必跑，现在全绿 · 合计 500+ 项）
+cd app && for f in test.js test-page.js test-sync.js test-training.js test-metrics.js test-catalog.js; do echo "--- $f"; node $f || break; done
 
 # 语法 / JSON / db 方法 / 字体缺字，一把过（有失败项退出码 1）
 bash _cache/check_app.sh

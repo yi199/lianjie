@@ -30,6 +30,11 @@ const W_PREFIX = 'w:';                 // 待上传队列里训练的 id 前缀
 const K_M_MONTHS = 'lj.metrics.months';
 const K_M_PREFIX = 'lj.metrics.';
 const M_PREFIX = 'm:';                 // 待上传队列里指标的 id 前缀
+const X_PREFIX = 'x:';                 // 待上传队列里自建动作的 id 前缀
+
+// 自建动作的存储与合并规则在 catalog 里（它是动作数据的唯一入口），
+// 这里只负责「它在待上传队列里怎么排队」。依赖方向 catalog → storage 不能反。
+const CAT = require('./catalog');
 
 // 老数据没有 updatedAt：给一个足够早的时刻，和服务端（别的设备）的版本冲突时让对方赢
 const LEGACY_STAMP = '2000-01-01T00:00:00.000Z';
@@ -436,40 +441,61 @@ function markAllDirty() {
     if (r.demo) return;
     if (!d[mid(r)]) d[mid(r)] = r.updatedAt || LEGACY_STAMP;
   });
+  // 自建动作（含墓碑）：墓碑也要传，否则删除不会同步到别的设备
+  CAT.rawCustom().forEach(function (e) {
+    if (!d[X_PREFIX + e.exId]) d[X_PREFIX + e.exId] = e.updatedAt || LEGACY_STAMP;
+  });
   wx.setStorageSync(K_DIRTY, d);
 }
 
 /**
- * 取一批待上传的行（组记录 + 训练 + 指标合计不超过 limit）。
- * @returns {{ rows: Array, workouts: Array, metrics: Array, sent: {id: updatedAt} }}
+ * 取一批待上传的行（组记录 + 训练 + 指标 + 自建动作合计不超过 limit）。
+ *
+ * 自建动作排在**最前面**：最多 30 条，如果攒在 500 组记录后面，
+ * 重度用户（积压几百组）永远传不上动作，而记录里引用的正是这些动作 id。
+ *
+ * @returns {{ rows: Array, workouts: Array, metrics: Array, exercises: Array, sent: {id: updatedAt} }}
  */
 function dirtyBatch(limit) {
   const d = dirtyMap();
   const outS = [];
   const outW = [];
   const outM = [];
+  const outX = [];
   const sent = {};
   const ids = Object.keys(d);
-  for (let i = 0; i < ids.length && outS.length + outW.length + outM.length < limit; i++) {
+  // x: 优先（稳定排序：其余保持原有顺序）
+  ids.sort(function (a, b) {
+    const ax = a.indexOf(X_PREFIX) === 0 ? 0 : 1;
+    const bx = b.indexOf(X_PREFIX) === 0 ? 0 : 1;
+    return ax - bx;
+  });
+  const total = function () { return outS.length + outW.length + outM.length + outX.length; };
+  for (let i = 0; i < ids.length && total() < limit; i++) {
     const id = ids[i];
     const isW = id.indexOf(W_PREFIX) === 0;
     const isM = id.indexOf(M_PREFIX) === 0;
+    const isX = id.indexOf(X_PREFIX) === 0;
     let r;
     if (isW) {
       r = workout(id.slice(W_PREFIX.length));
     } else if (isM) {
       const parts = id.slice(M_PREFIX.length).split('|');
       r = metric(parts[0], parts[1]);
+    } else if (isX) {
+      const exId = id.slice(X_PREFIX.length);
+      r = CAT.rawCustom().filter(function (e) { return e.exId === exId; })[0];
     } else {
       r = get(id);
     }
     if (!r) { delete d[id]; continue; }          // 行已经不在了（被物理删掉），队列里的残留
     if (isW) outW.push(r);
     else if (isM) outM.push(r);
+    else if (isX) outX.push(r);
     else outS.push(r);
     sent[id] = d[id];
   }
-  return { rows: outS, workouts: outW, metrics: outM, sent: sent };
+  return { rows: outS, workouts: outW, metrics: outM, exercises: outX, sent: sent };
 }
 
 /**
@@ -482,6 +508,7 @@ function ack(sent, rejectedIds) {
   const drop = [];
   const dropW = [];
   const dropM = [];
+  const dropX = [];
   Object.keys(sent).forEach(function (id) {
     if (d[id] !== sent[id]) return;
     delete d[id];
@@ -496,6 +523,12 @@ function ack(sent, rejectedIds) {
       if (r && !r.done) dropM.push({ kind: r.kind, date: r.date });
       return;
     }
+    if (id.indexOf(X_PREFIX) === 0) {
+      const exId = id.slice(X_PREFIX.length);
+      const r = CAT.rawCustom().filter(function (e) { return e.exId === exId; })[0];
+      if (r && r.done === false) dropX.push(exId);   // 墓碑服务端已经收了，本地不用留
+      return;
+    }
     const r = get(id);
     if (r && !r.done) drop.push(id);
   });
@@ -504,6 +537,7 @@ function ack(sent, rejectedIds) {
   if (drop.length) remove(drop);
   if (dropW.length) removeWorkouts(dropW);
   if (dropM.length) removeMetrics(dropM);
+  dropX.forEach(function (exId) { CAT.dropCustom(exId); });
 }
 
 /**
@@ -545,6 +579,16 @@ function pendingCount() {
 }
 
 /**
+ * 应用服务端下发的自建动作。
+ * 「本地有未上传改动就先不动」的判断复用待上传队列，规则和其他三类一致。
+ */
+function applyRemoteExercises(list) {
+  return CAT.applyRemoteCustom(list, function (id) {
+    return !!dirtyMap()[id];
+  });
+}
+
+/**
  * 把服务端返回的 rejected 映射成待上传队列里的 id。
  * id 的生成规则只在本文件里维护（组记录 = date-exId-setNo，训练 = "w:日期"），
  * 所以映射也放在这里，免得同步层再复制一份规则。
@@ -560,6 +604,11 @@ function rejectedIds(batch, rejected) {
       out.push(wid(b.workouts[r.index].date));
     } else if (r.kind === 'metric' && b.metrics && b.metrics[r.index]) {
       out.push(mid(b.metrics[r.index]));
+    } else if (r.kind === 'customExercise' && b.exercises && b.exercises[r.index]) {
+      const exId = b.exercises[r.index].exId;
+      out.push(X_PREFIX + exId);
+      // 留在本地但标红：删掉的话用户永远不知道这条哪里错了（动作库.md §7.4）
+      CAT.setSyncError(exId, r.reason);
     }
   });
   return out;
@@ -621,7 +670,8 @@ module.exports = {
   workout, workouts, putWorkoutLocal, putWorkouts, removeWorkouts,
   metric, metrics, putMetricLocal, putMetrics, removeMetrics, applyRemoteMetrics,
   removeAll,
-  dirtyMap, markAllDirty, dirtyBatch, ack, applyRemote, applyRemoteWorkouts, pendingCount, onDirty,
+  dirtyMap, markDirty, markAllDirty, dirtyBatch, ack, applyRemote, applyRemoteWorkouts, applyRemoteExercises,
+  pendingCount, onDirty,
   rejectedIds,
   reset
 };

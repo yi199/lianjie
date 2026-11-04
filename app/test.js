@@ -387,4 +387,68 @@ wx.setStorageSync('lj.profile', legacy);
 db.migrate();
 ok('老 profile 补上 programId=auto', db.profile().programId === 'auto', JSON.stringify(db.profile()));
 
+/* ================= 20. 动作库（服务端清单 + 自建动作） ================= */
+console.log('\n=== 20. 动作库 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+/* 20.1 还没拉到服务端清单 → 用包里那份快照，功能完整 */
+ok('首装用包内快照（105 个动作）', db.exercises().length === 105, db.exercises().length);
+ok('包里那份能查到动作', !!db.exerciseById('g1'));
+
+/* 20.2 拉到清单 → 整份替换；retired 由客户端过滤 */
+db.applyCatalog(7, [
+  { id: 'g1', cn: '卧推（新版）', en: 'Bench Press', part: 'chest', place: 'gym',
+    unit: 'kg', tips: '肩胛下沉', hot: true, imgThumb: '', retired: false },
+  { id: 'g99', cn: '下架动作', en: '', part: 'chest', place: 'gym',
+    unit: 'kg', tips: '', hot: false, imgThumb: '', retired: true }
+]);
+ok('清单整份替换（不是合并）', db.exercises().length === 1, db.exercises().length);
+ok('retired=true 的不出现在可选列表里', !db.exerciseById('g99'));
+ok('改名生效', db.exerciseById('g1').cn === '卧推（新版）', db.exerciseById('g1').cn);
+ok('catalogRev 已记下', db.catalogRev() === 7, db.catalogRev());
+
+/* 20.3 自建动作：id 规则是硬约束 */
+const ce = db.saveCustomExercise({ cn: '绳索夹胸', part: 'chest', place: 'gym', unit: 'kg', tips: '肘部固定' });
+ok('自建动作 id 以 u- 开头', /^u-/.test(ce.exId), ce.exId);
+ok('id 总长 ≤16（超长会让用它的每一组被拒收）',
+  Buffer.byteLength(ce.exId, 'utf8') <= 16, ce.exId + ' = ' + ce.exId.length + ' 字符');
+ok('官方 + 自建都能查到', !!db.exerciseById('g1') && !!db.exerciseById(ce.exId));
+ok('「我的动作」里有它', db.customExercises().length === 1, db.customExercises().length);
+
+/* 20.4 用自建动作记一组：exCn / part 必须是真值，不能存成 id */
+db.saveSet({ date: '2026-10-26', exId: ce.exId, setNo: 1, weight: 20, reps: 10, unit: 'kg' });
+const custRow = db.allSets().filter(function (s) { return s.exId === ce.exId; })[0];
+ok('组记录的 exCn 是中文名不是 id', custRow && custRow.exCn === '绳索夹胸', custRow && custRow.exCn);
+ok('组记录的 part 记下来了（部位统计算得出来）', custRow && custRow.part === 'chest', custRow && custRow.part);
+
+/* 20.5 换动作候选里要能换到自建动作 */
+const custAlts = db.alternatives('g1', null, '2026-10-26');
+ok('换动作候选包含自建动作', custAlts.some(function (e) { return e.id === ce.exId; }),
+  custAlts.map(function (e) { return e.id; }).join(','));
+ok('候选里不会把自己列进去', !custAlts.some(function (e) { return e.id === 'g1'; }));
+
+/* 20.6 删除 = 墓碑：本地隐藏，但历史记录照常显示 */
+const histBefore = db.allSets().length;
+db.removeCustomExercise(ce.exId);
+ok('删除后「我的动作」清空', db.customExercises().length === 0, db.customExercises().length);
+ok('删除后查不到（墓碑被过滤）', !db.exerciseById(ce.exId));
+ok('历史记录不受影响', db.allSets().length === histBefore, db.allSets().length + '/' + histBefore);
+
+/* 20.7 上限 30：只由客户端把关 */
+for (let i = 0; i < 30; i++) {
+  db.saveCustomExercise({ exId: 'u-cap' + i, cn: '动作' + i, part: 'chest', place: 'gym', unit: 'kg' });
+}
+ok('满 30 个后不再允许新增', db.canAddCustomExercise() === false, db.customExercises().length);
+
+/* 20.8 自建动作进上传队列，且批次里单独一类 */
+ok('新建动作进了待上传队列', db.syncPending() >= 30, db.syncPending());
+const catBatch = db.syncPullBatch(500);
+ok('批次里带 exercises 这一路', (catBatch.exercises || []).length >= 30,
+  (catBatch.exercises || []).length);
+ok('自建动作排在批次最前面（不被积压的记录挤掉）',
+  (catBatch.exercises || []).length > 0, '');
+
+db.resetAll();
+
 console.log('\n' + (process.exitCode ? '有失败项' : '全部通过') + '\n');

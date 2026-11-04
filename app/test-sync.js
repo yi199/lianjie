@@ -46,11 +46,20 @@ function anotherDevice() {
 /* ---------------- 内存版假服务端 ---------------- */
 
 function makeServer() {
-  const users = {};   // openid → { rev, rows, workouts, config }
+  const users = {};   // openid → { rev, rows, workouts, exercises, catalog, catalogRev, config }
   const calls = [];
+  // 官方动作清单是全局内容（不按用户分），测试里手动 setCatalog 推进版本
+  const catalog = { rev: 0, exercises: [] };
 
   function stateOf(openid) {
-    if (!users[openid]) users[openid] = { rev: 0, rows: {}, workouts: {}, config: null };
+    if (!users[openid]) {
+      users[openid] = {
+        rev: 0, rows: {}, workouts: {}, config: null,
+        exercises: {},            // 自建动作：exId → row
+        catalog: null,            // 官方清单（整份）
+        catalogRev: 0
+      };
+    }
     return users[openid];
   }
 
@@ -64,6 +73,12 @@ function makeServer() {
     failNext: 0,          // 接下来 N 个请求返回 500
     unauthorizedNext: 0,  // 接下来 N 个 /sync 返回 401
     rejectNext: null,     // 下一次 /sync 把指定下标的行拒绝掉
+
+    /** 测试用：换一份官方清单并推进版本 */
+    setCatalog(rev, list) {
+      catalog.rev = rev;
+      catalog.exercises = list || [];
+    },
 
     transport(opt) {
       calls.push(opt);
@@ -105,6 +120,21 @@ function makeServer() {
           st.rev++;
           st.rows[r.date + '|' + r.exId + '|' + r.setNo] = Object.assign({}, r, { rev: st.rev });
         });
+
+        // 自建动作：整行 LWW + 墓碑，规则和 sets 一致
+        const rejectCustom = (server.rejectNext && server.rejectNext.kind === 'customExercise')
+          ? server.rejectNext.index : -1;
+        (body.customExercises || []).forEach(function (x, i) {
+          if (i === rejectCustom) {
+            rejected.push({
+              kind: 'customExercise', index: i,
+              reason: (server.rejectNext && server.rejectNext.reason) || 'bad'
+            });
+            return;
+          }
+          st.rev++;
+          st.exercises[x.exId] = Object.assign({}, x, { rev: st.rev });
+        });
         server.rejectNext = null;
 
         (body.workouts || []).forEach(function (w) {
@@ -124,6 +154,9 @@ function makeServer() {
         Object.keys(st.workouts).forEach(function (k) {
           if (st.workouts[k].rev > cursor) all.push({ t: 'w', v: st.workouts[k] });
         });
+        Object.keys(st.exercises).forEach(function (k) {
+          if (st.exercises[k].rev > cursor) all.push({ t: 'x', v: st.exercises[k] });
+        });
         if (st.config && st.config.rev > cursor) all.push({ t: 'c', v: st.config });
         all.sort(function (a, b) { return a.v.rev - b.v.rev; });
 
@@ -133,15 +166,32 @@ function makeServer() {
           hasMore: all.length > page.length,
           applied: 0,
           rejected: rejected,
-          sets: [], workouts: [], metrics: [], config: null,
+          sets: [], workouts: [], metrics: [], customExercises: [], config: null,
+          catalogRev: catalog.rev,
           serverTime: new Date().toISOString()
         };
         page.forEach(function (x) {
           if (x.t === 's') out.sets.push(x.v);
           else if (x.t === 'w') out.workouts.push(x.v);
+          else if (x.t === 'x') out.customExercises.push(x.v);
           else out.config = x.v;
         });
         return Promise.resolve({ statusCode: 200, data: out, header: {} });
+      }
+
+      // 官方动作清单：since >= rev 返回 304，否则整份
+      if (path.indexOf('/catalog') === 0) {
+        const q = path.split('?')[1] || '';
+        const m = /since=(\d+)/.exec(q);
+        const since = m ? Number(m[1]) : -1;
+        if (since >= catalog.rev) {
+          return Promise.resolve({ statusCode: 304, data: {}, header: {} });
+        }
+        return Promise.resolve({
+          statusCode: 200,
+          data: { rev: catalog.rev, exercises: catalog.exercises },
+          header: {}
+        });
       }
 
       return Promise.resolve({ statusCode: 404, data: {}, header: {} });
@@ -363,6 +413,68 @@ async function main() {
   ok('ready() 等到了真正那次同步：引导态已恢复', db.hasOnboarded() === true,
     'hasOnboarded=' + db.hasOnboarded());
   ok('数据也落地了', db.allSets().length > 0, 'sets=' + db.allSets().length);
+
+  /* ---- 13. 动作库：自建动作同步 + 官方清单 ---- */
+  console.log('\n=== 动作库同步 ===');
+
+  anotherDevice();
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+
+  // 13.1 建一个自建动作 → 上传；换设备能拉回来
+  const ce = db.saveCustomExercise({ cn: '绳索夹胸', part: 'chest', place: 'gym', unit: 'kg', tips: '肘部固定' });
+  let rr = await sync.kick();
+  sync.stop();
+  ok('自建动作同步没报错', !rr.error, JSON.stringify(rr));
+  ok('上传后待上传队列清空', db.syncPending() === 0, 'pending=' + db.syncPending());
+
+  anotherDevice();
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  rr = await sync.kick();
+  sync.stop();
+  ok('新设备拉回自建动作', db.customExercises().some(function (e) { return e.id === ce.exId; }),
+    db.customExercises().map(function (e) { return e.id; }).join(','));
+
+  // 13.2 被服务端拒绝的自建动作：要出队，否则一条坏数据让队列永远卡住
+  db.saveCustomExercise({ exId: 'u-badpart', cn: '部位乱写', part: 'glutes', place: 'gym', unit: 'kg' });
+  srv.rejectNext = { kind: 'customExercise', index: 0, reason: 'part 必须是六个部位之一' };
+  rr = await sync.kick();
+  sync.stop();
+  ok('被拒绝的自建动作也出队（不卡队列）', db.syncPending() === 0, 'pending=' + db.syncPending());
+  // §7.4：被拒的行不能静默消失——留在「我的动作」里，行上带原因，界面标红
+  const badRow = db.customExercises().filter(function (e) { return e.id === 'u-badpart'; })[0];
+  ok('被拒的动作留在本地（不是删掉）', !!badRow);
+  ok('拒绝原因记在行上（界面能标红）', !!badRow && !!badRow.syncError, badRow && badRow.syncError);
+
+  // 13.3 catalogRev 变了 → 自动拉整份清单
+  srv.setCatalog(9, [{
+    id: 'g1', cn: '卧推（服务端）', en: 'Bench Press', part: 'chest', place: 'gym',
+    unit: 'kg', tips: '肩胛下沉', hot: true, imgThumb: '', retired: false
+  }]);
+  db.applyCatalog(0, []);          // 本地版本清零，确保这次会触发拉取
+  rr = await sync.kick();
+  await new Promise(function (r2) { setTimeout(r2, 50); });   // refreshCatalog 故意不 await，给它一拍
+  sync.stop();
+  ok('catalogRev 变化后拉到了清单',
+    db.exercises().length === 1 && db.exerciseById('g1').cn === '卧推（服务端）',
+    db.exercises().length + ' 条 / ' + (db.exerciseById('g1') || {}).cn);
+  ok('本地 catalogRev 跟上服务端', db.catalogRev() === 9, db.catalogRev());
+
+  // 13.4 版本相等 → 不再重复拉
+  const catCallsBefore = srv.calls.filter(function (c) { return c.url.indexOf('/catalog') >= 0; }).length;
+  rr = await sync.kick();
+  await new Promise(function (r2) { setTimeout(r2, 50); });
+  sync.stop();
+  const catCallsAfter = srv.calls.filter(function (c) { return c.url.indexOf('/catalog') >= 0; }).length;
+  ok('清单版本没变时不重复拉', catCallsAfter === catCallsBefore,
+    catCallsBefore + ' → ' + catCallsAfter);
+
+  // 13.5 本地 rev 比服务端大（服务端被重置）→ 按 0 处理，强制全量自愈
+  db.applyCatalog(999, []);
+  rr = await sync.kick();
+  await new Promise(function (r2) { setTimeout(r2, 50); });
+  sync.stop();
+  ok('本地 rev 超大时自愈（强制全量拉回来）',
+    db.catalogRev() === 9 && db.exercises().length === 1, db.catalogRev());
 
   sync.stop();
 }
