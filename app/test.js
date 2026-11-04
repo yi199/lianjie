@@ -449,6 +449,17 @@ ok('批次里带 exercises 这一路', (catBatch.exercises || []).length >= 30,
 ok('自建动作排在批次最前面（不被积压的记录挤掉）',
   (catBatch.exercises || []).length > 0, '');
 
+/* 20.9 战报/记录页里自建动作要显示中文名，不能把 id 漏到界面上 */
+// 20.7 已经把 30 个名额占满（saveCustomExercise 会拒绝新建），先腾一个出来
+['u-cap0', 'u-cap1', 'u-cap2'].forEach(function (id) { db.removeCustomExercise(id); });
+db.saveCustomExercise({ exId: 'u-report', cn: '战报测试动作', part: 'chest', place: 'gym', unit: 'kg' });
+db.saveSet({ date: '2026-10-26', exId: 'u-report', setNo: 1, weight: 20, reps: 10, unit: 'kg' });
+const vw = db.todayWorkout('2026-10-26');
+const wlist = vw.exercises || vw.blocks || [];
+const blk = wlist.filter(function (b) { return b.exId === 'u-report'; })[0];
+ok('战报里自建动作显示中文名（不是 u- 开头的 id）', !!blk && blk.cn === '战报测试动作', blk && blk.cn);
+ok('战报里部位也对（能进部位统计）', !!blk && blk.part === 'chest', blk && blk.part);
+
 db.resetAll();
 
 console.log('\n' + (process.exitCode ? '有失败项' : '全部通过') + '\n');

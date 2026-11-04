@@ -37,6 +37,16 @@
     </view>
   </view>
 
+  <!-- 我的动作 -->
+  <view class="card sec">
+    <view class="cardlabel">我的动作</view>
+    <view class="cname">自己加的动作 · 换动作时能选到</view>
+    <view class="changebtn" hover-class="changebtn-hover" hover-start-time="0" hover-stay-time="140" bindtap="gotoMyExercises">
+      <text>管理我的动作</text>
+      <text class="changearrow">→</text>
+    </view>
+  </view>
+
   <!-- 一周几次 -->
   <view class="sec">
     <view class="sec-h">一周练几次</view>

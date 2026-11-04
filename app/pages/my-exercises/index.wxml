@@ -1,0 +1,96 @@
+<view class="sb" style="height:{{sbh + 12}}px"></view>
+
+<view class="page">
+
+  <view class="phead">
+    <view class="brandrow">
+      <text class="brand">练界</text>
+      <text class="kicker">My Moves</text>
+    </view>
+    <view class="h1en">Custom</view>
+    <view class="h1">自己长出来的动作。</view>
+  </view>
+
+  <!-- 列表 -->
+  <view class="sec" wx:if="{{list.length}}">
+    <view class="sec-h">我的动作 {{list.length}} / 30</view>
+    <view class="rows">
+      <view class="row exrow" wx:for="{{list}}" wx:key="id">
+        <view class="exmain" data-id="{{item.id}}" bindtap="startEdit" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
+          <view class="exname">{{item.cn}}</view>
+          <view class="exmeta">
+            <text>{{partCn[item.part] || item.part}}</text>
+            <text class="dot">·</text>
+            <text>{{placeCn[item.place] || item.place}}</text>
+            <text class="dot">·</text>
+            <text>{{unitCn[item.unit] || item.unit}}</text>
+          </view>
+          <view class="exerr" wx:if="{{item.syncError}}">没同步上：{{item.syncError}}</view>
+        </view>
+        <view class="exdel" data-id="{{item.id}}" bindtap="remove" hover-class="exdel-hover" hover-start-time="0" hover-stay-time="120">删除</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty" wx:else>
+    <view class="emptyt">还没有自己加的动作</view>
+    <view class="emptyn">器械上没见过的动作、教练临时教的一个，都可以加进来。加完在记录页「换动作」里就能选到。</view>
+  </view>
+
+  <!-- 编辑表单 -->
+  <view class="card sec" wx:if="{{editing}}">
+    <view class="cardlabel">{{editing.exId ? '编辑动作' : '新建动作'}}</view>
+
+    <view class="field">
+      <view class="flabel">名字</view>
+      <input class="finput" value="{{editing.cn}}" maxlength="24" placeholder="比如 绳索夹胸"
+             bindinput="onName" />
+    </view>
+
+    <view class="field">
+      <view class="flabel">部位</view>
+      <view class="chips">
+        <view class="chip {{editing.part === item.key ? 'on' : ''}}" wx:for="{{parts}}" wx:key="key"
+              data-field="part" data-v="{{item.key}}" bindtap="pick"
+              hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">{{item.name}}</view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="flabel">在哪练</view>
+      <view class="chips">
+        <view class="chip {{editing.place === item.key ? 'on' : ''}}" wx:for="{{places}}" wx:key="key"
+              data-field="place" data-v="{{item.key}}" bindtap="pick"
+              hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">{{item.name}}</view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="flabel">怎么记</view>
+      <view class="chips">
+        <view class="chip {{editing.unit === item.key ? 'on' : ''}}" wx:for="{{units}}" wx:key="key"
+              data-field="unit" data-v="{{item.key}}" bindtap="pick"
+              hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">{{item.name}}</view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="flabel">动作要点（可不填）</view>
+      <input class="finput" value="{{editing.tips}}" maxlength="64" placeholder="一句就够，训练页会显示"
+             bindinput="onTips" />
+    </view>
+
+    <view class="formbtns">
+      <view class="btn ghost" bindtap="cancelEdit" hover-class="btn-hover" hover-start-time="0" hover-stay-time="120">取消</view>
+      <view class="btn solid" bindtap="save" hover-class="btn-hover" hover-start-time="0" hover-stay-time="120">保存</view>
+    </view>
+  </view>
+
+  <!-- 新建入口 -->
+  <view class="addbtn" wx:if="{{!editing && canAdd}}" bindtap="startNew"
+        hover-class="btn-hover" hover-start-time="0" hover-stay-time="120">＋ 新建动作</view>
+  <view class="hint" wx:if="{{!editing && !canAdd}}">已经 30 个了，删掉一些再建。</view>
+
+  <view class="about">自己加的动作会同步到你的其它设备</view>
+
+</view>

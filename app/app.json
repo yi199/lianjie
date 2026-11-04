@@ -8,7 +8,8 @@
     "pages/my/index",
     "pages/programs/index",
     "pages/builder/index",
-    "pages/metrics/index"
+    "pages/metrics/index",
+    "pages/my-exercises/index"
   ],
   "window": {
     "backgroundTextStyle": "dark",
