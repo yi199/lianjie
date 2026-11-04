@@ -173,7 +173,7 @@ docs/                   文档体系（见下）
 ## 常用操作
 
 ```bash
-# 六套自测（改完必跑，现在全绿 · 合计 500+ 项）
+# 六套自测（改完必跑，现在全绿 · 合计 463 项）
 cd app && for f in test.js test-page.js test-sync.js test-training.js test-metrics.js test-catalog.js; do echo "--- $f"; node $f || break; done
 
 # 语法 / JSON / db 方法 / 字体缺字，一把过（有失败项退出码 1）
