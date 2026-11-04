@@ -19,6 +19,7 @@ const PR = require('../data/programs');
 const D = require('../utils/date');
 const V = require('../utils/volume');
 const S = require('../utils/storage');
+const safeStorage = require('../utils/safeStorage');
 const CFG = require('../utils/config');
 const store = require('../store/index');
 
@@ -56,7 +57,7 @@ function saveProfile(p) {
     programId: p.programId || 'auto'
   };
   const oldSig = planSig();
-  wx.setStorageSync(K_PROFILE, prof);
+  safeStorage.set(K_PROFILE, prof);
   applyProgram(prof);
 
   // 训练日编号的含义变了（A 从「推日」变「上肢 A」），旧的换动作记录不能再用
@@ -85,17 +86,17 @@ function applyProgram(prof) {
     // 方案被删了，或者本来就是 auto → 退回参数化生成
     prof.programId = 'auto';
     list = P.buildPlan(prof.days, prof.place, prof.level);
-    wx.setStorageSync(K_PROFILE, prof);
+    safeStorage.set(K_PROFILE, prof);
   }
 
-  wx.setStorageSync(K_PLAN, list);
+  safeStorage.set(K_PLAN, list);
   return list;
 }
 
 /** 走完引导（第一次进入时调用） */
 function finishOnboarding(p) {
   saveProfile(p);
-  wx.setStorageSync(K_ONBOARDED, true);
+  safeStorage.set(K_ONBOARDED, true);
   markConfigDirty();
 }
 
@@ -118,7 +119,7 @@ function migrate() {
   if (p && !Array.isArray(p) && Object.keys(p).length) {
     const prof = profile();
     if (prof) {
-      wx.setStorageSync(K_PLAN, P.buildPlan(prof.days, prof.place, prof.level));
+      safeStorage.set(K_PLAN, P.buildPlan(prof.days, prof.place, prof.level));
     } else {
       wx.removeStorageSync(K_PLAN);
     }
@@ -129,7 +130,7 @@ function migrate() {
   const prof = wx.getStorageSync(K_PROFILE);
   if (prof && prof.programId === undefined) {
     prof.programId = 'auto';
-    wx.setStorageSync(K_PROFILE, prof);
+    safeStorage.set(K_PROFILE, prof);
     changed = true;
   }
 
@@ -305,14 +306,14 @@ function saveCustomProgram(prog) {
 
   const idx = list.findIndex(function (x) { return x.id === row.id; });
   if (idx >= 0) list[idx] = row; else list.push(row);
-  wx.setStorageSync(K_CUSTOM, list);
+  safeStorage.set(K_CUSTOM, list);
   markConfigDirty();
   return row;
 }
 
 function removeCustomProgram(id) {
   const list = customPrograms().filter(function (x) { return x.id !== id; });
-  wx.setStorageSync(K_CUSTOM, list);
+  safeStorage.set(K_CUSTOM, list);
   markConfigDirty();
 
   // 正在用这个方案 → 退回自动排，别留一个指向已删方案的 programId
@@ -432,7 +433,7 @@ function setSwap(planKey, slot, exId) {
   if (origin && origin === exId) delete sw[planKey + ':' + slot];
   else sw[planKey + ':' + slot] = exId;
 
-  wx.setStorageSync(K_SWAPS, sw);
+  safeStorage.set(K_SWAPS, sw);
   markConfigDirty();
   return sw;
 }
@@ -440,7 +441,7 @@ function setSwap(planKey, slot, exId) {
 function clearSwap(planKey, slot) {
   const sw = swaps();
   delete sw[planKey + ':' + slot];
-  wx.setStorageSync(K_SWAPS, sw);
+  safeStorage.set(K_SWAPS, sw);
   markConfigDirty();
   return sw;
 }
@@ -490,7 +491,7 @@ function markConfigDirty() {
   const meta = configMeta();
   meta.updatedAt = S.stamp();
   if (syncOn()) meta.dirty = true;
-  wx.setStorageSync(K_CONFIG_META, meta);
+  safeStorage.set(K_CONFIG_META, meta);
   if (meta.dirty) notifyConfig();
 }
 
@@ -522,7 +523,7 @@ function ackConfig(updatedAt) {
   const meta = configMeta();
   if (!meta.dirty || meta.updatedAt !== updatedAt) return false;
   meta.dirty = false;
-  wx.setStorageSync(K_CONFIG_META, meta);
+  safeStorage.set(K_CONFIG_META, meta);
   return true;
 }
 
@@ -542,7 +543,7 @@ function applyConfigDoc(doc) {
   applyingRemote = true;
   try {
     if (body.profile) {
-      wx.setStorageSync(K_PROFILE, {
+      safeStorage.set(K_PROFILE, {
         level: body.profile.level || 'some',
         days: Number(body.profile.days) || 3,
         place: body.profile.place === 'home' ? 'home' : 'gym',
@@ -552,10 +553,10 @@ function applyConfigDoc(doc) {
       wx.removeStorageSync(K_PROFILE);
     }
 
-    wx.setStorageSync(K_SWAPS, body.swaps || {});
-    wx.setStorageSync(K_CUSTOM, Array.isArray(body.customPrograms) ? body.customPrograms : []);
+    safeStorage.set(K_SWAPS, body.swaps || {});
+    safeStorage.set(K_CUSTOM, Array.isArray(body.customPrograms) ? body.customPrograms : []);
 
-    if (body.onboarded) wx.setStorageSync(K_ONBOARDED, true);
+    if (body.onboarded) safeStorage.set(K_ONBOARDED, true);
     else wx.removeStorageSync(K_ONBOARDED);
 
     // 训练日队列不随配置同步：拿到配置后重新推导
@@ -566,7 +567,7 @@ function applyConfigDoc(doc) {
     applyingRemote = false;
   }
 
-  wx.setStorageSync(K_CONFIG_META, { updatedAt: doc.updatedAt || '', dirty: false });
+  safeStorage.set(K_CONFIG_META, { updatedAt: doc.updatedAt || '', dirty: false });
   return true;
 }
 
@@ -727,7 +728,7 @@ function syncMarkAll() {
   const meta = configMeta();
   if (!meta.updatedAt) meta.updatedAt = S.stamp();
   meta.dirty = true;
-  wx.setStorageSync(K_CONFIG_META, meta);
+  safeStorage.set(K_CONFIG_META, meta);
 }
 
 /** 有本地改动时通知（组记录 / 训练 / 配置都会触发） */
