@@ -58,6 +58,11 @@ Page({
   },
 
   onShow() {
+    // 自定义 tabBar：页面得主动告诉它当前选中的是第几个
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 1 });
+    }
+
     if (!db.hasOnboarded()) {
       wx.reLaunch({ url: '/pages/welcome/index' });
       return;
