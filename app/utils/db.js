@@ -1077,7 +1077,7 @@ function bestSet(rows) {
  */
 function suggestWeight(exId, planReps, planSets, date) {
   const day = date || D.today();
-  const ex = EX.byId(exId);
+  const ex = CAT.find(exId);   // 自建动作也要能算加重档位（腿 = +5kg）
 
   const rows = allSets().filter(function (s) {
     return isWork(s) && s.exId === exId && s.date < day && s.unit === 'kg' && s.weight > 0;
@@ -1261,7 +1261,9 @@ function setItem(s, maxBefore) {
 }
 
 function makeBlock(exId, planItem, rows, firstAt, day) {
-  const ex = EX.byId(exId) || { cn: exId, en: '', part: '', unit: 'kg', tips: '' };
+  // 兜底优先用行里冗余的 exCn：动作已删/是自建时，exId 查不到也得显示中文名而不是 u- 开头的 id
+  const ex = CAT.find(exId) ||
+    { cn: (rows[0] && rows[0].exCn) || exId, en: '', part: '', unit: 'kg', tips: '' };
   const maxBefore = rows.length ? maxWeightBefore(exId, day) : 0;
   const work = rows.filter(isWork).length;
 
