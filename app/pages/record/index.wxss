@@ -53,6 +53,22 @@
   letter-spacing: .02em;
   line-height: 1.2;
 }
+/* 动作名 + 「看讲解」入口：名字可以换行，「看讲解」永远贴右边 */
+.namerow {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+}
+.namerow .nm { flex: 0 1 auto; min-width: 0; }
+.detail {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 6rpx 0;
+  font-size: var(--fs-label);
+  letter-spacing: .1em;
+  color: var(--muted2);
+}
+.detail-hover { color: var(--clay); }
 .exhead .en {
   margin-top: 6rpx;
   font-family: Georgia, serif;

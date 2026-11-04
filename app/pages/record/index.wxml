@@ -14,7 +14,10 @@
 <view class="wrap">
   <!-- 动作名 -->
   <view class="exhead">
-    <view class="nm">{{ex.cn}}</view>
+    <view class="namerow">
+      <view class="nm">{{ex.cn}}</view>
+      <view class="detail" bindtap="gotoDetail" hover-class="detail-hover" hover-start-time="0" hover-stay-time="120">看讲解 ›</view>
+    </view>
     <view class="en">{{ex.en}}</view>
     <view class="swapped" wx:if="{{ex.swapped}}">已换成 {{ex.cn}} · 原动作 {{ex.originCn}}</view>
   </view>

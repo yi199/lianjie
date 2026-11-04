@@ -1,0 +1,206 @@
+/* 动作详情：标题/要点/步骤都在本地字段上，插画和讲解是唯一要等网络的部分 */
+
+/* ---------- 导航 ---------- */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 16rpx 32rpx 0;
+}
+
+.back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-h1);
+  color: #43473D;
+  line-height: 1;
+}
+
+.back-hover { background: rgba(31, 35, 28, .06); border-radius: 50%; }
+
+.nav .kicker { margin-left: auto; }
+
+/* ---------- 标题 ---------- */
+.exhead { padding-top: 24rpx; }
+
+/* 用 ex- 前缀：组件 set-row 里也有一个 .tag（预览会把组件样式一起注入，会串） */
+.ex-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  font-size: var(--fs-label);
+  letter-spacing: .16em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.ex-tags .dot { color: var(--muted2); }
+
+.exhead .nm {
+  margin-top: var(--sp1);
+  font-size: var(--fs-title);
+  font-weight: 800;
+  letter-spacing: -.022em;
+  line-height: 1.22;
+}
+
+.exhead .en {
+  margin-top: 6rpx;
+  font-family: 'LJGrotesk', sans-serif;
+  font-style: italic;
+  font-size: var(--fs-label);
+  letter-spacing: 1rpx;
+  color: var(--muted2);
+}
+
+/* ---------- 插画 / 占位 ---------- */
+.artimg {
+  display: block;
+  width: 100%;
+  border-radius: 28rpx;
+  background: var(--card);
+}
+
+/* 没图时不空白：一张纸 + 一条陶土竖线，加载中就让它呼吸 */
+.artph {
+  position: relative;
+  padding: var(--sp4) var(--sp3) var(--sp4) calc(var(--sp3) + 26rpx);
+  background: var(--card);
+  border: 1px dashed var(--line);
+  border-radius: 28rpx;
+}
+
+.artph-bar {
+  position: absolute;
+  left: var(--sp3);
+  top: var(--sp4);
+  bottom: var(--sp4);
+  width: 6rpx;
+  border-radius: 999rpx;
+  background: var(--clay);
+  opacity: .28;
+}
+
+.artph-bar.is-loading { animation: breathe 1.4s ease-in-out infinite; }
+
+@keyframes breathe {
+  0%, 100% { opacity: .18; }
+  50% { opacity: .55; }
+}
+
+.artph-t {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.artph-n {
+  margin-top: 6rpx;
+  font-size: var(--fs-note);
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--card);
+  border-radius: 28rpx;
+  padding: var(--sp3) var(--sp2);
+}
+
+.cardlabel {
+  font-size: var(--fs-label);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: var(--sp2);
+}
+
+.tipline {
+  width: 48rpx;
+  height: 4rpx;
+  border-radius: 999rpx;
+  background: var(--clay);
+  margin-bottom: var(--sp2);
+}
+
+.tipstext {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -.01em;
+  line-height: 1.6;
+}
+
+/* ---------- 步骤 ---------- */
+.steps { border-top: 1px solid var(--line); }
+
+.step {
+  display: flex;
+  gap: var(--sp2);
+  padding: 22rpx 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.step:last-child { border-bottom: 0; padding-bottom: 0; }
+
+.stepno {
+  flex-shrink: 0;
+  min-width: 44rpx;
+  padding-top: 6rpx;
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-label);
+  letter-spacing: .12em;
+  color: var(--clay);
+}
+
+.steptext {
+  flex: 1 1 auto;
+  font-size: var(--fs-body);
+  line-height: 1.75;
+  color: var(--ink);
+}
+
+/* ---------- 空态 / 失败 ---------- */
+.empty-t {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.empty-n {
+  margin-top: var(--sp1);
+  font-size: var(--fs-note);
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.retry {
+  display: inline-block;
+  margin-top: var(--sp2);
+  padding: 14rpx 32rpx;
+  font-size: var(--fs-note);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999rpx;
+}
+
+.retry-hover { background: var(--card-press); border-color: var(--ink); }
+
+/* ---------- 怎么记 / 页脚 ---------- */
+.howtotext {
+  font-size: var(--fs-body);
+  line-height: 1.75;
+  color: var(--muted);
+}
+
+.foot {
+  margin-top: var(--sp5);
+  font-size: var(--fs-label);
+  letter-spacing: .04em;
+  text-align: center;
+  color: var(--muted2);
+}

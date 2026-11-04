@@ -3,6 +3,7 @@
     "pages/welcome/index",
     "pages/today/index",
     "pages/record/index",
+    "pages/exercise/index",
     "pages/report/index",
     "pages/stats/index",
     "pages/my/index",
