@@ -137,6 +137,8 @@ docs/                   文档体系（见下）
 - **字体（我们这条线独有）**：思源黑体 VF + Space Grotesk，770 字子集，303KB（抽字时跳过注释，注释里的字不进包）。
 - **P5 身体指标 v0.1**（2026-11-04）：`pages/metrics`（体重/体脂率/腰围/静息心率，大数字 + 趋势图 + 最近记录 + 底部录入）、`utils/metricChart.js`、`storage.js` 加 metrics 分片与 `m:` 队列、`db.js` 加 8 个接口、同步载荷接上 `metrics`；40 项自测。评级与自重负荷换算（V3）仍未做。
 - **动作库 E2 客户端数据源**（2026-11-04）：`utils/catalog.js`（269 行）成为动作数据的唯一入口——服务端清单 `/ 自建 / 包内快照` 三路合一，`retired` 过滤、换动作候选、选动作面板、详情缓存（7 天 TTL + 50 条 LRU）、变更通知、清空。`db/storage/sync/plan/builder` 全部改走它；自建动作 `u-` id 规则（≤16 字节）、墓碑、`x:` 上传队列（排在批次最前）、`customExercises` 同步载荷。**`test-catalog.js` 68 项**。
+- **动作库 E3 我的动作页**（2026-11-04，`8048109`）：`pages/my-exercises` 列表/新建/编辑/删除（名字·部位·场所·记法·要点，满 30 个给提示，被服务端拒绝的行标红显示原因）；「我的」页加入口；`db.suggestWeight` 改走 `CAT.find`（自建动作也能算加重档位）、`makeBlock` 兜底优先用行里的 `exCn`（不再把 `u-` id 漏到界面）；`test.js` +2 项。
+- **动作库 E4 动作详情页**（2026-11-04，`699c254`）：`pages/exercise`——骨架同步渲染（名字/英文/部位·场所·记法/要点/怎么记全走本地 `catalog.find`），再异步 `catalog.detail(id)` 拉 `steps` + `imgDetail`（缓存 7 天 TTL + 50 条 LRU 由 catalog 负责，页面不自己实现）；没图给虚线占位不空白、图挂了 `binderror` 就当没图、讲解拉不到显示「讲解没拉到 + 再试一次」而要点照旧；自建动作不打后端。训练页动作名旁加「看讲解 ›」入口。`test-page.js` +19 项。
 - **自定义底部 tabBar**（2026-11-04）：`app/custom-tab-bar/`，纸面底 `#EDE8D9`（比页面深一档）+ 上沿细线 + 选中项陶土色小把手 + 按压缩放；栏高 92rpx（≈原生）。三个 tab 页 `onShow` 里 `getTabBar().setData({selected})`，页面自己让出 `104rpx + 安全区`。
 - **文档体系**：拆成 `接口/` + `设计文档/`，新增 `开发标准.md`、`CONTRIBUTING.md`、PR 模板。
 
@@ -149,7 +151,7 @@ docs/                   文档体系（见下）
 - **P5 身体指标**：M1–M3 已做（v0.1）；**剩下**：和进步可视化 V3 对接（体重换算自重负荷、力量水平评级）。
 - **P6 上线准备**：隐私协议、数据导出/注销、监控告警、备份演练、灰度。
 - **P7 进步可视化**（V1–V3）：`docs/设计文档/进步可视化.md` 已有业务设计，代码零。字段部分（`rir`/`assist`）已落库。
-- **动作库 v1.3 · E1 服务端已完成**（2026-11-04）：`exercises` / `catalog_meta` / `user_exercises` 三张表；`GET /api/catalog?since=`（免登录、独立 IP 限流、`since>=rev` → 304 空 body、`order by hot desc,id`）；`GET /api/exercises/{id}`（要登录，`steps: string[]` + `imgDetail`，都可空）；`/sync` 加第 4 类资源 `customExercises`（LWW + 墓碑 + `rejected.kind=customExercise`）和 `catalogRev`；`cmd/seed-catalog` + `content/exercises.json`（105 个动作 / 18 个 hot）。后端 **76 项断言组全绿**（14 单元 + 23 集成，含四表分页、rev 区间、坏行隔离），HTTP 契约升到 **v3.3**。**E2/E3/E4（客户端数据源、换动作、详情页）仍未开始。**
+- **动作库 v1.3 · E1 服务端已完成**（2026-11-04）：`exercises` / `catalog_meta` / `user_exercises` 三张表；`GET /api/catalog?since=`（免登录、独立 IP 限流、`since>=rev` → 304 空 body、`order by hot desc,id`）；`GET /api/exercises/{id}`（要登录，`steps: string[]` + `imgDetail`，都可空）；`/sync` 加第 4 类资源 `customExercises`（LWW + 墓碑 + `rejected.kind=customExercise`）和 `catalogRev`；`cmd/seed-catalog` + `content/exercises.json`（105 个动作 / 18 个 hot）。后端 **76 项断言组全绿**（14 单元 + 23 集成，含四表分页、rev 区间、坏行隔离），HTTP 契约升到 **v3.3**。**E2（数据源）/ E3（我的动作页）/ E4（详情页）客户端三块均已完成**（见上）。
 - **训练日程 / 有氧记录**：只有 v0.1 设计，无代码。
 
 ## 已知的坑
@@ -173,15 +175,19 @@ docs/                   文档体系（见下）
 ## 常用操作
 
 ```bash
-# 六套自测（改完必跑，现在全绿 · 合计 463 项）
+# 六套自测（改完必跑，现在全绿 · 合计 484 项）
 cd app && for f in test.js test-page.js test-sync.js test-training.js test-metrics.js test-catalog.js; do echo "--- $f"; node $f || break; done
+
+# 同上但只报项数（_cache 不进版本库；没有就手敲上面那行）
+bash _cache/run_tests.sh
 
 # 语法 / JSON / db 方法 / 字体缺字，一把过（有失败项退出码 1）
 bash _cache/check_app.sh
 
-# 没有开发者工具时看页面效果：渲染 8 页成 HTML → 逐页截图 → 拼成对照图
-node _cache/render_pages.js       # 模拟 wx/Page/Component，跑 onLoad 拿 data，wxml 求值成 HTML
-bash _cache/shot.sh               # Edge headless 截 375×812 @2x
+# 没有开发者工具时看页面效果：渲染成 HTML → 逐页截图 → 拼成对照图
+RENDER_W=430 node _cache/render_pages.js   # 模拟 wx/Page/Component，跑 onLoad 拿 data，wxml 求值成 HTML
+                                           # 判 UI 一律 430 宽（iPhone 15 PM）；不传 RENDER_W 仍是 375
+bash _cache/shot.sh               # Edge headless 截 375×812 @2x（老脚本，430 见 shot_exercise.sh）
 python3.12 _cache/stitch.py       # 拼成 _cache/grid1.png / grid2.png
 
 # 双远端推送（先确认当前分支）
