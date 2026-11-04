@@ -11,38 +11,36 @@
 
 ## 分支地图（先看这里，别推错）
 
+**2026-11-04 已收拢成一条线：只剩 `main`。**
+
 | 位置 | 分支 | 指向 | 状态 |
 |---|---|---|---|
-| github | **`main`** | **`0677811`** | **主线**。#37–#41 已合入：字体+tabBar、动作库 E1–E4、安全存储、字体补字 |
-| **本地** | **`feat/fonts-on-main`** | `1dd5b8e` | **最完整的代码**（领先 main 47 文件 / 4355 行净差异）：身体指标 P5、进步可视化 P7、S7 部署、真后端测试都还在这儿没拆 |
-| github | `feat/fonts-tabbar` | `b78a4ee` | ✅ 已由 #37 合入 |
-| github | `feat/catalog` | `17c559a` | ✅ 已由 #38 合入 |
-| github | `feat/fonts-rebuild` / `-2` | `f2e72f6` / `1bb28cb` | ✅ 已由 #39 / #41 合入 |
-| github | `feat/safe-storage` | `05b291b` | ✅ 已由 #40 合入 |
-| 本地 | `feat/backend-sync-design` | `f055522` | **已废弃**（上游被删）。只留历史 |
-| gitee | `main` / 两个旧分支 | `452ad47` / `f055522` | **旧镜像，落后一大截**（落后 main 5 个 PR），没跟上 |
+| github | **`main`** | **`39652f7`** | **唯一主线**。已合入 feat/fonts-on-main 的全部内容：身体指标 P5 / 进步可视化 P7 / S7 部署 / 记录单位三态 / 详情页动作档案 |
+| 本地 | **`main`** | `39652f7` | 与 github 同步；**它跟踪的是 `gitee/main`，所以 `git status` 会显示 ahead 63**，别被吓到 |
+| 本地 | `backup/pre-main-merge` | `0f84b6e` | 合并前的临时备份，确认没问题后可 `git branch -D backup/pre-main-merge` |
+| gitee | `main` | `452ad47` | **旧镜像，落后 63 个提交**，要同步得单独 `git push gitee main` |
 
 远端：`gitee`(man-qianyi/lianjie) + `github`(yi199/lianjie，ssh://git@ssh.github.com:443)。
 
-### ★ squash 合并的后遗症（2026-11-04 踩到）
+已删除的 8 个旧分支（内容都在 main 里，不用找回）：
+`feat/fonts-tabbar` `feat/catalog` `feat/fonts-rebuild` `feat/fonts-rebuild-2`
+`feat/safe-storage` `feat/fonts-on-main` `feat/backend-sync-design`（废弃）`feat/onboarding-rewards`
 
-主线用 **squash** 合并，每个 PR 压成一个新 SHA。结果是**源分支与 main 失去血缘**：
+### ★ squash 合并的坑（2026-11-04 踩到，已处理完）
 
-```
-git rev-list --count github/main..feat/fonts-on-main   → 32（假数字，内容上很多已合过）
-git diff --stat github/main feat/fonts-on-main         → 47 文件 / 4355 行（这才是真实剩余量）
-```
+主线用 **squash** 合并，每个 PR 压成一个新 SHA，**源分支与 main 失去血缘**：
+`git rev-list --count github/main..feat/fonts-on-main` 会给出 32 这种假数字。
 
-**判断还得做多少，只看 `git diff --stat`，别看 rev-list。** 拆下一批 PR 时：
-- ✅ 从新 main 开分支 + `git cherry-pick <提交>`，或按主题 `git checkout main -- <文件>`
-- ❌ 不要再用 `_cache/build_tabbar_pr.sh` 那种 `git reset --hard <旧基点>` —— 基点已经和 main 无血缘，而且 reset 会让开发者工具热重载读到中间态、报一堆 ENOENT（见坑表）
-
+**判断一个分支能不能删，不能看 `--is-ancestor`，要看内容**：
+`git diff --shortstat main <branch>` —— 为空、或差异只体现"main 比它多"，才是真合并了。
+合并时同理：先 `git diff main <branch>` 确认分支是超集，再 `git merge <branch> -X theirs`，
+冲突块全是"分支新增、main 侧为空"的那种。
 
 ## 怎么跑
 
 ```bash
-# 数据层 / 页面逻辑 / 同步 / 训练记录，四套都要绿
-cd app && node test.js && node test-page.js && node test-sync.js && node test-training.js
+# 七套自测都要绿（数据层 / 页面 / 同步 / 训练记录 / 进步 / 动作库 / 指标）
+cd app && node test.js && node test-page.js && node test-sync.js && node test-training.js   && node test-progress.js && node test-catalog.js && node test-metrics.js
 
 # 语法 / JSON / wxml 类名 / db 方法检查
 bash _cache/check_app.sh
