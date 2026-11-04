@@ -146,7 +146,7 @@ docs/                   文档体系（见下）
 - **P5 身体指标**：M1–M3 已做（v0.1）；**剩下**：和进步可视化 V3 对接（体重换算自重负荷、力量水平评级）。
 - **P6 上线准备**：隐私协议、数据导出/注销、监控告警、备份演练、灰度。
 - **P7 进步可视化**（V1–V3）：`docs/设计文档/进步可视化.md` 已有业务设计，代码零。字段部分（`rir`/`assist`）已落库。
-- **动作库 v1.3**：设计定稿（E1–E4 实施方案），未开始实现。
+- **动作库 v1.3 · E1 服务端已完成**（2026-11-04）：`exercises` / `catalog_meta` / `user_exercises` 三张表；`GET /api/catalog?since=`（免登录、独立 IP 限流、`since>=rev` → 304 空 body、`order by hot desc,id`）；`GET /api/exercises/{id}`（要登录，`steps: string[]` + `imgDetail`，都可空）；`/sync` 加第 4 类资源 `customExercises`（LWW + 墓碑 + `rejected.kind=customExercise`）和 `catalogRev`；`cmd/seed-catalog` + `content/exercises.json`（105 个动作 / 18 个 hot）。后端 **76 项断言组全绿**（14 单元 + 23 集成，含四表分页、rev 区间、坏行隔离），HTTP 契约升到 **v3.3**。**E2/E3/E4（客户端数据源、换动作、详情页）仍未开始。**
 - **训练日程 / 有氧记录**：只有 v0.1 设计，无代码。
 
 ## 已知的坑

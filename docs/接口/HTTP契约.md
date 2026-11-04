@@ -1,9 +1,11 @@
-# 练界 · HTTP 接口契约 v3.2
+# 练界 · HTTP 接口契约 v3.3
 
 > 前端与后端的**唯一约定**：字段名、同步语义、校验规则、错误码都以这里为准。
 > 设计依据见 [`技术方案.md`](../技术方案.md)，排期见 [`开发计划.md`](../开发计划.md)。
 > 各模块对表和接口的扩展见 [`设计文档/`](../设计文档/README.md)（如训练记录新增的 `workouts` 表与组记录字段），实现后合入本契约。
-> **与模块文档冲突时以模块文档为准**，并把改动合入本文（模块文档已逐条合入：v3 的 `workouts` 与 7 个新字段即来自 [`设计文档/训练记录.md`](../设计文档/训练记录.md)）。
+> **与模块文档冲突时以模块文档为准**，并把改动合入本文
+> （v3 的 `workouts` 与 7 个新字段来自 [`设计文档/训练记录.md`](../设计文档/训练记录.md)；
+> v3.3 的 `customExercises` / `/catalog` / `/exercises/{id}` 来自 [`设计文档/动作库.md`](../设计文档/动作库.md)）。
 
 ---
 
@@ -16,7 +18,7 @@
 | 命名 | 数据库 snake_case，API 一律 camelCase |
 | 时间 | RFC 3339，UTC，毫秒精度：`2026-10-29T10:12:03.123Z`（即 JS `toISOString()` 的输出） |
 | 日期 | `YYYY-MM-DD`，**用户本地时区的自然日**，由客户端决定 |
-| 鉴权 | 除 `/login`、`/healthz`、`/readyz` 外都要 `Authorization: Bearer <token>` |
+| 鉴权 | 除 `/login`、`/catalog`、`/healthz`、`/readyz` 外都要 `Authorization: Bearer <token>` |
 | 成功 | `200` + 直接返回数据体（不套 `{code, data}` 信封） |
 | 失败 | 非 2xx + `{ "error": { "code": "AUTH_EXPIRED", "message": "…" } }`，错误码见 §6 |
 
@@ -135,6 +137,45 @@ sig = level + '|' + days + '|' + place + '|' + programId
 
 `workouts` 与 `sets` 之间**没有外键**：离线时两条记录可能分不同批次到达，加外键会让先到的那批写入失败、整批重试，同步卡住。两者靠「同一用户 + 同一天」关联，**某天有 `done=true` 的组就算练过**，即使对应的 workouts 行暂时缺失。
 
+### 1.6 自建动作 `CustomExerciseRow`（v3.3 新增）
+
+用户自己建的动作。和组记录同一套机制（自然主键 + `rev` + LWW + 墓碑），
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| `exId` | string | **`u-` 开头，总长 3–16 字节**，只含小写字母/数字/连字符 | 主键之一 |
+| `cn` | string | 1–24 字 | 动作名 |
+| `part` | string | `chest\|shoulders\|arms\|back\|legs\|core`，必填 | 服务端校验 |
+| `place` | string | `gym\|home`，必填 | **只有两个值**：`both` 会被客户端的等值筛选永久过滤掉 |
+| `unit` | string | `kg\|bw\|sec`，必填 | |
+| `tips` | string | ≤ 64 字，可空 | 一句话技术要点 |
+| `done` | bool | | `false` = **墓碑** |
+| `updatedAt` | string | RFC 3339，**必填** | 客户端写入时刻，用于 LWW |
+
+**为什么强制 `u-` 前缀**：`exId` 会写进每一组记录、是 `sets` 主键的一部分永久存着，而它有两个生成者——官方（服务端建、能查重）和自建（手机上离线生成、没法查重）。前缀让两套 id 空间**结构上不相交**，所以不需要查重、不需要申请号段。官方 id 是 `g1` / `h12` 这种形式，永远不带 `u-`。
+
+**为什么 ≤16 字节**：`ex_id` 是 `sets` 主键的一部分。超长的自建动作会让「用这个动作记的**每一组**」在同步时被拒收，再按 `rejected` 出队 = 数据静默丢失。
+
+`/sync` 里它是**第 4 类资源**，跟 `sets` 完全同一套处理（整行 LWW、落败行刷新 `rev`、墓碑跨设备传播、计入 500 行上限）。
+
+### 1.7 官方动作 `catalogExercise`（v3.3 新增，只读）
+
+全局内容，**不进同步**，整份下发。清单只给缩略图，详细插画在要登录的详情接口后面。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | string | 官方 id：`^[a-z][a-z0-9]{0,5}$`（`g1` / `h12`），永不变、永不复用 |
+| `cn` / `en` | string | 中文名 / 英文名 |
+| `part` | string | 六个部位之一 |
+| `place` | string | `gym\|home` |
+| `unit` | string | `kg\|bw\|sec` |
+| `tips` | string | ≤64 字，列表直接显示 |
+| `hot` | bool | 热点：只影响排序和内容制作顺序 |
+| `imgThumb` | string | 缩略图 URL（`https://`），可空 |
+| `retired` | bool | **下架标记，照常下发，由客户端过滤**——整份替换才能覆盖本地旧的「未下架」状态 |
+
+详情接口额外返回 `steps: string[]`（≤10 步、每步 ≤200 字）和 `imgDetail`（大图 URL）。两者都允许为空，页面主体不依赖它们。
+
 ---
 
 ## 2. 数据库表
@@ -235,12 +276,55 @@ create table user_config (
   updated_at  timestamptz not null,
   rev         bigint      not null
 );
+
+-- v3.3 动作库：官方动作（全局内容，不进同步，没有 rev 列）
+create table exercises (
+  id          text        primary key,
+  cn          text        not null,
+  en          text        not null default '',
+  part        text        not null,
+  place       text        not null default 'gym',
+  unit        text        not null default 'kg',
+  tips        text        not null default '',
+  hot         boolean     not null default false,
+  steps       jsonb       not null default '[]',
+  img_thumb   text        not null default '',
+  img_detail  text        not null default '',
+  retired     boolean     not null default false,
+  updated_at  timestamptz not null default now()
+);
+create index exercises_hot_idx on exercises (hot) where hot;
+
+-- v3.3 动作库：整份版本号（单行表，每次导入 rev+1）
+create table catalog_meta (
+  id         int         primary key default 1 check (id = 1),
+  rev        bigint      not null default 1,
+  updated_at timestamptz not null default now()
+);
+insert into catalog_meta (id, rev) values (1, 1) on conflict (id) do nothing;
+
+-- v3.3 动作库：用户自建动作（跟 sets 同一套 rev + LWW + 墓碑）
+create table user_exercises (
+  user_id    bigint      not null references users(id) on delete cascade,
+  ex_id      text        not null,              -- 'u-m8f2k9ab-a7x2'
+  cn         text        not null,
+  part       text        not null,
+  place      text        not null default 'gym',
+  unit       text        not null default 'kg',
+  tips       text        not null default '',
+  done       boolean     not null default true,
+  updated_at timestamptz not null,
+  rev        bigint      not null,
+  primary key (user_id, ex_id)
+);
+create index user_exercises_rev_idx on user_exercises (user_id, rev);
 ```
 
 建表语句由服务启动时自动执行，全部 `IF NOT EXISTS`。**改结构只加列（`ADD COLUMN IF NOT EXISTS`），不删列**，保证新旧实例滚动发布时都能跑。
 
 **没有的表**：`plans`（客户端推导）、`swaps` / `custom_programs`（并入 `user_config`）、任何统计 / 聚合表。
 **v3 新增了 `workouts`**（见上）；它和 `sets` 之间**故意不加外键**（理由见 §1.5）。
+**v3.3 新增了 `exercises` / `catalog_meta` / `user_exercises`**：官方动作是全局内容、单独一张表，不挂 `user_id`、不进同步；自建动作才挂用户、走 `/sync`。官方内容的写入只走 `cmd/seed-catalog`，服务端没有管理后台接口。
 
 ---
 
@@ -254,6 +338,8 @@ create table user_config (
 | **POST** | **`/sync`** | ✓ | 按用户 | **唯一写入口**：上传增量 + 拉取增量 |
 | GET | `/history/summary` | ✓ | 按用户 | 全量聚合（可选，不在关键路径） |
 | GET | `/metrics?kind=&from=&to=` | ✓ | 按用户 | 指标时间序列（图表用，可选） |
+| **GET** | **`/catalog?since=<rev>`** | — | **按 IP（独立限流器）** | **官方动作整份清单（v3.3）** |
+| GET | `/exercises/{id}` | ✓ | 按用户 | 动作详情：`steps` + 大图（v3.3） |
 
 **v1 里有、v2 删掉的端点**：`GET/PUT /me`、`GET /plans`、`GET /sets`、`GET /programs`、`PUT/DELETE /programs/custom`、`PUT /swaps`。全部被 `/sync` + 配置文档取代——**一条写路径，重试逻辑只有一处**。
 
@@ -284,9 +370,10 @@ create table user_config (
 // 请求
 {
   "cursor": 1234,                // 上次响应里的 cursor；首次传 0
-  "sets":    [ /* SetRow，≤ 500 条（sets + workouts + metrics 合计） */ ],
+  "sets":    [ /* SetRow，≤ 500 条（四类资源合计） */ ],
   "workouts":[ /* WorkoutRow，v3 新增 */ ],
   "metrics": [ /* MetricRow */ ],
+  "customExercises": [ /* CustomExerciseRow，v3.3 新增；本地动作没改过就传空数组 */ ],
   "config":  { "body": { … }, "updatedAt": "…" }    // 本地配置没改过就传 null
 }
 
@@ -301,12 +388,19 @@ create table user_config (
   "sets":     [ /* cursor 之后别的设备写的、或本次落败需要回推的行 */ ],
   "workouts": [ … ],             // v3
   "metrics":  [ … ],
+  "customExercises": [ … ],      // v3.3
   "config":   null,              // 服务端配置比 cursor 新时才下发
+  "catalogRev": 5,               // v3.3：官方动作清单的整份版本号（每次都带）
   "serverTime": "2026-10-29T10:12:05.000Z"   // 仅供排查，客户端不要拿它做任何判断
 }
 ```
 
-`rejected[].kind` 取值：`set` / `workout` / `metric` / `config`。
+`rejected[].kind` 取值：`set` / `workout` / `metric` / **`customExercise`** / `config`。
+
+**`catalogRev` 怎么用**：客户端把它和自己 `lj.catalog.rev` 比——
+`catalogRev > 本地 rev` → 去 `GET /api/catalog?since=<本地 rev>` 整份拉；
+`catalogRev < 本地 rev` → 服务端被重置过，按 0 处理、强制全量拉一次（自愈）；
+相等 → 什么都不做。它挂在 `/sync` 上而不是独立心跳：`/sync` 的触发点（`onShow`、改动后防抖、失败重试）都是现成的，零额外请求。
 
 #### 服务端处理流程
 
@@ -402,7 +496,7 @@ where w.user_id = $uid and w.date = $date;
 
 | 项 | 上限 | 超出时 |
 |---|---|---|
-| 单次上传行数（sets + workouts + metrics） | 500 | `400 TOO_MANY_ROWS`，客户端分批 |
+| 单次上传行数（sets + workouts + metrics + customExercises） | 500 | `400 TOO_MANY_ROWS`，客户端分批 |
 | 单次下发行数 | 1000 | `hasMore=true` |
 | 请求体 | 2MB | `400 BODY_INVALID` |
 | 配置文档 | 64KB | 进 `rejected` |
@@ -446,6 +540,43 @@ where w.user_id = $uid and w.date = $date;
 
 容器存活探针用 `healthz`（数据库抖动时不要重启进程），负载均衡摘流量用 `readyz`。
 
+### 4.6 `GET /api/catalog?since=<rev>`（v3.3，免登录）
+
+```jsonc
+// 200：永远是整份清单
+{
+  "rev": 5,
+  "exercises": [
+    { "id": "g1", "cn": "卧推", "en": "Bench Press", "part": "chest", "place": "gym",
+      "unit": "kg", "tips": "肩胛后收下沉，杠铃落到乳头连线", "hot": true,
+      "imgThumb": "", "retired": false }
+  ]
+}
+```
+
+- **`since` 只决定「要不要给」，不决定「给多少」**：`since >= 当前 rev` → `304`（空 body）；否则整份返回。
+  客户端因此只有一条写入路径（整份替换），不需要处理增量合并。
+- 不传 `since` = 一定给；`since` 非整数或负数 → `400 SINCE_INVALID`。
+- 顺序由服务端定：`order by hot desc, id`。Postgres 不带 `ORDER BY` 时返回顺序未定义，
+  两次拉取间顺序跳变会让用户觉得动作位置自己变了。
+- `retired=true` 的行照常下发，**由客户端过滤**：整份替换才能覆盖本地旧的「未下架」状态。
+- **自愈**：客户端本地 `rev` 大于服务端（服务端被重置/回滚过）时按 `0` 处理，否则
+  `since >= rev` 恒成立、清单永远不再刷新。
+- 限流用**独立**的 IP 限流器（`newLimiter(2, 60)`）：这个接口会被 `onShow` 频繁触发，
+  复用人 `/login` 的 `(1, 10)` 会让正常用户撞限流，运营商 NAT 下整片 IP 更糟。
+
+### 4.7 `GET /api/exercises/{id}`（v3.3，要登录）
+
+```jsonc
+// 200
+{ "id": "g1", "steps": ["仰卧，肩胛后收", "握距略宽于肩", "下放到胸，推起"], "imgDetail": "" }
+```
+
+- `steps` 是 `string[]`（≤10 步、每步 ≤200 字），不是 Markdown：省一个解析器、省包体、没有 XSS 面。
+- `steps` 和 `imgDetail` 都允许为空——**页面主体（名字、部位、`tips`）不依赖这个接口**，拉不到就不显示图。
+- 大图放在这里而不是清单里：匿名面只给缩略图，`curl` 批量抓内容至少要有账号。
+- `id` 为空或 >16 字节 → `400 ID_INVALID`；动作不存在 → `404 EXERCISE_NOT_FOUND`。
+
 ---
 
 ## 5. 客户端同步行为（`utils/sync.js` 的职责）
@@ -479,6 +610,9 @@ where w.user_id = $uid and w.date = $date;
 |---|---|---|---|
 | 400 | `BODY_EMPTY` / `BODY_INVALID` | 请求体为空 / 不是合法 JSON / 超过 2MB | bug，记日志 |
 | 400 | `CODE_INVALID` | 登录 code 为空或过长 | 重新 `wx.login` |
+| 400 | `SINCE_INVALID` | `/catalog` 的 `since` 不是非负整数 | bug，按 0 重试（强制全量） |
+| 400 | `ID_INVALID` | 动作 id 为空或 >16 字节 | bug，记日志 |
+| 404 | `EXERCISE_NOT_FOUND` | 详情接口的动作不存在 | 不重试，页面只显示列表字段 |
 | 400 | `TOO_MANY_ROWS` | 单次超过 500 行 | bug，分批 |
 | 400 | `DATE_INVALID` | 查询参数日期格式错 | bug |
 | 401 | `AUTH_MISSING` / `AUTH_EXPIRED` | 无 token / 过期 / 用户已删除 | 静默重新登录 |
