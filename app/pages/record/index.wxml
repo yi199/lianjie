@@ -71,7 +71,7 @@
   <view class="sets">
     <view class="sh">
       <text>组记录</text>
-      <text class="shnote">点数字可改 · 打勾算完成</text>
+      <text class="shnote">点数字可改 · 填好数字再打勾</text>
     </view>
     <set-row
       wx:for="{{sets}}"

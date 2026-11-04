@@ -63,6 +63,10 @@ Page({
     wx.navigateTo({ url: '/pages/programs/index' });
   },
 
+  gotoMetrics() {
+    wx.navigateTo({ url: '/pages/metrics/index' });
+  },
+
   gotoMyExercises() {
     wx.navigateTo({ url: '/pages/my-exercises/index' });
   },

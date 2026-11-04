@@ -8,12 +8,17 @@
 
 const store = {};
 const calls = [];
+let modalConfirm = true;      // 测试里控制 showModal 点「确定」还是「取消」
 
 global.wx = {
   getStorageSync(k) { return store[k] === undefined ? '' : store[k]; },
   setStorageSync(k, v) { store[k] = v; },
   removeStorageSync(k) { delete store[k]; },
   showToast(o) { calls.push(['toast', o.title]); },
+  showModal(o) {
+    calls.push(['modal', o.title]);
+    if (o.success) o.success({ confirm: modalConfirm, cancel: !modalConfirm });
+  },
   navigateTo(o) { calls.push(['nav', o.url]); },
   redirectTo(o) { calls.push(['redirect', o.url]); },
   switchTab(o) { calls.push(['tab', o.url]); },
@@ -36,6 +41,9 @@ global.Page = function (obj) {
 
 const db = require('./utils/db');
 const D = require('./utils/date');
+
+// 页面测试不需要真同步：dev 环境下同步默认打开，写记录会真去连本地后端，进程会挂在那儿等超时
+require('./utils/config').setApiBase(null);
 
 let failed = 0;
 function ok(label, cond, extra) {
@@ -279,9 +287,7 @@ function fakeDetail(out) {
     [ep.data.partCn, ep.data.placeCn, ep.data.unitCn].join('/'));
   ok('点进详情时要点已经在页面上（不必等网络）', String(ep.data.ex.tips).indexOf('肩胛') === 0, ep.data.ex.tips);
   await new Promise(function (r) { setTimeout(r, 0); });
-  ok('没有 loader 时不卡在加载态（降级成「讲解还没补上」）', ep.data.loading === false && ep.data.failed === true,
-    'loading=' + ep.data.loading + ' failed=' + ep.data.failed);
-  ok('「怎么记」按单位给文案', ep.data.howto.indexOf('按重量记') === 0, ep.data.howto);
+  ok('没有 loader 时页面不卡（要点本地就有）', !!ep.data.ex.tips);
 
   /* ---- 9.2 拉到 steps + 大图 ---- */
   fakeDetail({ steps: ['躺下，肩胛后收', '起杠，落到胸口', '推起，别锁死肘'], imgDetail: 'https://cdn.example.com/g1.jpg' });
@@ -290,10 +296,12 @@ function fakeDetail(out) {
   await new Promise(function (r) { setTimeout(r, 0); });
   ok('请求路径是 /exercises/{id}', detailCalls.length === 1 && detailCalls[0][0] === '/exercises/g1',
     JSON.stringify(detailCalls));
-  ok('步骤渲染成 01/02/03', ep.data.steps.length === 3 && ep.data.steps[2].no === '03',
-    ep.data.steps.map(function (s) { return s.no; }).join(','));
+  ok('现在不再渲染步骤', ep.data.steps === undefined);
   ok('大图地址进了页面', ep.data.imgUrl === 'https://cdn.example.com/g1.jpg', ep.data.imgUrl);
-  ok('有内容时不算失败、不在加载态', ep.data.loading === false && ep.data.failed === false);
+  ok('动作档案 5 项都在（难度/器材/肌群/单双侧/类型）',
+    ep.data.metaRows.length === 5 && ep.data.metaRows[4].k === '类型',
+    ep.data.metaRows.map(function (x) { return x.k + '=' + x.v; }).join(' · '));
+  ok('页面不再有加载/失败态字段', ep.data.loading === undefined && ep.data.failed === undefined);
 
   /* ---- 9.2b 再进来一次走缓存，不重复打后端 ---- */
   const callsBefore = detailCalls.length;
@@ -302,15 +310,15 @@ function fakeDetail(out) {
   await new Promise(function (r) { setTimeout(r, 0); });
   ok('7 天内再进同一个动作不重复请求（走详情缓存）', detailCalls.length === callsBefore,
     callsBefore + ' → ' + detailCalls.length);
-  ok('缓存里的步骤照样渲染', ep.data.steps.length === 3, ep.data.steps.length + ' 步');
+  ok('缓存里也能拿到插画地址', ep.data.imgUrl === 'https://cdn.example.com/g1.jpg', ep.data.imgUrl);
 
   /* ---- 9.3 请求失败：不阻塞，要点照旧（换一个没缓存的 id） ---- */
   CAT.setDetailLoader(function () { return Promise.reject(new Error('network')); });
   ep = loadPage('./pages/exercise/index');
   ep.onLoad({ id: 'g15' });
   await new Promise(function (r) { setTimeout(r, 0); });
-  ok('拉不到讲解 → 标失败并给「再试一次」', ep.data.failed === true && ep.data.steps.length === 0);
-  ok('失败时标题和要点没丢', ep.data.ex.cn === '上斜卧推' && !!ep.data.ex.tips, ep.data.ex.cn);
+  ok('拉不到讲解不崩、也不留破图框', ep.data.imgUrl === '');
+  ok('拉不到讲解时标题和要点没丢', ep.data.ex.cn === '上斜卧推' && !!ep.data.ex.tips, ep.data.ex.cn);
   ok('图挂了就当没图（不留破图框）', ep.data.imgUrl === '', ep.data.imgUrl);
 
   /* ---- 9.4 自建动作：不打后端 ---- */
@@ -323,7 +331,7 @@ function fakeDetail(out) {
   ep.onLoad({ id: mine.exId });
   await new Promise(function (r) { setTimeout(r, 0); });
   ok('自建动作不去问服务端（服务端也没有这条）', detailCalls.length === 0, detailCalls.length + ' 次请求');
-  ok('自建动作标记成 custom、直接结束加载', ep.data.custom === true && ep.data.loading === false);
+  ok('自建动作不额外打后端、页面照常', ep.data.ex.cn === '绳索夹胸');
   ok('自建动作显示自己的要点', ep.data.ex.tips === '肘别乱飞', ep.data.ex.tips);
 
   /* ---- 9.5 id 不存在 ---- */
@@ -346,12 +354,145 @@ function fakeDetail(out) {
     calls.length === 1 && calls[0][1] === '/pages/exercise/index?id=' + exId,
     JSON.stringify(calls));
 
+  /* ---- 11. 打勾校验 / 撤销要确认 ---- */
+  console.log('\n=== 11. 打勾校验 / 撤销确认 ===');
+
+  db.resetAll();
+  db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+  const rc = loadPage('./pages/record/index');
+  rc.onLoad({});
+  const exIdNow = rc.data.ex.exId;
+
+  ok('负重动作：没重量不许打勾（提示先填重量）',
+    rc.validateSet({ unit: 'kg', weight: 0, reps: 8 }) === '先填这组的重量');
+  ok('自重动作：没重量可以打勾（只要填了次数）',
+    rc.validateSet({ unit: 'bw', weight: 0, reps: 8 }) === '');
+  ok('计时动作：没秒数不许打勾',
+    rc.validateSet({ unit: 'sec', weight: 0, reps: 0 }) === '先填这组撑了几秒');
+  ok('次数为 0 一律不许打勾',
+    rc.validateSet({ unit: 'kg', weight: 50, reps: 0 }) === '先填这组做了几次');
+
+  rc.onWeightChange({ detail: { no: 1, value: 0 } });
+  rc.onRepsChange({ detail: { no: 1, value: 8 } });
+  calls.length = 0;
+  rc.onToggle({ detail: { no: 1 } });
+  ok('重量空着点勾 → 只有提示，不算完成',
+    rc.data.sets[0].done === false && calls.some(function (c) { return c[0] === 'toast'; }),
+    JSON.stringify(calls));
+  ok('被拦下的那组没有写进库', db.todaySets(rc.date).length === 0, db.todaySets(rc.date).length);
+
+  rc.onWeightChange({ detail: { no: 1, value: 50 } });
+  rc.onRepsChange({ detail: { no: 1, value: 0 } });
+  rc.onToggle({ detail: { no: 1 } });
+  ok('次数空着点勾 → 也不算完成', rc.data.sets[0].done === false && db.todaySets(rc.date).length === 0);
+
+  rc.onRepsChange({ detail: { no: 1, value: 8 } });
+  rc.onToggle({ detail: { no: 1 } });
+  ok('数字填好之后才能打勾', rc.data.sets[0].done === true && db.todaySets(rc.date).length === 1,
+    db.todaySets(rc.date).length + ' 组');
+
+  // 撤销：默认「不动它」
+  modalConfirm = false;
+  calls.length = 0;
+  rc.onToggle({ detail: { no: 1 } });
+  ok('点已完成的勾 → 弹确认，不是直接删',
+    calls.some(function (c) { return c[0] === 'modal'; }) && db.todaySets(rc.date).length === 1,
+    JSON.stringify(calls));
+  ok('选了「不动它」那组还在', rc.data.sets[0].done === true && db.todaySets(rc.date).length === 1);
+
+  // 确认撤销
+  modalConfirm = true;
+  rc.onToggle({ detail: { no: 1 } });
+  ok('确认之后才真的撤销（记录也跟着删掉）',
+    db.todaySets(rc.date).length === 0 && rc.data.sets[0].done === false);
+
+  // 底部按钮走同一条校验
+  rc.onWeightChange({ detail: { no: 1, value: 0 } });
+  rc.onRepsChange({ detail: { no: 1, value: 8 } });
+  calls.length = 0;
+  rc.mainAction();
+  ok('底部「完成这组」也拦：没重量不算完成',
+    rc.data.sets[0].done === false && calls.some(function (c) { return c[0] === 'toast'; }),
+    JSON.stringify(calls));
+  ok('底部按钮被拦时也没有落库', db.todaySets(rc.date).length === 0);
+
+  // 已完成的组不能被改成不合法值
+  rc.onWeightChange({ detail: { no: 1, value: 50 } });
+  rc.onRepsChange({ detail: { no: 1, value: 8 } });
+  rc.onToggle({ detail: { no: 1 } });
+  calls.length = 0;
+  rc.onWeightChange({ detail: { no: 1, value: 0 } });
+  const kept = db.todaySets(rc.date)[0];
+  ok('已完成的组把重量改成空 → 拒绝，并保留原值',
+    !!kept && kept.weight === 50 && calls.some(function (c) { return c[0] === 'toast'; }),
+    kept && kept.weight);
+
+  /* ---- 12. 进步页（P7 · V2） ---- */
+  console.log('\n=== 10. 进步页 ===');
+
+  db.resetAll();
+  db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+  const pgEmpty = loadPage('./pages/progress/index');
+  pgEmpty.onLoad();
+  pgEmpty.onShow();
+  ok('一条记录都没有 → 空态，不画假曲线', pgEmpty.data.empty === true);
+
+  db.loadDemo();
+  const pg = loadPage('./pages/progress/index');
+  pg.onLoad();
+  pg.onShow();
+  ok('有示例数据 → 给预览而不是空态', pg.data.empty === false && pg.data.demo === true,
+    'empty=' + pg.data.empty + ' demo=' + pg.data.demo);
+  ok('全身指数大于 1（练了就有进步）', Number(pg.data.indexText) > 1, pg.data.indexText);
+  ok('给出比起点强了百分之几', pg.data.upText.indexOf('+') === 0, pg.data.upText);
+  ok('周走势有柱子，且最后一根是本周',
+    pg.data.weeks.length > 0 && pg.data.weeks[pg.data.weeks.length - 1].on === true,
+    pg.data.weeks.length + ' 根');
+  ok('每根柱子都有高度', pg.data.weeks.every(function (w) { return w.h > 0 && w.h <= 100; }));
+  ok('肌群列表非空、带中文名', pg.data.parts.length > 0 && !!pg.data.parts[0].name,
+    pg.data.parts.map(function (p) { return p.name; }).join(','));
+  ok('动作榜非空、每行带状态文案', pg.data.actions.length > 0 && !!pg.data.actions[0].statusCn,
+    pg.data.actions.length + ' 个动作');
+  ok('高光最多给 6 条', pg.data.highlights.length <= 6 && pg.data.highlights.length > 0,
+    pg.data.highlights.length);
+
+  const firstId = pg.data.actions[0].exId;
+  pg.toggle({ currentTarget: { dataset: { id: firstId } } });
+  ok('点动作行 → 展开最近几次的力量值', pg.data.openId === firstId && pg.data.openSeries.length > 0,
+    pg.data.openSeries.length + ' 次');
+  ok('展开的数据带着日期和单位', !!pg.data.openSeries[0].date && !!pg.data.openSeries[0].unit);
+  ok('展开时说明用的是什么模型', !!pg.data.openModel, pg.data.openModel);
+  pg.toggle({ currentTarget: { dataset: { id: firstId } } });
+  ok('再点一下收起', pg.data.openId === '' && pg.data.openSeries.length === 0);
+
+  // 真实记录一旦有，就不再拿示例数据讲故事
+  ['2026-09-01', '2026-09-05', '2026-09-09'].forEach(function (d) {
+    db.saveSet({ date: d, exId: 'g1', setNo: 1, weight: 60, reps: 8, unit: 'kg' });
+    db.saveSet({ date: d, exId: 'g1', setNo: 2, weight: 60, reps: 8, unit: 'kg' });
+  });
+  const pgReal = loadPage('./pages/progress/index');
+  pgReal.onLoad();
+  pgReal.onShow();
+  ok('有真实记录后不再用示例数据', pgReal.data.demo === false);
+  ok('真实记录也能算出全身指数', Number(pgReal.data.indexText) >= 1, pgReal.data.indexText);
+
+  const statsEntry = loadPage('./pages/stats/index');
+  statsEntry.onLoad();
+  calls.length = 0;
+  statsEntry.gotoProgress();
+  ok('数据页的「强了多少」跳到进步页',
+    calls.length === 1 && calls[0][1] === '/pages/progress/index', JSON.stringify(calls));
+  statsEntry.onUnload();
+
   CAT.setDetailLoader(null);
   runResult();
 })();
 
 /* ================= 结果 ================= */
 function runResult() {
+  // 同步层会留轮询 / 退避定时器，dev 环境还可能挂着未完成请求；测试跑完直接退出，别让 node 挂着等超时
+  try { require('./utils/sync').stop(); } catch (e) { /* 忽略 */ }
   console.log('\n' + (failed ? ('有 ' + failed + ' 项失败') : '页面测试全部通过') + '\n');
-  if (failed) process.exitCode = 1;
+  process.exit(failed ? 1 : 0);
 }

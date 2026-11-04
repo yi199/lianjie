@@ -17,7 +17,9 @@
 page {
   /* 颜色 */
   --bg: #F2F0E6;
-  --card: #FFFFFF;
+  --card: #FBF8EF;          /* 纸卡：比底色亮一档的暖白，不是纯白 */
+  --card-press: #F1ECDD;    /* 按下时纸被压深的一档 */
+  --press-glow: rgba(31, 35, 28, .05);
   --ink: #1F231C;
   --green: #3C4A32;
   --green-deep: #2A3226;
@@ -36,6 +38,10 @@ page {
   --fs-title: 60rpx;
   --fs-display: 96rpx;
   --fs-num: 76rpx;
+
+  /* 动效：按压统一 120ms，ease-out，按下要"立刻"有反应 */
+  --ease-press: cubic-bezier(.2, .8, .2, 1);
+  --dur-press: 120ms;
 
   /* 间距 */
   --sp1: 12rpx;
@@ -172,6 +178,16 @@ view, text, scroll-view { box-sizing: border-box; }
   background: var(--line);
 }
 
+/* 全局按压过渡：所有可点的纸面元素共用一套时长和曲线（120ms / ease-out）。
+   各页只需要定义「按下时什么样」，不用重复写 transition。 */
+.btn, .cbtn, .savebtn, .sheetok, .swap, .back, .dayadd, .puse, .pedit, .pdel,
+.swapline, .ebtn, .autorow, .barsave, .changebtn, .chip, .row, .plist .pitem {
+  transition: background-color var(--dur-press) var(--ease-press),
+              border-color var(--dur-press) var(--ease-press),
+              color var(--dur-press) var(--ease-press),
+              transform var(--dur-press) var(--ease-press);
+}
+
 /* ================= 按钮 ================= */
 
 .btn {
@@ -185,17 +201,29 @@ view, text, scroll-view { box-sizing: border-box; }
   color: var(--ink);
   font-size: var(--fs-body);
   letter-spacing: .08em;
+  /* 纸被按下去：底色压深一档、整体下沉 1rpx，比单纯降透明度更"实" */
+  transition: background-color var(--dur-press) var(--ease-press),
+              border-color var(--dur-press) var(--ease-press),
+              transform var(--dur-press) var(--ease-press);
 }
 
 .btn-hover {
-  opacity: .9;
-  transform: scale(.985);
+  background: var(--card-press);
+  border-color: rgba(60, 74, 50, .22);
+  transform: translateY(1rpx) scale(.996);
 }
 
 .btn-ghost {
   background: transparent;
   color: var(--green);
   border: 1rpx solid rgba(60, 74, 50, .28);
+}
+
+/* 幽灵按钮按下去不能变成实心：只加一层很淡的绿雾 */
+.btn-ghost.btn-hover {
+  background: rgba(60, 74, 50, .06);
+  border-color: rgba(60, 74, 50, .38);
+  transform: translateY(1rpx) scale(.996);
 }
 
 /* ================= 页面转场 =================

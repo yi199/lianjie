@@ -21,8 +21,18 @@
         <text class="pkname">{{item.name}}</text>
       </view>
     </view>
-    <view class="changebtn" hover-class="changebtn-hover" bindtap="gotoPrograms">
+    <view class="changebtn" hover-class="changebtn-hover" hover-start-time="0" hover-stay-time="140" bindtap="gotoPrograms">
       <text>换方案 / 自己搭</text>
+      <text class="changearrow">→</text>
+    </view>
+  </view>
+
+  <!-- 身体指标 -->
+  <view class="card sec">
+    <view class="cardlabel">身体指标</view>
+    <view class="cname">体重 · 体脂 · 腰围 · 静息心率</view>
+    <view class="changebtn" hover-class="changebtn-hover" hover-start-time="0" hover-stay-time="140" bindtap="gotoMetrics">
+      <text>记录今天 / 看趋势</text>
       <text class="changearrow">→</text>
     </view>
   </view>
@@ -41,9 +51,9 @@
   <view class="sec">
     <view class="sec-h">一周练几次</view>
     <view class="chips">
-      <view class="chip {{profile.days == 2 ? 'on' : ''}}" data-v="2" bindtap="setDays">2 天</view>
-      <view class="chip {{profile.days == 3 ? 'on' : ''}}" data-v="3" bindtap="setDays">3 天</view>
-      <view class="chip {{profile.days == 4 ? 'on' : ''}}" data-v="4" bindtap="setDays">4 天</view>
+      <view class="chip {{profile.days == 2 ? 'on' : ''}}" data-v="2" bindtap="setDays" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">2 天</view>
+      <view class="chip {{profile.days == 3 ? 'on' : ''}}" data-v="3" bindtap="setDays" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">3 天</view>
+      <view class="chip {{profile.days == 4 ? 'on' : ''}}" data-v="4" bindtap="setDays" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">4 天</view>
     </view>
   </view>
 
@@ -51,8 +61,8 @@
   <view class="sec">
     <view class="sec-h">在哪练</view>
     <view class="chips">
-      <view class="chip {{profile.place == 'gym' ? 'on' : ''}}" data-v="gym" bindtap="setPlace">健身房</view>
-      <view class="chip {{profile.place == 'home' ? 'on' : ''}}" data-v="home" bindtap="setPlace">家里</view>
+      <view class="chip {{profile.place == 'gym' ? 'on' : ''}}" data-v="gym" bindtap="setPlace" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">健身房</view>
+      <view class="chip {{profile.place == 'home' ? 'on' : ''}}" data-v="home" bindtap="setPlace" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">家里</view>
     </view>
   </view>
 
@@ -60,9 +70,9 @@
   <view class="sec">
     <view class="sec-h">水平</view>
     <view class="chips">
-      <view class="chip {{profile.level == 'new' ? 'on' : ''}}" data-v="new" bindtap="setLevel">刚开始</view>
-      <view class="chip {{profile.level == 'some' ? 'on' : ''}}" data-v="some" bindtap="setLevel">练过一阵</view>
-      <view class="chip {{profile.level == 'trained' ? 'on' : ''}}" data-v="trained" bindtap="setLevel">一直在练</view>
+      <view class="chip {{profile.level == 'new' ? 'on' : ''}}" data-v="new" bindtap="setLevel" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">刚开始</view>
+      <view class="chip {{profile.level == 'some' ? 'on' : ''}}" data-v="some" bindtap="setLevel" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">练过一阵</view>
+      <view class="chip {{profile.level == 'trained' ? 'on' : ''}}" data-v="trained" bindtap="setLevel" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">一直在练</view>
     </view>
     <view class="hint">改完立刻生效，之后的训练按新计划走。已有的训练记录不会丢。</view>
   </view>
@@ -71,15 +81,15 @@
   <view class="sec">
     <view class="sec-h">数据</view>
     <view class="rows">
-      <view class="row" bindtap="fillDemo" hover-class="row-hover">
+      <view class="row" bindtap="fillDemo" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
         <text class="rowt">填入示例数据</text>
         <text class="rownote">用来看图表效果</text>
       </view>
-      <view class="row" bindtap="clearData" hover-class="row-hover">
+      <view class="row" bindtap="clearData" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
         <text class="rowt">清空训练记录</text>
         <text class="rownote">保留计划设置</text>
       </view>
-      <view class="row" bindtap="restart" hover-class="row-hover">
+      <view class="row" bindtap="restart" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
         <text class="rowt danger">重新引导</text>
         <text class="rownote">全部重来</text>
       </view>

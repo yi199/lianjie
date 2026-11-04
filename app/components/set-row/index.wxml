@@ -1,24 +1,26 @@
 <view class="row {{done ? 'done' : ''}}">
   <text class="idx">{{no}}</text>
 
-  <view class="cell">
-    <input
-      class="num"
-      type="digit"
-      value="{{wDisplay}}"
-      placeholder="{{unit === 'bw' ? '自重' : '0'}}"
-      placeholder-class="ph"
-      disabled="{{!editable}}"
-      bindblur="onWeightBlur"
-      bindconfirm="onWeightBlur"
-      cursor-spacing="30"
-    />
-    <text class="unit" wx:if="{{showKg && wDisplay}}">kg</text>
-  </view>
+  <!-- 重量栏：kg / 自重（额外负重）才有；计时动作整栏不出现 -->
+  <block wx:if="{{showWeight}}">
+    <view class="cell c-weight">
+      <input
+        class="num"
+        type="digit"
+        value="{{wDisplay}}"
+        placeholder="{{unit === 'bw' ? '负重' : '0'}}"
+        placeholder-class="ph"
+        disabled="{{!editable}}"
+        bindblur="onWeightBlur"
+        bindconfirm="onWeightBlur"
+        cursor-spacing="30"
+      />
+      <text class="unit" wx:if="{{showKg && wDisplay}}">kg</text>
+    </view>
+    <text class="x">×</text>
+  </block>
 
-  <text class="x">×</text>
-
-  <view class="cell">
+  <view class="cell c-reps">
     <input
       class="num"
       type="number"

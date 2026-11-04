@@ -36,9 +36,10 @@
   width: 96rpx;
 }
 
-/* 第一列（重量）稍宽，第三列（次数）窄一点 */
-.cell:nth-of-type(1) .num { width: 104rpx; }
-.cell:nth-of-type(2) .num { width: 84rpx; }
+/* 第一列（重量）稍宽，第二列（次数）窄一点。
+   用显式类名，不用 nth-of-type —— 计时动作没有重量栏，序号会错位 */
+.c-weight .num { width: 104rpx; }
+.c-reps .num { width: 84rpx; }
 
 .ph {
   color: #C6C3B4;

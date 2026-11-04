@@ -162,9 +162,30 @@ function initialWeight(exId, level) {
 
 /* ---------------- 示例数据（用户主动点了才生成） ---------------- */
 
+const DEMO_WEEKS = 12;      // 示例数据铺 12 周：进步曲线、周走势、停滞与突破都要够长才看得出来
+
+/** 示例数据的「故事节奏」：前 5 周涨 → 第 6–9 周卡住 → 第 10 周起突破（§7.4 要能产生这些事件） */
+function demoPace(week) {
+  if (week <= 4) return 1 + week * 0.018;               // 稳步加重
+  if (week <= 8) return 1 + 4 * 0.018;                  // 停滞：重量不再动
+  return 1 + 4 * 0.018 + (week - 8) * 0.030;            // 突破：涨得比之前更猛
+}
+
+/** 不同部位涨得快慢不同，肌群榜才不会一条直线 */
+const DEMO_SPEED = { legs: 1.7, back: 1.5, chest: 1.2, shoulders: 0.8, arms: 0.7, core: 0.5 };
+
+/** 前 3 周让俯卧撑还停在跪姿，第 4 周「升级」到标准 —— 进阶阶梯要有真实故事 */
+function demoExId(exId, week) {
+  if (exId === 'h1' && week < 3) return 'h2';
+  return exId;
+}
+
+/** 这两个动作最后几周一直没长：「卡住了」的样子也得在示例数据里看得到 */
+const DEMO_STALLED = ['g5', 'g13'];
+
 /**
- * 造最近五周的假记录（含今天），让数据页第一眼就有东西看。
- * 按新的排法：每周练 target 次，模板顺序循环，重量逐周微增。
+ * 造最近 12 周的假记录（含今天），让数据页/进步页第一眼就有东西看。
+ * 重量不是线性涨：中间有一段停滞、后面一次突破，这样「停滞提示」「突破高光」都能被看见。
  */
 function makeDemoSets(plans, target) {
   const D = require('../utils/date');
@@ -180,10 +201,22 @@ function makeDemoSets(plans, target) {
   const today = D.today();
   const now = Date.now();
 
+  // 同一个动作在不同训练日可能给了不同的计划重量。示例数据统一用它的「最大计划重量」做基准，
+  // 否则序列会忽高忽低，进步页上看起来像「掉了一大截」——那是模板差异，不是退步。
+  const base = {};
+  plans.forEach(function (p) {
+    p.items.forEach(function (it) {
+      const cur = base[it.exId];
+      if (!cur || (it.weight || 0) > cur.weight) {
+        base[it.exId] = { weight: it.weight || 0, reps: it.reps, unit: it.unit || 'kg' };
+      }
+    });
+  });
+
   let k = 0;   // 模板按顺序取
 
-  for (let w = 4; w >= 0; w--) {
-    const progress = 1 + (4 - w) * 0.02;    // 越近的周越重，看得出进步
+  for (let w = DEMO_WEEKS - 1; w >= 0; w--) {
+    const week = DEMO_WEEKS - 1 - w;        // 0 = 最早的一周，11 = 本周
 
     offsets.forEach(function (off) {
       const day = D.shift(today, -(off + w * 7));
@@ -202,21 +235,35 @@ function makeDemoSets(plans, target) {
       let idx = 0;
 
       p.items.forEach(function (it, slot) {
+        const exId = demoExId(it.exId, week);
         // 兜底 part 给空串，不要静默归到腿（会污染部位统计）
-        const ex = CAT.find(it.exId) || { cn: it.exId, part: '' };
+        const ex = CAT.find(exId) || { cn: exId, part: '' };
+        // 卡住的动作从第 8 周起就不再进步（停滞提示才有东西可说）
+        const pace = DEMO_STALLED.indexOf(exId) !== -1 ? demoPace(Math.min(week, 7)) : demoPace(week);
+        const speed = DEMO_SPEED[ex.part] || 1;
+        // 每个动作按自己的部位涨速乘上去，越到后面差距越明显
+        const mult = 1 + (pace - 1) * speed;
+        const unit = it.unit || 'kg';
+        const b = base[exId] || { weight: it.weight || 0, reps: it.reps };
+        // 自重 / 计时动作没有重量，进步体现在次数和秒数上（不然这些动作永远是「持平 1.00×」）。
+        // 幅度要克制：12 周自重动作涨 2–3 次、静力涨几秒，比重量动作的 +20% 更接近真实。
+        // 次数也跟着涨一点点（轻重量 10→12.5 这种小步长，光靠加重量看不出进步）
+        const extra = Math.round((pace - 1) * speed * (unit === 'sec' ? 45 : 18));
+        const reps = Math.max(1, (b.reps || it.reps) + extra);
+        const w0 = b.weight || 0;
         for (let s = 0; s < it.sets; s++) {
           out.push({
-            id: day + '-' + it.exId + '-' + (s + 1),
+            id: day + '-' + exId + '-' + (s + 1),
             date: day,
-            exId: it.exId,
+            exId: exId,
             exCn: ex.cn,
             part: ex.part,
             planKey: p.key,
             slot: slot,
             setNo: s + 1,
-            weight: it.weight ? roundWeight(it.weight * progress) : 0,
-            reps: it.reps,
-            unit: it.unit || 'kg',
+            weight: w0 ? roundWeight(w0 * mult) : 0,
+            reps: reps,
+            unit: unit,
             targetReps: it.reps,
             targetSets: it.sets,
             completedAt: new Date(start + (idx++) * 150000).toISOString(),

@@ -137,7 +137,8 @@
 }
 
 .dayadd-hover {
-  background: var(--soft);
+  background: var(--card-press);
+  transform: translateY(1rpx) scale(.996);
 }
 
 .tipsline {
@@ -171,8 +172,8 @@
 }
 
 .savebtn-hover {
-  opacity: .92;
-  transform: scale(.99);
+  background: var(--green-deep);
+  transform: translateY(1rpx) scale(.996);
 }
 
 /* ================= 抽屉 ================= */

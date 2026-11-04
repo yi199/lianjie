@@ -65,6 +65,12 @@ docker-compose.prod.yml
 server/api.exe
 server/api
 *.exe
+# go build 覆盖正在运行的 api.exe 时会把它改名成 api.exe~（不是产物，别提交）
+*.exe~
 
 # 后端本地环境变量（含密钥）
 server/.env
+
+# 证书（deploy/certs 挂载目录，里面是私钥）
+server/deploy/certs/
+server/deploy/backup/

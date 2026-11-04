@@ -12,6 +12,8 @@ Component({
   data: {
     wDisplay: '',      // 输入框显示值（受控，避免父级刷新时冲掉输入）
     rDisplay: '',
+    // 计时动作（sec）不显示重量列；bw 的重量是「额外负重」，不标 kg 免得被当体重
+    showWeight: true,
     showKg: true,
     repsSuffix: ''
   },
@@ -26,14 +28,25 @@ Component({
       if (s !== this.data.rDisplay) this.setData({ rDisplay: s });
     },
     'unit': function (unit) {
-      this.setData({
-        showKg: unit !== 'bw',
-        repsSuffix: unit === 'sec' ? '″' : ''
-      });
+      this.applyUnit(unit);
     }
   },
 
+  // 首帧兜底：observers 依赖属性初始化触发，这里再算一次，避免秒数行闪一下重量框
+  attached() {
+    this.applyUnit(this.data.unit);
+  },
+
   methods: {
+    /** 重量列的显隐与后缀，全看 unit */
+    applyUnit(unit) {
+      this.setData({
+        showWeight: unit !== 'sec',   // 平板支撑这类只记秒数
+        showKg: unit === 'kg',
+        repsSuffix: unit === 'sec' ? '″' : ''
+      });
+    },
+
     /** 重量：失焦 / 回车才提交，输入过程中不动父级 */
     onWeightBlur(e) {
       if (!this.data.editable) return;

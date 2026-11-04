@@ -1,0 +1,365 @@
+/* 进步：一条往上走的坡。米色纸 + 陶土色强调，和训练页/数据页同一套令牌 */
+
+/* ---------- 导航 ---------- */
+.nav {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 32rpx 0;
+}
+
+.back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-h1);
+  color: #43473D;
+  line-height: 1;
+}
+
+.back-hover { background: rgba(31, 35, 28, .06); border-radius: 50%; }
+
+.nav .kicker { margin-left: auto; }
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--card);
+  border-radius: 28rpx;
+  padding: var(--sp3) var(--sp2);
+}
+
+/* ---------- 全身指数 ---------- */
+.hero { margin-top: var(--sp3); }
+
+.hero-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.hero-main {
+  display: flex;
+  align-items: baseline;
+}
+
+.hero-num {
+  font-size: var(--fs-display);
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1;
+}
+
+.hero-unit {
+  margin-left: 12rpx;
+  font-size: var(--fs-note);
+  color: var(--muted);
+}
+
+.hero-side { text-align: right; }
+
+.hero-side-n {
+  display: block;
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--clay);
+}
+
+.hero-side-d {
+  display: block;
+  margin-top: 4rpx;
+  font-size: var(--fs-label);
+  letter-spacing: .16em;
+  color: var(--muted2);
+}
+
+/* ---------- 周走势柱 ---------- */
+.chart {
+  position: relative;
+  margin-top: var(--sp3);
+  height: 200rpx;
+}
+
+.base {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--line);
+}
+
+.bars {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 8rpx;
+}
+
+.bar-wrap {
+  flex: 1 1 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.bar {
+  width: 100%;
+  border-radius: 8rpx 8rpx 0 0;
+  background: #DCD8C4;
+}
+
+.bar.on { background: var(--clay); }
+
+.chartlab {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--sp1);
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+}
+
+/* ---------- 肌群 ---------- */
+.parts { margin-top: var(--sp2); }
+
+.part {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 12rpx 0;
+}
+
+.part-name {
+  width: 96rpx;
+  flex-shrink: 0;
+  font-size: var(--fs-note);
+  color: var(--ink);
+}
+
+.part-track {
+  flex: 1 1 auto;
+  height: 10rpx;
+  border-radius: 999rpx;
+  background: #E7E3D2;
+  overflow: hidden;
+}
+
+.part-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: var(--green);
+}
+
+.part-fill.down { background: var(--clay); }
+
+.part-val {
+  width: 108rpx;
+  flex-shrink: 0;
+  text-align: right;
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-note);
+  color: var(--green);
+}
+
+.part-val.down { color: var(--clay); }
+
+.note {
+  margin-top: var(--sp2);
+  font-size: var(--fs-label);
+  line-height: 1.7;
+  color: var(--muted2);
+}
+
+/* ---------- 高光 ---------- */
+.hl { border-top: 1px solid var(--line); }
+
+.hl-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+  padding: 18rpx 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.hl-date {
+  flex-shrink: 0;
+  width: 96rpx;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+
+.hl-text {
+  flex: 1 1 auto;
+  font-size: var(--fs-note);
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.hl-text.warm { color: var(--clay); font-weight: 600; }
+
+/* ---------- 动作榜 ---------- */
+.alist { border-top: 1px solid var(--line); }
+
+.arow {
+  padding: 20rpx 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.arow-hover { background: var(--card-press); }
+
+.atop {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+}
+
+.aname {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.astatus {
+  flex-shrink: 0;
+  padding: 4rpx 12rpx;
+  font-size: var(--fs-label);
+  border-radius: 999rpx;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.astatus.up { color: var(--green); border-color: #CFD8C0; }
+.astatus.flat { color: var(--muted); }
+.astatus.down { color: var(--clay); border-color: #E3C9B8; }
+.astatus.stalled { color: var(--clay); border-color: #E3C9B8; background: rgba(180, 121, 90, .07); }
+.astatus.new { color: var(--muted2); }
+
+.aidx {
+  flex-shrink: 0;
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ameta {
+  margin-top: 6rpx;
+  font-size: var(--fs-label);
+  color: var(--muted);
+  letter-spacing: .04em;
+}
+
+.ameta .dot { margin: 0 8rpx; color: var(--muted2); }
+
+/* 展开：最近 6 次的力量值 */
+.aopen {
+  margin-top: var(--sp2);
+  padding-top: var(--sp2);
+  border-top: 1px dashed var(--line);
+}
+
+.obars {
+  display: flex;
+  align-items: flex-end;
+  gap: 12rpx;
+}
+
+.obar {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.obar-v {
+  font-size: var(--fs-label);
+  color: var(--muted);
+  margin-bottom: 6rpx;
+}
+
+.obar-track {
+  width: 100%;
+  height: 96rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.obar-fill {
+  width: 56%;
+  min-height: 8rpx;
+  border-radius: 6rpx 6rpx 0 0;
+  background: var(--green);
+  opacity: .8;
+}
+
+.obar-d {
+  margin-top: 6rpx;
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+}
+
+.ostall {
+  margin-top: var(--sp2);
+  font-size: var(--fs-note);
+  line-height: 1.6;
+  color: var(--clay);
+}
+
+.ohint {
+  margin-top: var(--sp2);
+  font-size: var(--fs-label);
+  color: var(--muted2);
+}
+
+/* ---------- 空态 ---------- */
+.empty-t {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.empty-n {
+  margin-top: var(--sp1);
+  font-size: var(--fs-note);
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.elist { margin-top: var(--sp2); }
+
+.erow {
+  display: flex;
+  justify-content: space-between;
+  padding: 14rpx 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.erow:last-child { border-bottom: 0; }
+
+.ename { font-size: var(--fs-body); }
+
+.eneed {
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-note);
+  color: var(--muted2);
+}
+
+/* ---------- 页脚 ---------- */
+.foot {
+  margin-top: var(--sp4);
+  font-size: var(--fs-label);
+  line-height: 1.8;
+  text-align: center;
+  color: var(--muted2);
+}
