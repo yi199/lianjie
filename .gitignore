@@ -68,3 +68,7 @@ server/api
 
 # 后端本地环境变量（含密钥）
 server/.env
+
+# 证书（deploy/certs 挂载目录，里面是私钥）
+server/deploy/certs/
+server/deploy/backup/

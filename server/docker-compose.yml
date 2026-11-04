@@ -1,36 +1,63 @@
 services:
   db:
     image: postgres:16-alpine
+    container_name: lianjie-db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: lianjie
-      POSTGRES_PASSWORD: lianjie_dev_pw
-      POSTGRES_DB: lianjie
+      POSTGRES_USER: ${POSTGRES_USER:-lianjie}
+      # ★ 必须显式设置：以前这里写死了一个 *** 占位符，照抄部署会直接认证失败
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?缺少 POSTGRES_PASSWORD，见 deploy/README.md}
+      POSTGRES_DB: ${POSTGRES_DB:-lianjie}
       TZ: Asia/Shanghai
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lianjie -d lianjie"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lianjie} -d ${POSTGRES_DB:-lianjie}"]
       interval: 5s
       timeout: 3s
       retries: 10
+    # 不映射端口到宿主机：只有 api 容器能连，数据库不对公网开
 
   api:
     build: .
+    container_name: lianjie-api
+    restart: unless-stopped
     environment:
       ADDR: ":8080"
-      DATABASE_URL: "postgres://lianjie:lianjie_dev_pw@db:5432/lianjie?sslmode=disable"
-      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
-      WECHAT_APPID: "${WECHAT_APPID:-}"
-      WECHAT_SECRET: "${WECHAT_SECRET:-}"
-      DEV_MODE: "${DEV_MODE:-true}"
-      TZ_NAME: "Asia/Shanghai"
-    ports:
-      - "8080:8080"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-lianjie}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-lianjie}?sslmode=disable"
+      # 生产必须是一串 ≥32 字节的随机值，否则服务会拒绝启动（config.go 的兜底）
+      JWT_SECRET: ${JWT_SECRET:?缺少 JWT_SECRET，用 openssl rand -base64 48 生成}
+      WECHAT_APPID: ${WECHAT_APPID:-}
+      WECHAT_SECRET: ${WECHAT_SECRET:-}
+      # 只在本地联调时设 true；正式环境必须 false
+      DEV_MODE: ${DEV_MODE:-false}
+      TZ_NAME: Asia/Shanghai
     depends_on:
       db:
         condition: service_healthy
+    expose:
+      - "8080"        # 只在内网暴露，外面统一走 nginx
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/healthz || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: lianjie-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/proxy_common.conf:/etc/nginx/conf.d/proxy_common.conf:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+      - certbot_www:/var/www/certbot
+    depends_on:
+      - api
 
 volumes:
   pgdata:
+  certbot_www:

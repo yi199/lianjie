@@ -152,6 +152,7 @@ docs/                   文档体系（见下）
 | **改中文文案漏字** | 新字显示成方框（只在真机/工具里看得见） | 重做字体子集（命令见下）。先跑 `node _cache/check_font_chars.js` 看缺几个字 |
 | **测试把日期写死** | 过几天跑就红，误以为是回归 | **已修（2026-11-03）**：`weeklyProgress(date)` / `alternatives(exId, planKey, date)` 都接受可选日期，测试传固定日期；示例数据改成「最近五周含今天」。以后新增用例别用 `D.today()` 当真值 |
 | **换字体后文字被挤断** | 「4 × 10」断成两行、`一周 2 练` 的「练」掉下去压住标签行 | Space Grotesk 比 Georgia 宽。flex 行里的数字/短句加 `flex-shrink: 0; white-space: nowrap`（`.pss` / `.pm` 已加） |
+| **WSL 里的 Postgres 会自己消失** | 后端突然全是 `500 DB_ERROR`（10s 超时），PG 日志里是「上次 09:13 干净关闭，09:24 才启动」，且这段时间写的数据可能丢 | WSL2 会空闲回收虚拟机。跑联调前先挂一个 `wsl -u root -- sleep infinity`（后台进程）把 VM 钉住；真要认真跑集成测试，用服务器上的 PG 或 Windows 原生安装 |
 | **分支被删 / 推错** | `git fetch --prune` 后本地跟踪分支 `[deleted]`；或推了非当前分支显示 up-to-date | 先 `git branch --show-current`；工作分支 = `feat/fonts-on-main` |
 | **Edge headless 截图** | 目标 HTML 被浏览器进程锁住，写入失败 | 换文件名再写 |
 | **中文日期字距** | 套英文的 `0.26em` → "周 三 · 1 0 月 2 9 日" | 中文用 `.date`，字距 `0.06em` |
