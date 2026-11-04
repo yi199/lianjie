@@ -15,7 +15,8 @@
 
 | 位置 | 分支 | 指向 | 状态 |
 |---|---|---|---|
-| github + 本地 | **`main`** | **`35903a0`** | **唯一主线**。2026-11-04 合入了 feat/fonts-on-main 的全部内容（身体指标 P5 / 进步可视化 P7 / S7 部署 / 记录单位三态 / 详情页动作档案） |
+| **本地 + github** | **`feat/dev`** | 从 `ac1a0f5` 起 | **日常工作分支（2026-11-04 起）**。所有修改先提交到这里，稳定后再合 main |
+| github + 本地 | **`main`** | **`ac1a0f5`** | **主线**。只有从 feat/dev 合过去的稳定内容；不直接往上提交 |
 | github | `feat/fonts-tabbar` `feat/catalog` `feat/fonts-rebuild` `feat/fonts-rebuild-2` `feat/safe-storage` | `b78a4ee` `17c559a` `f2e72f6` `1bb28cb` `05b291b` | **协作者的分支**（对应 PR #37–#41，内容已进 main）。**不要删**，即使看起来"已经合并了" |
 | 本地 | `feat/backend-sync-design` `feat/onboarding-rewards` | `f055522` `452ad47` | 历史残留，远端本来就没有这两个 |
 | 本地 | `backup/pre-main-merge` | `0f84b6e` | 合并前的临时备份，确认小程序跑得没问题后可 `git branch -D` |
@@ -23,7 +24,7 @@
 
 远端：`gitee`(man-qianyi/lianjie) + `github`(yi199/lianjie，ssh://git@ssh.github.com:443)。
 
-2026-11-04 只删了**自己的** `feat/fonts-on-main`（已合并进 main）。
+2026-11-04 删过**自己的** `feat/fonts-on-main`（已合并进 main）；同一天新开了 `feat/dev` 作为日常分支。
 
 ### ★ squash 合并的坑（2026-11-04 踩到，已处理完）
 
