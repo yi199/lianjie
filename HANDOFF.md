@@ -142,6 +142,8 @@ docs/                   文档体系（见下）
 - **动作库 E4 动作详情页**（2026-11-04，`699c254`）：`pages/exercise`——骨架同步渲染（名字/英文/部位·场所·记法/要点/怎么记全走本地 `catalog.find`），再异步 `catalog.detail(id)` 拉 `steps` + `imgDetail`（缓存 7 天 TTL + 50 条 LRU 由 catalog 负责，页面不自己实现）；没图给虚线占位不空白、图挂了 `binderror` 就当没图、讲解拉不到显示「讲解没拉到 + 再试一次」而要点照旧；自建动作不打后端。训练页动作名旁加「看讲解 ›」入口。`test-page.js` +19 项。
 - **自定义底部 tabBar**（2026-11-04）：`app/custom-tab-bar/`，纸面底 `#EDE8D9`（比页面深一档）+ 上沿细线 + 选中项陶土色小把手 + 按压缩放；栏高 92rpx（≈原生）。三个 tab 页 `onShow` 里 `getTabBar().setData({selected})`，页面自己让出 `104rpx + 安全区`。
 - **文档体系**：拆成 `接口/` + `设计文档/`，新增 `开发标准.md`、`CONTRIBUTING.md`、PR 模板。
+- **上线加固 P0-1（2026-11-04）**：`utils/safeStorage.js` 成为**唯一**的本地写入入口（storage / catalog / db / sync 全部改走它）。本地空间满时 `wx.setStorageSync` 抛异常不再冒到页面；storage 层写失败即丢内存缓存回落到磁盘真相（宁可少显示，不做「看着有、重进就没」）；提示只弹一次、带真实用量。索引 key 写失败时不写半截（`migrateLegacy` 失败保留老 key 下次重来）。**`test.js` 第 21 节 5 项**专门测这条路径（monkey-patch 让 `lj.sets.*` 写失败）→ 七套 **614 项**全绿。
+- **上线加固 P0-2（2026-11-04）**：`project.config.json` 的 `packOptions.ignore` 排掉 8 个 `test*.js`（**156KB** 不再进线上包）。
 
 ### 未完成 / 在飞
 

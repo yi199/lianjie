@@ -1,7 +1,40 @@
 {
   "description": "练界 · 训练记录（最小版）",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "value": "test.js",
+        "type": "file"
+      },
+      {
+        "value": "test-page.js",
+        "type": "file"
+      },
+      {
+        "value": "test-sync.js",
+        "type": "file"
+      },
+      {
+        "value": "test-sync-real.js",
+        "type": "file"
+      },
+      {
+        "value": "test-training.js",
+        "type": "file"
+      },
+      {
+        "value": "test-progress.js",
+        "type": "file"
+      },
+      {
+        "value": "test-catalog.js",
+        "type": "file"
+      },
+      {
+        "value": "test-metrics.js",
+        "type": "file"
+      }
+    ],
     "include": []
   },
   "setting": {
