@@ -12,6 +12,15 @@
     <view class="sub" wx:if="{{!empty}}">每一座山，是一次训练。</view>
   </view>
 
+  <!-- 进步：从「练了多少」走到「强了多少」 -->
+  <view class="gocard" bindtap="gotoProgress" hover-class="gocard-hover" hover-start-time="0" hover-stay-time="120">
+    <view class="gotext">
+      <text class="golead">比开始时，强了多少</text>
+      <text class="gosub">每个动作的坡 · 卡住的地方 · 值得记的一刻</text>
+    </view>
+    <text class="goarrow">→</text>
+  </view>
+
   <block wx:if="{{!empty}}">
 
     <!-- 山脊线：12 周，每周一个峰，本周是陶土色那个点 -->

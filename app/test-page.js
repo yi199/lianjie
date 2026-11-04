@@ -346,6 +346,64 @@ function fakeDetail(out) {
     calls.length === 1 && calls[0][1] === '/pages/exercise/index?id=' + exId,
     JSON.stringify(calls));
 
+  /* ---- 10. 进步页（P7 · V2） ---- */
+  console.log('\n=== 10. 进步页 ===');
+
+  db.resetAll();
+  db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+  const pgEmpty = loadPage('./pages/progress/index');
+  pgEmpty.onLoad();
+  pgEmpty.onShow();
+  ok('一条记录都没有 → 空态，不画假曲线', pgEmpty.data.empty === true);
+
+  db.loadDemo();
+  const pg = loadPage('./pages/progress/index');
+  pg.onLoad();
+  pg.onShow();
+  ok('有示例数据 → 给预览而不是空态', pg.data.empty === false && pg.data.demo === true,
+    'empty=' + pg.data.empty + ' demo=' + pg.data.demo);
+  ok('全身指数大于 1（练了就有进步）', Number(pg.data.indexText) > 1, pg.data.indexText);
+  ok('给出比起点强了百分之几', pg.data.upText.indexOf('+') === 0, pg.data.upText);
+  ok('周走势有柱子，且最后一根是本周',
+    pg.data.weeks.length > 0 && pg.data.weeks[pg.data.weeks.length - 1].on === true,
+    pg.data.weeks.length + ' 根');
+  ok('每根柱子都有高度', pg.data.weeks.every(function (w) { return w.h > 0 && w.h <= 100; }));
+  ok('肌群列表非空、带中文名', pg.data.parts.length > 0 && !!pg.data.parts[0].name,
+    pg.data.parts.map(function (p) { return p.name; }).join(','));
+  ok('动作榜非空、每行带状态文案', pg.data.actions.length > 0 && !!pg.data.actions[0].statusCn,
+    pg.data.actions.length + ' 个动作');
+  ok('高光最多给 6 条', pg.data.highlights.length <= 6 && pg.data.highlights.length > 0,
+    pg.data.highlights.length);
+
+  const firstId = pg.data.actions[0].exId;
+  pg.toggle({ currentTarget: { dataset: { id: firstId } } });
+  ok('点动作行 → 展开最近几次的力量值', pg.data.openId === firstId && pg.data.openSeries.length > 0,
+    pg.data.openSeries.length + ' 次');
+  ok('展开的数据带着日期和单位', !!pg.data.openSeries[0].date && !!pg.data.openSeries[0].unit);
+  ok('展开时说明用的是什么模型', !!pg.data.openModel, pg.data.openModel);
+  pg.toggle({ currentTarget: { dataset: { id: firstId } } });
+  ok('再点一下收起', pg.data.openId === '' && pg.data.openSeries.length === 0);
+
+  // 真实记录一旦有，就不再拿示例数据讲故事
+  ['2026-09-01', '2026-09-05', '2026-09-09'].forEach(function (d) {
+    db.saveSet({ date: d, exId: 'g1', setNo: 1, weight: 60, reps: 8, unit: 'kg' });
+    db.saveSet({ date: d, exId: 'g1', setNo: 2, weight: 60, reps: 8, unit: 'kg' });
+  });
+  const pgReal = loadPage('./pages/progress/index');
+  pgReal.onLoad();
+  pgReal.onShow();
+  ok('有真实记录后不再用示例数据', pgReal.data.demo === false);
+  ok('真实记录也能算出全身指数', Number(pgReal.data.indexText) >= 1, pgReal.data.indexText);
+
+  const statsEntry = loadPage('./pages/stats/index');
+  statsEntry.onLoad();
+  calls.length = 0;
+  statsEntry.gotoProgress();
+  ok('数据页的「强了多少」跳到进步页',
+    calls.length === 1 && calls[0][1] === '/pages/progress/index', JSON.stringify(calls));
+  statsEntry.onUnload();
+
   CAT.setDetailLoader(null);
   runResult();
 })();

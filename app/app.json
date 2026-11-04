@@ -6,6 +6,7 @@
     "pages/exercise/index",
     "pages/report/index",
     "pages/stats/index",
+    "pages/progress/index",
     "pages/my/index",
     "pages/programs/index",
     "pages/builder/index",

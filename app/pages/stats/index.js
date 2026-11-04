@@ -157,6 +157,11 @@ Page({
     wx.switchTab({ url: '/pages/today/index' });
   },
 
+  /** 「强了多少」是另一个问题，进「进步」页看 */
+  gotoProgress() {
+    wx.navigateTo({ url: '/pages/progress/index' });
+  },
+
   onPullDownRefresh() {
     this.refresh();
     wx.stopPullDownRefresh();

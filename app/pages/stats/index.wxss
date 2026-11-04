@@ -238,3 +238,45 @@
 
 /* 自定义 tabBar 是固定定位的：页面自己让出它的高度（108rpx + 安全区），否则最后一行被盖住 */
 .page { padding-bottom: calc(var(--sp5) + 104rpx + env(safe-area-inset-bottom)); }
+
+/* ================= 进步入口 ================= */
+
+.gocard {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2);
+  margin-top: var(--sp3);
+  padding: 24rpx var(--sp2);
+  border-radius: 24rpx;
+  background: #F6F4EA;
+  border: 1rpx solid rgba(223, 220, 206, .8);
+}
+
+.gocard-hover {
+  background: var(--card-press);
+  transform: translateY(1rpx);
+}
+
+.gotext { flex: 1 1 auto; min-width: 0; }
+
+.golead {
+  display: block;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+
+.gosub {
+  display: block;
+  margin-top: 6rpx;
+  font-size: var(--fs-label);
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+
+.goarrow {
+  flex-shrink: 0;
+  font-size: var(--fs-h2);
+  color: var(--clay);
+}
