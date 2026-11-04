@@ -1,7 +1,7 @@
 # 练界 — 项目交接（新对话开工先读这份）
 
 > 换新对话时，第一句话直接说：**读一下 E:\wx小程序\HANDOFF.md，我们接着做**。
-> 最后更新：2026-11-02（`feat/fonts-on-main` = `github/main` 5c530a9 + 字体两个提交 + 本文件）
+> 最后更新：2026-11-04 16:5x（`main` 已推进到 `0677811`，PR #37–#41 已合入）
 
 ## 一句话
 
@@ -13,12 +13,30 @@
 
 | 位置 | 分支 | 指向 | 状态 |
 |---|---|---|---|
-| **本地** | **`feat/fonts-on-main`** | `5c530a9` + `03fee98`（字体）+ `5ef3a7c`（重建子集） | **当前工作分支，最完整**：他全部代码 + 字体。未推 |
-| github | `main` | `5c530a9` 2026-11-01 | 朋友 `Jaserのaiyi` 的主线，22 个提交，同步已跑通 |
-| 本地 | `feat/backend-sync-design` | `f055522` | **已废弃**（上游被删）。只留历史，别再基于它做 |
-| gitee | `main` / 两个旧分支 | `452ad47` / `f055522` | **旧镜像，落后一大截**，没跟上他这条线 |
+| github | **`main`** | **`0677811`** | **主线**。#37–#41 已合入：字体+tabBar、动作库 E1–E4、安全存储、字体补字 |
+| **本地** | **`feat/fonts-on-main`** | `1dd5b8e` | **最完整的代码**（领先 main 47 文件 / 4355 行净差异）：身体指标 P5、进步可视化 P7、S7 部署、真后端测试都还在这儿没拆 |
+| github | `feat/fonts-tabbar` | `b78a4ee` | ✅ 已由 #37 合入 |
+| github | `feat/catalog` | `17c559a` | ✅ 已由 #38 合入 |
+| github | `feat/fonts-rebuild` / `-2` | `f2e72f6` / `1bb28cb` | ✅ 已由 #39 / #41 合入 |
+| github | `feat/safe-storage` | `05b291b` | ✅ 已由 #40 合入 |
+| 本地 | `feat/backend-sync-design` | `f055522` | **已废弃**（上游被删）。只留历史 |
+| gitee | `main` / 两个旧分支 | `452ad47` / `f055522` | **旧镜像，落后一大截**（落后 main 5 个 PR），没跟上 |
 
 远端：`gitee`(man-qianyi/lianjie) + `github`(yi199/lianjie，ssh://git@ssh.github.com:443)。
+
+### ★ squash 合并的后遗症（2026-11-04 踩到）
+
+主线用 **squash** 合并，每个 PR 压成一个新 SHA。结果是**源分支与 main 失去血缘**：
+
+```
+git rev-list --count github/main..feat/fonts-on-main   → 32（假数字，内容上很多已合过）
+git diff --stat github/main feat/fonts-on-main         → 47 文件 / 4355 行（这才是真实剩余量）
+```
+
+**判断还得做多少，只看 `git diff --stat`，别看 rev-list。** 拆下一批 PR 时：
+- ✅ 从新 main 开分支 + `git cherry-pick <提交>`，或按主题 `git checkout main -- <文件>`
+- ❌ 不要再用 `_cache/build_tabbar_pr.sh` 那种 `git reset --hard <旧基点>` —— 基点已经和 main 无血缘，而且 reset 会让开发者工具热重载读到中间态、报一堆 ENOENT（见坑表）
+
 
 ## 怎么跑
 
@@ -124,6 +142,10 @@ docs/                   文档体系（见下）
 
 ### 已完成
 
+- **★ 2026-11-04 主线合并**：`github/main` 从 `5c530a9` 推到 `0677811`，一口气合了 5 个 PR —— #37 字体 + 自定义 tabBar、#38 动作库 E1–E4、#39 字体补动作库新页面的 7 个缺字、#40 本地写满不丢数据（`safeStorage`）、#41 补安全存储提示里的 3 个字。
+  - 合并前先在独立 worktree 里预演过：tabbar 零冲突，catalog 只有 `app/utils/db.js` 的 `alternatives` 一处 8 行冲突（取 `CAT.candidates`）。
+  - **合完在真实 main 上复验**：449 项测试全过、0 缺字、字体子集 319KB。
+  - 剩下 **47 文件 / 4355 行** 还在 `feat/fonts-on-main` 上，见「未完成」。
 - **P1 后端 S1–S8**：鉴权、存储与迁移、`/sync` 推拉（rev 游标 / LWW / 时钟夹紧 / 落败行回推 / 去回声）、只读查询、限流探针、集成测试。
 - **S7 部署配置已写好**：`server/deploy/`（`nginx.conf` TLS + `limit_req` + `X-Real-IP`、`proxy_common.conf`、`backup.sh` 每日 pg_dump 留 14 天、`README.md`）。**但一次都没在真服务器上跑过。**
   - **2026-11-04 已首次跑通真库**：WSL 里装 PG 16，`go test` 30 项全 PASS（含 17 个集成）。
@@ -147,6 +169,16 @@ docs/                   文档体系（见下）
 
 ### 未完成 / 在飞
 
+- **★ 待拆的下几批 PR（47 文件 / 4355 行，都在 `feat/fonts-on-main` 上）**。按 `git diff --stat github/main feat/fonts-on-main` 看真实剩余，能干净拆成 4 个主题：
+
+  | 主题 | 主要文件 | 规模 |
+  |---|---|---|
+  | 身体指标 P5 v0.1 | `pages/metrics/*`、`utils/metricChart.js`、`storage.js` 的 metric 段、`test-metrics.js`、`docs/设计文档/身体指标.md` | 200+ |
+  | 进步可视化 P7 V1+V2 | `utils/progress.js`(697)、`data/progress-model.js`、`pages/progress/*`、`test-progress.js`(353)、示例数据两个提交 | **1400+** |
+  | S7 部署 | `server/deploy/*`、`docker-compose.yml`、`.env.example` | 270+ |
+  | 真后端测试 C6 | `test-sync-real.js` | 212 |
+
+  注意：`storage.js` / `sync.js` 在这批里是**按 hunk 混主题**的（safeStorage 的改动已经拆走了，剩下的是 metrics 载荷），cherry-pick 时要看清 diff 别把 metrics 带错地方。
 - **C6 测试补强**：双设备并发、分页、时钟偏差；`test-sync.js` 现在只有「顺序模拟换设备」，没有两套独立状态。
 - **S7 部署实操**：配置齐了，缺「在一台真服务器上照 README 走一遍」——证书签发、`limit_req` 生效、备份还原演练都没验过。
 - **P0 备案**：域名 + ICP。**只卡上线不卡开发**，第一天就该提交，现在还没开始。
@@ -174,6 +206,9 @@ docs/                   文档体系（见下）
 | **旧版本假数据** | 升级后仍显示 126 条假记录 | `db.migrate()` 清 `lj.seeded` |
 | **8080 被别的进程（Docker）占** | 后端连不上 / 连错了进程 | `netstat -ano \| grep :8080` 找到占用者，再换端口或停它 |
 | **`wx.login` 每次都是新用户** | 开发者工具里重新登录一次，数据就没了 | `config.js` 的 `DEV_LOGIN_CODE`：**开发版返回固定 code**，同步层据此走固定身份；只有非 develop 环境才走真实 `wx.login` |
+| **拆 PR 脚本的 `git reset --hard`** | 开发者工具同时开着时，热重载读到「文件刚被删、还没写回」的瞬间：报 `app.json: 未找到 pages/xxx/index.wxml`，或者更阴的 `module 'utils/xxx.js' is not defined`（模块表里还挂着「已删除」状态，文件明明在磁盘上）。2026-11-04 13:06 那次 5 个新页面全报 ENOENT，就是 `_cache/build_tabbar_pr.sh` 的 reset 干的 | 跑这类脚本前先关掉模拟器；已经踩了分两步：① `cli.bat cache --clean compile --project ...` ② `touch` 引用它的模块（如 `utils/catalog.js`）逼编译器重新解析依赖图。判据是日志里出现 `Compiling utils/xxx.js suceess` |
+| **字体子集是全局生成物** | 合完 PR 才发现界面出方框。`node test-*.js` 永远抓不到（缺字只在渲染时暴露），`check_app.sh` 也只比较字数不比较字符集 | **所有会改文案的 PR 合完之后最后重建**，否则每合一个就要补一次（2026-11-04 连着补了两次）。重建后必须按 cmap 实测：从 `.js/.wxml/.json` 剥掉注释取中文，与子集 cmap 求差集，测试文件和 `.wxss` 不计入 |
+| **squash 合并让 rev-list 失真** | `git rev-list --count main..分支` 显示领先 32 个提交，实际内容早就合过一大半 | 看真实剩余量用 `git diff --stat main 分支`。拆 PR 从新 main 开分支 + cherry-pick，别再用旧基点 reset |
 
 ## 常用操作
 
