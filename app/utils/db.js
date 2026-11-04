@@ -12,7 +12,8 @@
  *   lj.workouts.* 一次训练，按年分 key（同上）
  */
 
-const EX = require('../data/exercises');
+const EX = require('../data/exercises');   // 只剩 PART_CN / 包内快照这类静态内容
+const CAT = require('../utils/catalog');   // 动作数据的唯一入口（官方清单 + 自建动作）
 const P = require('../data/plan');
 const PR = require('../data/programs');
 const D = require('../utils/date');
@@ -148,11 +149,11 @@ function profileText() {
 /* ---------------- 动作 ---------------- */
 
 function exercises() {
-  return EX.EXERCISES;
+  return CAT.list();
 }
 
 function exerciseById(id) {
-  return EX.byId(id);
+  return CAT.find(id);
 }
 
 /** 这个动作第一次做该上多重（按用户当前水平算） */
@@ -165,18 +166,97 @@ function initialWeight(exId) {
  *
  * 传了训练日 planKey 时，排除这个训练日里已有的动作和今天已经练过的动作——
  * 否则换成同一天已有的动作，两个位置的组会写到同一条记录上互相覆盖（模块设计 §9.2）。
+ *
+ * date 只给测试用：传了就拿它当「今天」，不传走 trainingDate()（含跨零点顺延）。
  */
-function alternatives(exId, planKey) {
-  const ex = EX.byId(exId);
-  if (!ex) return [];
-  const list = EX.alternatives(exId, ex.place);
+function alternatives(exId, planKey, date) {
+  const list = CAT.candidates(exId);
+  if (!list.length) return [];
   if (!planKey) return list;
 
   const exclude = {};
   const p = plans().filter(function (x) { return x.key === planKey; })[0];
   if (p) decorate(p).items.forEach(function (it) { exclude[it.exId] = true; });
-  todaySets(trainingDate()).forEach(function (s) { exclude[s.exId] = true; });
+  todaySets(date || trainingDate()).forEach(function (s) { exclude[s.exId] = true; });
   return list.filter(function (e) { return !exclude[e.id]; });
+}
+
+/* ---------------- 自建动作（动作库模块） ---------------- */
+
+function customExercises() {
+  return CAT.custom();
+}
+
+function canAddCustomExercise() {
+  return CAT.canAddCustom();
+}
+
+/**
+ * 生成自建动作 id：'u-' + 8 位 base36 时间戳 + '-' + 4 位随机 = 15 字符。
+ *
+ * 为什么这么拼：36^8 ≈ 2.8e12 > Date.now()，8 位正好装下毫秒时间戳；
+ * 总长必须 ≤16 字节——ex_id 是组记录主键的一部分，超长会让用这个动作记的**每一组**
+ * 在同步时被服务端拒收。前缀 'u-' 让自建和官方（g 开头、h 开头）的 id 空间结构上不相交，
+ * 所以两台设备离线各建一个也不用查重。
+ */
+function newCustomId() {
+  const ts = Date.now().toString(36).slice(-8);
+  const rnd = Math.random().toString(36).slice(2, 6);
+  return 'u-' + (ts + '00000000').slice(0, 8) + '-' + (rnd + '0000').slice(0, 4);
+}
+
+/** 新建或修改一个自建动作；写本地 + 标脏，等同步上传。返回 null 表示没写（名字空 / 满 30 个） */
+function saveCustomExercise(rec) {
+  const now = S.stamp();
+  const exId = rec.exId || newCustomId();
+  const name = String(rec.cn || '').trim();
+  // 名字是唯一能认出它的东西（选择面板、「我的动作」、战报都只显示 cn），
+  // 空名字等于往库里塞一条看不见的动作，必须当场拒绝，不能靠页面兜。
+  if (!name) return null;
+  const prev = CAT.rawCustom().filter(function (e) { return e.exId === exId; })[0] || {};
+  // 上限 30 只由客户端把关：**新建**才判，改已有动作不占新名额（否则改名字改不了）。
+  if (!prev.exId && !CAT.canAddCustom()) return null;
+  const row = Object.assign({}, prev, {
+    exId: exId,
+    cn: name,
+    part: rec.part,
+    place: rec.place || 'gym',
+    unit: rec.unit || 'kg',
+    tips: String(rec.tips || '').slice(0, 64),
+    done: true,
+    // 用户改过就清掉上次的拒绝原因：改完会重新上传，旧的错误提示不能一直挂着
+    syncError: '',
+    updatedAt: now,
+    rev: 0
+  });
+  const saved = CAT.putCustom(row);
+  S.markDirty('x:' + exId, now);
+  return saved;
+}
+
+/** 删除 = 墓碑（done:false），跨设备传播；历史记录照常显示（sets 里冗余存了 exCn） */
+function removeCustomExercise(exId) {
+  const cur = CAT.rawCustom().filter(function (e) { return e.exId === exId; })[0];
+  if (!cur) return false;
+  const now = S.stamp();
+  CAT.putCustom(Object.assign({}, cur, { done: false, updatedAt: now }));
+  S.markDirty('x:' + exId, now);
+  return true;
+}
+
+/** 官方动作清单整份写入（同步层拉到 /catalog 之后调） */
+function applyCatalog(rev, list) {
+  CAT.applyCatalog(rev, list);
+}
+
+/** 本地清单版本号，和 /sync 的 catalogRev 比 */
+function catalogRev() {
+  return CAT.catalogRev();
+}
+
+/** 动作库变更（清单更新 / 自建动作增删），页面用它刷新 */
+function onCatalogChange(fn) {
+  CAT.onChange(fn);
 }
 
 /* ---------------- 计划 ---------------- */
@@ -320,7 +400,7 @@ function programSessions(id) {
       en: p.en,
       art: p.art,
       items: p.items.map(function (it) {
-        const ex = EX.byId(it.exId) || { cn: it.exId, en: '', part: '' };
+        const ex = CAT.find(it.exId) || { cn: it.exId, en: '', part: '' };
         return {
           exId: it.exId, cn: ex.cn, en: ex.en, part: ex.part,
           partCn: EX.PART_CN[ex.part] || '',
@@ -522,6 +602,9 @@ function syncApply(pulled) {
   let n = 0;
   if (pulled.sets && pulled.sets.length) n += S.applyRemote(pulled.sets);
   if (pulled.workouts && pulled.workouts.length) n += S.applyRemoteWorkouts(pulled.workouts);
+  if (pulled.customExercises && pulled.customExercises.length) {
+    n += S.applyRemoteExercises(pulled.customExercises);
+  }
   if (pulled.config) n += applyConfigDoc(pulled.config) ? 1 : 0;
   return n;
 }
@@ -551,10 +634,11 @@ function decorate(p) {
     en: p.en,
     items: p.items.map(function (it, i) {
       const altId = sw[p.key + ':' + i];
-      const useAlt = !!(altId && EX.byId(altId));
+      const useAlt = !!(altId && CAT.find(altId));
       const exId = useAlt ? altId : it.exId;
-      const ex = EX.byId(exId) || { cn: exId, en: '', part: 'legs', unit: 'kg' };
-      const origin = EX.byId(it.exId);
+      // 兜底 part 给空串而不是 'legs'：查不到的动作不该被静默算成腿，污染部位统计
+      const ex = CAT.find(exId) || { cn: exId, en: '', part: '', unit: 'kg' };
+      const origin = CAT.find(it.exId);
 
       return {
         exId: exId,
@@ -887,7 +971,7 @@ function saveSet(rec) {
   const id = S.rowId(rec);
   const prev = S.get(id);
   const keep = !!(prev && prev.done);     // 已完成的组再保存 = 修改
-  const ex = EX.byId(rec.exId) || {};
+  const ex = CAT.find(rec.exId) || {};
   const day = rec.date;
 
   let planKey;
@@ -1090,7 +1174,7 @@ function defaultReps(unit) {
  */
 function exercisePrefill(exId, date) {
   const day = date || trainingDate();
-  const ex = EX.byId(exId) || { unit: 'kg', part: '' };
+  const ex = CAT.find(exId) || { unit: 'kg', part: '' };
   const unit = ex.unit || 'kg';
   const sess = todaySession(day);
   const item = sess.plan ? sess.plan.items.filter(function (it) { return it.exId === exId; })[0] : null;
@@ -1323,27 +1407,48 @@ function pickableExercises(opts) {
 
   const place = o.place || (profile() || {}).place || 'gym';
   const kw = String(o.keyword || '').trim().toLowerCase();
-  const list = EX.EXERCISES.filter(function (e) {
-    if (place !== 'all' && e.place !== place) return false;
-    if (o.part && e.part !== o.part) return false;
+  const matchKw = function (e) {
     if (!kw) return true;
-    return e.cn.toLowerCase().indexOf(kw) >= 0 || String(e.en || '').toLowerCase().indexOf(kw) >= 0;
+    return e.cn.toLowerCase().indexOf(kw) >= 0 ||
+      String(e.en || '').toLowerCase().indexOf(kw) >= 0;
+  };
+  const matchPart = function (e) { return !o.part || e.part === o.part; };
+
+  // 「我的动作」整组置顶：自建动作挂在任意部位下，混进部位分组会找不到。
+  // 场所过滤显式放行自建动作——不能靠 place 取巧（写成 'all' 会被等值比较过滤掉）。
+  const mine = CAT.custom()
+    .filter(function (e) { return matchPart(e) && matchKw(e); })
+    .map(function (e) {
+      return {
+        exId: e.id, cn: e.cn, en: e.en || '', unit: e.unit, place: e.place,
+        doneToday: !!doneToday[e.id], recent: !!recent[e.id], custom: true
+      };
+    });
+
+  const list = CAT.list().filter(function (e) {
+    if (place !== 'all' && e.place !== place) return false;
+    if (!matchPart(e)) return false;
+    return matchKw(e);
   });
 
   const groups = TERRAIN_KEYS.map(function (k) {
     return {
       part: k,
       partCn: EX.PART_CN[k],
-      items: list.filter(function (e) { return e.part === k; }).map(function (e) {
-        return {
-          exId: e.id, cn: e.cn, en: e.en || '', unit: e.unit, place: e.place,
-          doneToday: !!doneToday[e.id], recent: !!recent[e.id]
-        };
-      })
+      // 部位分组排除自建动作（否则同一个动作在「我的动作」和部位分组里各出现一次）。
+      // hot 在前：服务端已按 hot desc,id 下发，这里再稳定排一次，包内快照也能吃上。
+      items: list.filter(function (e) { return e.part === k && !e.custom; })
+        .sort(function (a, b) { return (b.hot ? 1 : 0) - (a.hot ? 1 : 0); })
+        .map(function (e) {
+          return {
+            exId: e.id, cn: e.cn, en: e.en || '', unit: e.unit, place: e.place,
+            doneToday: !!doneToday[e.id], recent: !!recent[e.id]
+          };
+        })
     };
   }).filter(function (g) { return g.items.length; });
 
-  return { recommended: recommended, groups: groups };
+  return { recommended: recommended, mine: mine, groups: groups };
 }
 
 /* ---------------- 示例数据 ---------------- */
@@ -1421,6 +1526,10 @@ function resetAll() {
   wx.removeStorageSync('lj.sync.cursor');
 
   S.removeAll();
+
+  // 动作库：官方清单缓存在 lj.catalog，自建在 lj.customEx，详情缓存在 lj.catalog.detail.*。
+  // 不清的话「清空重来」之后自建动作还会冒出来，而记录已经没了。
+  CAT.reset();
 }
 
 /* ---------------- 训练战报 ---------------- */
@@ -1680,6 +1789,9 @@ module.exports = {
   hasOnboarded, profile, saveProfile, finishOnboarding, profileText, migrate, resetAll,
   /* 动作 */
   exercises, exerciseById, alternatives, initialWeight,
+  /* 自建动作 + 官方清单（动作库模块） */
+  customExercises, canAddCustomExercise, saveCustomExercise, removeCustomExercise,
+  applyCatalog, catalogRev, onCatalogChange,
   /* 计划 */
   plans, todaySession, suggestWeight, planSig,
   /* 方案 */

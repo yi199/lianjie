@@ -11,7 +11,7 @@
  *   [{ key:'A', type:'push', name:'推日', en:'Push', items:[{exId,sets,reps,weight,unit}] }, ...]
  */
 
-const EX = require('./exercises');
+const CAT = require('../utils/catalog');   // 动作查表统一走它（官方清单 + 自建动作）
 
 /* ---------------- 水平 → 组数次数 ---------------- */
 
@@ -84,7 +84,7 @@ function roundWeight(w) {
 function makeItems(exIds, lv) {
   const out = [];
   exIds.forEach(function (id) {
-    const ex = EX.byId(id);
+    const ex = CAT.find(id);
     if (!ex) return;
 
     if (ex.unit === 'sec') {
@@ -153,7 +153,7 @@ function planSig(profile) {
  * 换动作时必须用它，不能一律给 20kg（腿举和弯举的起点差 4 倍）。
  */
 function initialWeight(exId, level) {
-  const ex = EX.byId(exId);
+  const ex = CAT.find(exId);
   if (!ex || ex.unit !== 'kg') return 0;
   const lv = LEVEL[level] || LEVEL.some;
   const base = BASE_WEIGHT[exId] || 20;
@@ -196,7 +196,8 @@ function makeDemoSets(plans, target) {
       let n = 0;
 
       p.items.forEach(function (it, slot) {
-        const ex = EX.byId(it.exId) || { cn: it.exId, part: 'legs' };
+        // 兜底 part 给空串，不要静默归到腿（会污染部位统计）
+        const ex = CAT.find(it.exId) || { cn: it.exId, part: '' };
         for (let s = 0; s < it.sets; s++) {
           out.push({
             id: day + '-' + it.exId + '-' + (s + 1),

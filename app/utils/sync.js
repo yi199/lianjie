@@ -17,6 +17,7 @@
 
 const CFG = require('./config');
 const db = require('./db');
+const CAT = require('./catalog');     // 只用来注入详情加载器 + 写回官方清单，依赖是单向的
 const store = require('../store/index');
 
 const K_AUTH = 'lj.auth';
@@ -156,6 +157,65 @@ function login() {
     });
 }
 
+/**
+ * 带鉴权的通用请求（动作清单、动作详情用它）。
+ *
+ * 为什么不复用 call()：call 写死了 POST，而 /catalog 和 /exercises/{id} 是 GET。
+ * 401 的处理和同步一致（清 token、重登一次、重试）；**其他失败直接抛给调用方**——
+ * 动作库的降级策略是「拿不到就先用手里的那份」，不需要退避重试，更不能弹窗。
+ * 304（清单没变）当成成功返回 {}，调用方判 out.rev 就知道要不要写。
+ */
+function request(path, opts) {
+  const o = opts || {};
+  const method = o.method || 'GET';
+
+  const go = function (token) {
+    const header = { 'Content-Type': 'application/json' };
+    if (token) header.Authorization = 'Bearer ' + token;
+    return transport({
+      url: CFG.apiBase() + path,
+      method: method,
+      header: header,
+      data: o.data
+    }).then(function (res) {
+      if (res.statusCode === 200 || res.statusCode === 304) return res.data || {};
+      const payload = res.data || {};
+      const code = (payload.error && payload.error.code) || '';
+      const err = new Error('HTTP ' + res.statusCode + (code ? ' ' + code : ''));
+      err.status = res.statusCode;
+      err.code = code;
+      throw err;
+    });
+  };
+
+  return ensureToken().then(go).catch(function (err) {
+    if (err.status !== 401) throw err;
+    clearAuth();
+    return login().then(go);
+  });
+}
+
+/**
+ * 官方动作清单：整份拉取并写入本地。
+ *
+ * - 本地 rev 比服务端大 → 服务端被重置/回滚过，按 0 处理强制全量（自愈），
+ *   否则 since >= rev 恒成立、清单永远不再刷新。
+ * - 失败什么都不做（不清本地、不重试），下次 /sync 再触发。
+ */
+function refreshCatalog(serverRev) {
+  const local = db.catalogRev();
+  const since = local > serverRev ? 0 : local;
+  return request('/catalog?since=' + since).then(function (out) {
+    if (!out || !out.rev || !Array.isArray(out.exercises)) return 0;   // 304
+    db.applyCatalog(out.rev, out.exercises);
+    store.touchSets();          // 动作名/部位可能变了，页面重画
+    return out.exercises.length;
+  }).catch(function (err) {
+    log('动作清单拉取失败：' + ((err && err.message) || err));
+    return 0;
+  });
+}
+
 function ensureToken() {
   const a = auth();
   return a ? Promise.resolve(a.token) : login();
@@ -198,9 +258,11 @@ function syncOnce(token) {
       sets: batch.rows,
       workouts: batch.workouts,
       metrics: [],               // 身体指标模块（P5）还没做
+      customExercises: batch.exercises || [],
       config: batch.config       // 没改动时是 null
     };
-    pushedRows += batch.rows.length + batch.workouts.length + (batch.config ? 1 : 0);
+    pushedRows += batch.rows.length + batch.workouts.length + (batch.exercises || []).length +
+      (batch.config ? 1 : 0);
 
     return call('/sync', body, token)
       .catch(function (err) {
@@ -221,9 +283,16 @@ function syncOnce(token) {
         appliedRows += db.syncApply({
           sets: out.sets,
           workouts: out.workouts,
+          customExercises: out.customExercises,
           config: out.config
         });
         setCursor(out.cursor);
+
+        // 官方动作清单的版本变了就去拉整份。故意不 await：
+        // 清单拉失败不该卡住同步（动作库的降级是「先用手里那份」），下一轮再试。
+        if (out.catalogRev && out.catalogRev !== db.catalogRev()) {
+          refreshCatalog(out.catalogRev);
+        }
 
         // 有变化才通知页面（页面自己决定要不要重画）
         if (appliedRows > 0) store.touchSets();
@@ -329,6 +398,8 @@ function run() {
 
 /** app.js 的 onLaunch 调一次 */
 function init() {
+  // 动作详情页要用带鉴权的 GET（401 自动重登、失败静默降级）
+  CAT.setDetailLoader(request);
   if (!CFG.syncEnabled()) {
     log('未配置后端地址，纯本地模式');
     return Promise.resolve({ skipped: 'off' });
@@ -394,6 +465,7 @@ function status() {
 
 module.exports = {
   init, kick, stop, status, setTransport, ready,
+  request, refreshCatalog,
   /* 测试用 */
   __cursor: { get: getCursor, set: setCursor }
 };
