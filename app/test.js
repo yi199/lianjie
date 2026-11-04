@@ -462,4 +462,54 @@ ok('战报里部位也对（能进部位统计）', !!blk && blk.part === 'chest
 
 db.resetAll();
 
+/* ================= 21. 本地空间不足（写失败不能崩、不能留半截） ================= */
+console.log('\n=== 21. 本地空间不足 ===');
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+const safe = require('./utils/safeStorage');
+safe.resetWarn();
+
+const realSet = wx.setStorageSync;
+const realRemove = wx.removeStorageSync;
+let modals = 0;
+wx.showModal = function () { modals++; };
+// 只让「组记录分片」写失败，模拟单 key / 总量写满
+wx.setStorageSync = function (k, v) {
+  if (String(k).indexOf('lj.sets.') === 0) {
+    const e = new Error('setStorageSync:fail exceed storage max size');
+    e.errMsg = e.message;
+    throw e;
+  }
+  realSet(k, v);
+};
+
+let thrown = null;
+try {
+  db.saveSet({ date: '2026-10-26', exId: 'g1', setNo: 1, weight: 60, reps: 8, unit: 'kg' });
+} catch (e) { thrown = e; }
+ok('写满时不往页面上抛异常（不会白屏）', !thrown, thrown && thrown.message);
+ok('提示了用户一次', modals === 1, modals);
+
+try {
+  db.saveSet({ date: '2026-10-26', exId: 'g1', setNo: 2, weight: 60, reps: 8, unit: 'kg' });
+} catch (e) { /* 第二次同样写不进去 */ }
+ok('连续写失败也只提示一次（不骚扰）', modals === 1, modals);
+
+// 最怕的形态是「界面看着有、重进就没」：内存缓存必须回落到磁盘真相
+wx.setStorageSync = realSet;
+ok('写失败的这组不会假装存在（读回磁盘）',
+  !db.allSets().some(function (s) { return s.date === '2026-10-26' && s.exId === 'g1'; }),
+  db.allSets().length + ' 组');
+
+// 腾出空间后照常能记
+db.saveSet({ date: '2026-10-27', exId: 'g1', setNo: 1, weight: 62, reps: 8, unit: 'kg' });
+ok('空间恢复后能正常记录',
+  db.allSets().some(function (s) { return s.date === '2026-10-27'; }),
+  db.allSets().length + ' 组');
+
+delete wx.showModal;
+safe.resetWarn();
+wx.removeStorageSync = realRemove;
+db.resetAll();
+
 console.log('\n' + (process.exitCode ? '有失败项' : '全部通过') + '\n');

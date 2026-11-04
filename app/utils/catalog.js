@@ -14,6 +14,7 @@
  */
 
 const EX = require('../data/exercises');
+const safeStorage = require('./safeStorage');
 
 const K_CATALOG = 'lj.catalog';          // { rev, fetchedAt, list:[…] } 官方清单（整份覆盖）
 const K_DETAIL = 'lj.catalog.detail.';   // + id → { steps, imgDetail, fetchedAt }
@@ -76,7 +77,7 @@ function setSyncError(exId, reason) {
   const i = all.findIndex(function (e) { return e.exId === exId; });
   if (i < 0) return;
   all[i] = Object.assign({}, all[i], { syncError: reason || '服务端拒绝' });
-  wx.setStorageSync(K_CUSTOM, all);
+  safeStorage.set(K_CUSTOM, all);
   customCache = all;
   emit();
 }
@@ -150,7 +151,7 @@ function detail(id) {
         imgDetail: (out && out.imgDetail) || '',
         fetchedAt: Date.now()
       };
-      wx.setStorageSync(key, rec);
+      safeStorage.set(key, rec);
       pruneDetail();
       return rec;
     })
@@ -182,13 +183,15 @@ function pruneDetail() {
  * rev 只在**真正写进去之后**才更新：先写 rev 却拉失败，会导致「rev 已前进、清单永远旧」。
  */
 function applyCatalog(rev, arr) {
-  wx.setStorageSync(K_CATALOG, {
+  // 写不进去（本地满）就当这次没拉过：rev 不能前进，否则「rev 已旧、清单永远旧」
+  if (!safeStorage.set(K_CATALOG, {
     rev: rev,
     fetchedAt: Date.now(),
     list: Array.isArray(arr) ? arr : []
-  });
+  })) return false;
   invalidate();
   emit();
+  return true;
 }
 
 /** 清单的本地 rev（没有就是 0） */
@@ -202,7 +205,7 @@ function putCustom(rec) {
   const all = readCustom().slice();
   const i = all.findIndex(function (e) { return e.exId === rec.exId; });
   if (i >= 0) all[i] = rec; else all.push(rec);
-  wx.setStorageSync(K_CUSTOM, all);
+  safeStorage.set(K_CUSTOM, all);
   customCache = all;
   emit();
   return rec;
@@ -227,7 +230,7 @@ function applyRemoteCustom(arr, isPending) {
     if (i >= 0) all[i] = rec; else all.push(rec);
     n++;
   });
-  wx.setStorageSync(K_CUSTOM, all);
+  safeStorage.set(K_CUSTOM, all);
   customCache = all;
   if (n) emit();
   return n;
@@ -241,7 +244,7 @@ function rawCustom() {
 /** 本地删掉一条自建动作（服务端确认墓碑之后） */
 function dropCustom(exId) {
   const all = readCustom().filter(function (e) { return e.exId !== exId; });
-  wx.setStorageSync(K_CUSTOM, all);
+  safeStorage.set(K_CUSTOM, all);
   customCache = all;
   emit();
 }

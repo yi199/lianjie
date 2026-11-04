@@ -17,6 +17,7 @@
 
 const CFG = require('./config');
 const db = require('./db');
+const safeStorage = require('./safeStorage');
 const CAT = require('./catalog');     // 只用来注入详情加载器 + 写回官方清单，依赖是单向的
 const store = require('../store/index');
 
@@ -96,7 +97,7 @@ function auth() {
 }
 
 function saveAuth(token, expiresAt) {
-  wx.setStorageSync(K_AUTH, { token: token, expiresAt: expiresAt || '' });
+  safeStorage.set(K_AUTH, { token: token, expiresAt: expiresAt || '' });
 }
 
 function clearAuth() {
@@ -229,7 +230,7 @@ function getCursor() {
 }
 
 function setCursor(c) {
-  if (typeof c === 'number' && isFinite(c)) wx.setStorageSync(K_CURSOR, c);
+  if (typeof c === 'number' && isFinite(c)) safeStorage.set(K_CURSOR, c);
 }
 
 /* ---------------- 一次同步 ---------------- */
