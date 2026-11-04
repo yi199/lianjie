@@ -11,20 +11,19 @@
 
 ## 分支地图（先看这里，别推错）
 
-**2026-11-04 已收拢成一条线：只剩 `main`。**
+**`main` 是唯一主线。`feat/*` 是协作者 Jaserのaiyi 的分支 —— 只看不动，删别人的分支是红线。**
 
 | 位置 | 分支 | 指向 | 状态 |
 |---|---|---|---|
-| github | **`main`** | **`39652f7`** | **唯一主线**。已合入 feat/fonts-on-main 的全部内容：身体指标 P5 / 进步可视化 P7 / S7 部署 / 记录单位三态 / 详情页动作档案 |
-| 本地 | **`main`** | `39652f7` | 与 github 同步；**它跟踪的是 `gitee/main`，所以 `git status` 会显示 ahead 63**，别被吓到 |
-| 本地 | `backup/pre-main-merge` | `0f84b6e` | 合并前的临时备份，确认没问题后可 `git branch -D backup/pre-main-merge` |
+| github + 本地 | **`main`** | **`35903a0`** | **唯一主线**。2026-11-04 合入了 feat/fonts-on-main 的全部内容（身体指标 P5 / 进步可视化 P7 / S7 部署 / 记录单位三态 / 详情页动作档案） |
+| github | `feat/fonts-tabbar` `feat/catalog` `feat/fonts-rebuild` `feat/fonts-rebuild-2` `feat/safe-storage` | `b78a4ee` `17c559a` `f2e72f6` `1bb28cb` `05b291b` | **协作者的分支**（对应 PR #37–#41，内容已进 main）。**不要删**，即使看起来"已经合并了" |
+| 本地 | `feat/backend-sync-design` `feat/onboarding-rewards` | `f055522` `452ad47` | 历史残留，远端本来就没有这两个 |
+| 本地 | `backup/pre-main-merge` | `0f84b6e` | 合并前的临时备份，确认小程序跑得没问题后可 `git branch -D` |
 | gitee | `main` | `452ad47` | **旧镜像，落后 63 个提交**，要同步得单独 `git push gitee main` |
 
 远端：`gitee`(man-qianyi/lianjie) + `github`(yi199/lianjie，ssh://git@ssh.github.com:443)。
 
-已删除的 8 个旧分支（内容都在 main 里，不用找回）：
-`feat/fonts-tabbar` `feat/catalog` `feat/fonts-rebuild` `feat/fonts-rebuild-2`
-`feat/safe-storage` `feat/fonts-on-main` `feat/backend-sync-design`（废弃）`feat/onboarding-rewards`
+2026-11-04 只删了**自己的** `feat/fonts-on-main`（已合并进 main）。
 
 ### ★ squash 合并的坑（2026-11-04 踩到，已处理完）
 
