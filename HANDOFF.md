@@ -150,7 +150,7 @@ docs/                   文档体系（见下）
 - **P4 真机联调**：两台真机互相同步、弱网、杀进程、改时钟——**一次都没做过**（开发者工具≠真机）。
 - **P5 身体指标**：M1–M3 已做（v0.1）；**剩下**：和进步可视化 V3 对接（体重换算自重负荷、力量水平评级）。
 - **P6 上线准备**：隐私协议、数据导出/注销、监控告警、备份演练、灰度。
-- **P7 进步可视化**（V1–V3）：`docs/设计文档/进步可视化.md` 已有业务设计，代码零。字段部分（`rir`/`assist`）已落库。
+- **P7 进步可视化 V1 + V2**（2026-11-04，`9ce7717`）：`data/progress-model.js`（**纯参数表**：四种模型归属、体重系数、肌群参与度、进阶阶梯、噪声/停滞/起点参数）+ `utils/progress.js`（实际负荷、Epley+RIR 估算、序列/趋势/停滞事实/全身指数/肌群分摊/七类高光/数据质量）；`pages/progress` 整体变化页（指数、周走势、肌群、高光、动作榜可展开）+ 数据页入口。**`test-progress.js` 90 项**。示例数据默认不进统计。V3（体重/性别/评级/RIR 录入）与 V4 校准未做。
 - **动作库 v1.3 · E1 服务端已完成**（2026-11-04）：`exercises` / `catalog_meta` / `user_exercises` 三张表；`GET /api/catalog?since=`（免登录、独立 IP 限流、`since>=rev` → 304 空 body、`order by hot desc,id`）；`GET /api/exercises/{id}`（要登录，`steps: string[]` + `imgDetail`，都可空）；`/sync` 加第 4 类资源 `customExercises`（LWW + 墓碑 + `rejected.kind=customExercise`）和 `catalogRev`；`cmd/seed-catalog` + `content/exercises.json`（105 个动作 / 18 个 hot）。后端 **76 项断言组全绿**（14 单元 + 23 集成，含四表分页、rev 区间、坏行隔离），HTTP 契约升到 **v3.3**。**E2（数据源）/ E3（我的动作页）/ E4（详情页）客户端三块均已完成**（见上）。
 - **训练日程 / 有氧记录**：只有 v0.1 设计，无代码。
 
@@ -175,8 +175,8 @@ docs/                   文档体系（见下）
 ## 常用操作
 
 ```bash
-# 六套自测（改完必跑，现在全绿 · 合计 484 项）
-cd app && for f in test.js test-page.js test-sync.js test-training.js test-metrics.js test-catalog.js; do echo "--- $f"; node $f || break; done
+# 七套自测（改完必跑，现在全绿 · 合计 590 项）
+cd app && for f in test.js test-page.js test-sync.js test-training.js test-metrics.js test-catalog.js test-progress.js; do echo "--- $f"; node $f || break; done
 
 # 同上但只报项数（_cache 不进版本库；没有就手敲上面那行）
 bash _cache/run_tests.sh
