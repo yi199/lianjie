@@ -242,3 +242,6 @@
   background: var(--card-press);
   transform: translateY(1rpx) scale(.996);
 }
+
+/* 自定义 tabBar 是固定定位的：页面自己让出它的高度（108rpx + 安全区），否则最后一行被盖住 */
+.page { padding-bottom: calc(var(--sp5) + 120rpx + env(safe-area-inset-bottom)); }

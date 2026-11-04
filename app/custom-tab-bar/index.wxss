@@ -1,0 +1,67 @@
+/* 底部切换栏
+ *
+ * 和页面同一套纸感：
+ *   - 底色用纸卡色（--card），上沿一条细线；不再是纯白底 + 白边（那样在米色页面上像贴了张纸）
+ *   - 选中项：图标换成深绿版本 + 文字加粗 + 上沿一道陶土色「小把手」
+ *   - 按下：整体微缩 4%，给出「按到了」的手感
+ */
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  height: 108rpx;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--card, #FBF8EF);
+  border-top: 1rpx solid var(--line, #EBE8DC);
+}
+
+/* 小把手：只在选中项上方出现 */
+.mark {
+  position: absolute;
+  top: -1rpx;
+  width: 56rpx;
+  height: 6rpx;
+  border-radius: 0 0 6rpx 6rpx;
+  background: var(--clay, #B4795A);
+  transition: left .22s cubic-bezier(.2, .8, .2, 1);
+}
+.mark.at0 { left: calc(16.66% - 28rpx); }
+.mark.at1 { left: calc(50% - 28rpx); }
+.mark.at2 { left: calc(83.33% - 28rpx); }
+
+.item {
+  flex: 1;
+  height: 108rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* 只让图标和文字参与缩放，底栏本身不动 */
+  transition: transform 120ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.ic {
+  width: 44rpx;
+  height: 44rpx;
+  opacity: .62;
+  transition: opacity 120ms ease;
+}
+
+.lb {
+  margin-top: 6rpx;
+  font-size: var(--fs-label, 19rpx);
+  letter-spacing: .1em;
+  color: var(--muted2, #A9A79A);
+  transition: color 120ms ease;
+}
+
+.item.on .ic { opacity: 1; }
+.item.on .lb { color: var(--green, #3C4A32); font-weight: 600; }
+
+/* 按下：整项缩一点点，像指尖按下去 */
+.item-hover { transform: scale(.94); }
+.item-hover .ic { opacity: .9; }
+.item-hover .lb { color: var(--green, #3C4A32); }

@@ -107,6 +107,10 @@ docs/                   文档体系（见下）
 7. **力量地形是山脊线**：横轴 12 周，每周一个峰，折线不做平滑。**不是**部位雷达图（犯过一次，commit 88f0166 修的）。
 8. **同步协议**：本地优先 + 服务端 `rev` 版本号游标 + LWW（客户端时刻，夹紧 2 分钟）+ 墓碑 `done=false`。撤销删除永远不物理删（会复活）。配置文档整份同步、服务端不解析。
 9. **原型与工程是两份代码**。改工程的视觉后要同步 `练界_小程序演示.html`（生成脚本 `_cache/make_interactive.py`）。
+11. **底部切换栏是自定义的**（`app/custom-tab-bar/`，`app.json` 里 `tabBar.custom: true`）。
+   加新的 tab 页时，**必须在 onShow 里 `this.getTabBar().setData({ selected: N })`**，
+   否则进来时高亮会停在上一个 tab；页面还要自己让出栏高
+   （`padding-bottom: calc(var(--sp5) + 120rpx + env(safe-area-inset-bottom))`）。
 10. **一个 PR 一件事，PR 描述写 `Closes #issue`**（见 `CONTRIBUTING.md` 和 `.github/pull_request_template.md`）。
 
 ## 红线（用户反复强调过）
