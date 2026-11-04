@@ -107,8 +107,22 @@ ok('热身组不参与（不算一次训练）', P.series(warmRows, 'g1').items.
 
 const highRepRows = day('2026-09-01', 'g1', [[60, 20], [60, 18]]);
 const highRep = P.series(highRepRows, 'g1').items[0];
-ok('次数超可信上限 → 不拿它算 1RM，退回次数', highRep.value === 20, highRep.value);
+ok('次数超可信上限 → 把次数夹到 10 再估算（不换单位）', highRep.value === 82, highRep.value);
 ok('次数超上限 → 可信度降一档（做了 2 组所以是中）', highRep.conf === '中', highRep.conf);
+
+// 回归：次数从 10 涨到 14 时，序列**不能**中途从 kg 掉回「次」，否则看起来像暴跌
+const growReps = flat(
+  day('2026-09-01', 'g2', [[15, 10]]),
+  day('2026-09-08', 'g2', [[15, 11]]),
+  day('2026-09-15', 'g2', [[15, 12]]),
+  day('2026-09-22', 'g2', [[15, 14]])
+);
+const gr = P.series(growReps, 'g2').items;
+ok('次数越过 10 次后单位不变（还是 kg）', gr.every(function (x) { return x.unit === 'kg'; }),
+  gr.map(function (x) { return x.unit; }).join(','));
+ok('次数涨 → 力量值单调上涨（不出现假的掉下去）',
+  gr.every(function (x, i) { return i === 0 || x.value >= gr[i - 1].value; }),
+  gr.map(function (x) { return x.value; }).join(' → '));
 
 /* ================= 4. 趋势 ================= */
 sec('4. 趋势（起点 / 指数 / 斜率）');
@@ -277,6 +291,12 @@ ok('换到更难的变式 → 升级高光', !!upg && upg.detail.from === 3 && u
   upg && (upg.detail.from + '→' + upg.detail.to));
 
 ok('今日高光只挑当天', P.todayHighlights(hlRows, '2026-09-25').every(function (h) { return h.date === '2026-09-25'; }));
+
+// 排序 + 去重：首屏要先看到「突破停滞」这种有故事的，而不是一串新纪录
+ok('高光按重要度排：突破停滞排在普通新纪录前面',
+  kinds.indexOf('breakthrough') < kinds.indexOf('record'), kinds.join(','));
+const dup = hl.filter(function (h) { return h.kind === 'record' && h.date === '2026-09-25'; });
+ok('同一天同一动作同一个值只留一条（不重复讲故事）', dup.length <= 1, dup.length);
 
 const gain = P.bestGain(allRows, '2026-09-01', '2026-09-30');
 ok('最大进步挑出指数最高的动作', gain && gain.exId === 'g4', gain && (gain.cn + ' ' + gain.detail.pct + '%'));

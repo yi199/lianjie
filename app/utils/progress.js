@@ -111,29 +111,33 @@ function pickBest(sets, attrs, bodyweightAt) {
   });
 
   if (attrs.model === M.MODEL.E1RM) {
-    const usable = scored.filter(function (x) { return x.reps <= attrs.credReps && x.load > 0; });
-    if (usable.length) {
-      usable.sort(function (a, b) { return e1rm(b.load, b.reps, b.rir) - e1rm(a.load, a.reps, a.rir); });
-      const top = usable[0];
+    const withLoad = scored.filter(function (x) { return x.reps > 0 && x.load > 0; });
+    if (withLoad.length) {
+      // 次数超可信上限的组不剔除，而是把次数夹到上限再估算（§5.1：10 次以上 Epley 不准）。
+      // 为什么不能「退回次数」：那会让序列中途换单位（kg → 次），看起来像暴跌。
+      const eff = function (x) {
+        return e1rm(x.load, Math.min(x.reps, attrs.credReps), x.rir);
+      };
+      withLoad.sort(function (a, b) { return eff(b) - eff(a); });
+      const top = withLoad[0];
       return {
-        value: e1rm(top.load, top.reps, top.rir),
+        value: eff(top),
         load: top.load,
         set: top.set,
-        capped: false,
+        capped: top.reps > attrs.credReps,
         noLoad: false
       };
     }
-    // 没有可用的组：要么次数全超上限，要么缺体重 → 退回「次数」，并标记低可信
+    // 完全没有负荷（自重动作还没记体重）→ 只能退回看次数
     const withReps = scored.filter(function (x) { return x.reps > 0; });
     withReps.sort(function (a, b) { return b.reps - a.reps; });
     if (!withReps.length) return null;
-    const fallback = withReps[0];
     return {
-      value: fallback.reps,
-      load: fallback.load,
-      set: fallback.set,
-      capped: fallback.reps > attrs.credReps,
-      noLoad: !(fallback.load > 0)
+      value: withReps[0].reps,
+      load: null,
+      set: withReps[0].set,
+      capped: false,
+      noLoad: true
     };
   }
 
@@ -579,7 +583,36 @@ function highlights(rows, opts) {
   });
 
   out.sort(function (a, b) { return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
-  return out;
+  return dedupeAndRank(out);
+}
+
+/**
+ * 高光排序 + 去重：
+ *   - 同一天同一动作同一个值，只留「更重要」的那条（突破停滞 > 升级 > 整数关口 > 坚持 > 新纪录 > 第一次）
+ *   - 首屏要优先看到有故事的，而不是一串「新纪录」
+ */
+const HIGHLIGHT_RANK = { breakthrough: 1, upgrade: 2, milestone: 3, streak: 4, record: 5, first: 6 };
+
+function dedupeAndRank(list) {
+  const seen = {};
+  const kept = [];
+  // 先按重要度排，重要的先占位
+  list.slice().sort(function (a, b) {
+    return (HIGHLIGHT_RANK[a.kind] || 9) - (HIGHLIGHT_RANK[b.kind] || 9);
+  }).forEach(function (h) {
+    const key = h.exId + '|' + h.date + '|' + Math.round(h.value * 100);
+    if (seen[key]) return;
+    seen[key] = true;
+    kept.push(h);
+  });
+  // 再按「重要度 → 日期新到旧」排
+  kept.sort(function (a, b) {
+    const ra = HIGHLIGHT_RANK[a.kind] || 9;
+    const rb = HIGHLIGHT_RANK[b.kind] || 9;
+    if (ra !== rb) return ra - rb;
+    return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0);
+  });
+  return kept;
 }
 
 /** 某一天的高光（战报用，S2） */

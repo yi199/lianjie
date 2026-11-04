@@ -80,8 +80,17 @@ Page({
       };
     });
 
-    const hls = P.highlightsNow(o).slice(0, 6);
-    const highlights = hls.map(function (h, i) {
+    // 首屏最多 6 条，同类最多 2 条：一串「突破停滞」会显得像刷屏，混着看才像故事
+    const hls = P.highlightsNow(o);
+    const picked = [];
+    const perKind = {};
+    hls.forEach(function (h) {
+      if (picked.length >= 6) return;
+      perKind[h.kind] = (perKind[h.kind] || 0) + 1;
+      if (perKind[h.kind] > 2) return;
+      picked.push(h);
+    });
+    const highlights = picked.map(function (h, i) {
       const d = h.date || '';
       return { idx: i, kind: h.kind, dateText: d.slice(5).replace('-', '/'), text: highlightText(h) };
     });
