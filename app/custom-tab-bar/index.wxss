@@ -28,19 +28,20 @@
 .mark {
   position: absolute;
   top: 0;
-  width: 56rpx;
-  height: 6rpx;
+  width: 48rpx;
+  height: 5rpx;
   border-radius: 0 0 6rpx 6rpx;
   background: var(--clay, #B4795A);
   transition: left .22s cubic-bezier(.2, .8, .2, 1);
 }
-.mark.at0 { left: calc(16.66% - 28rpx); }
-.mark.at1 { left: calc(50% - 28rpx); }
-.mark.at2 { left: calc(83.33% - 28rpx); }
+.mark.at0 { left: calc(16.66% - 24rpx); }
+.mark.at1 { left: calc(50% - 24rpx); }
+.mark.at2 { left: calc(83.33% - 24rpx); }
 
 .item {
   flex: 1;
-  height: 108rpx;
+  /* 92rpx：原来 108rpx 在 430 宽的机型上是 62px 高，占了屏高 6.6%，太厚 */
+  height: 92rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -52,15 +53,15 @@
 .ic {
   display: block;
   flex: none;
-  width: 44rpx;
-  height: 44rpx;
+  width: 40rpx;
+  height: 40rpx;
   opacity: .68;
   transition: opacity 120ms ease;
 }
 
 .lb {
-  margin-top: 6rpx;
-  font-size: var(--fs-label, 19rpx);
+  margin-top: 4rpx;
+  font-size: 17rpx;
   letter-spacing: .1em;
   /* 栏底比页面深，未选中文字不能再这么浅，否则糊成一片 */
   color: var(--muted2, #97948A);
