@@ -130,6 +130,11 @@ docs/                   文档体系（见下）
    否则进来时高亮会停在上一个 tab；页面还要自己让出栏高
    （`padding-bottom: calc(var(--sp5) + 120rpx + env(safe-area-inset-bottom))`）。
 10. **一个 PR 一件事，PR 描述写 `Closes #issue`**（见 `CONTRIBUTING.md` 和 `.github/pull_request_template.md`）。
+11. **动作档案在本地**：`app/data/exercise-meta.js` 存表格里那 5 个展示列（难度 / 器材 / 主要肌群 /
+    单双侧 / 类型），详情页「看讲解」把它们渲染成「动作档案」卡片。数据源是
+    `健身动作库_105动作清单_v1.xlsx` 的「动作库」页；改表后重新生成该文件即可。
+    详情页**只保留**：标签 / 动作名 / 插画（有图才显示）/ 一句话要点 / 动作档案。
+    「怎么做」步骤和「怎么记」两块已按用户要求删除；`steps` 仍由后端提供，但页面不再渲染。
 
 ## 红线（用户反复强调过）
 

@@ -65,46 +65,6 @@
   background: var(--card);
 }
 
-/* 没图时不空白：一张纸 + 一条陶土竖线，加载中就让它呼吸 */
-.artph {
-  position: relative;
-  padding: var(--sp4) var(--sp3) var(--sp4) calc(var(--sp3) + 26rpx);
-  background: var(--card);
-  border: 1px dashed var(--line);
-  border-radius: 28rpx;
-}
-
-.artph-bar {
-  position: absolute;
-  left: var(--sp3);
-  top: var(--sp4);
-  bottom: var(--sp4);
-  width: 6rpx;
-  border-radius: 999rpx;
-  background: var(--clay);
-  opacity: .28;
-}
-
-.artph-bar.is-loading { animation: breathe 1.4s ease-in-out infinite; }
-
-@keyframes breathe {
-  0%, 100% { opacity: .18; }
-  50% { opacity: .55; }
-}
-
-.artph-t {
-  font-size: var(--fs-body);
-  font-weight: 600;
-  letter-spacing: -.01em;
-}
-
-.artph-n {
-  margin-top: 6rpx;
-  font-size: var(--fs-note);
-  line-height: 1.6;
-  color: var(--muted);
-}
-
 /* ---------- 卡片 ---------- */
 .card {
   background: var(--card);
@@ -135,72 +95,31 @@
   line-height: 1.6;
 }
 
-/* ---------- 步骤 ---------- */
-.steps { border-top: 1px solid var(--line); }
-
-.step {
+/* ---------- 动作档案 ---------- */
+.metarow {
   display: flex;
-  gap: var(--sp2);
-  padding: 22rpx 0;
-  border-bottom: 1px solid var(--line);
+  align-items: baseline;
+  gap: 20rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--line);
 }
 
-.step:last-child { border-bottom: 0; padding-bottom: 0; }
+.metarow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
 
-.stepno {
+.mk {
+  width: 160rpx;
   flex-shrink: 0;
-  min-width: 44rpx;
-  padding-top: 6rpx;
-  font-family: 'LJGrotesk', sans-serif;
   font-size: var(--fs-label);
-  letter-spacing: .12em;
-  color: var(--clay);
-}
-
-.steptext {
-  flex: 1 1 auto;
-  font-size: var(--fs-body);
-  line-height: 1.75;
-  color: var(--ink);
-}
-
-/* ---------- 空态 / 失败 ---------- */
-.empty-t {
-  font-size: var(--fs-h2);
-  font-weight: 600;
-  letter-spacing: -.01em;
-}
-
-.empty-n {
-  margin-top: var(--sp1);
-  font-size: var(--fs-note);
-  line-height: 1.7;
+  letter-spacing: .1em;
   color: var(--muted);
 }
 
-.retry {
-  display: inline-block;
-  margin-top: var(--sp2);
-  padding: 14rpx 32rpx;
-  font-size: var(--fs-note);
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 999rpx;
-}
-
-.retry-hover { background: var(--card-press); border-color: var(--ink); }
-
-/* ---------- 怎么记 / 页脚 ---------- */
-.howtotext {
+.mv {
+  flex: 1;
   font-size: var(--fs-body);
-  line-height: 1.75;
-  color: var(--muted);
-}
-
-.foot {
-  margin-top: var(--sp5);
-  font-size: var(--fs-label);
-  letter-spacing: .04em;
-  text-align: center;
-  color: var(--muted2);
+  line-height: 1.5;
+  color: var(--ink);
 }

@@ -287,9 +287,7 @@ function fakeDetail(out) {
     [ep.data.partCn, ep.data.placeCn, ep.data.unitCn].join('/'));
   ok('点进详情时要点已经在页面上（不必等网络）', String(ep.data.ex.tips).indexOf('肩胛') === 0, ep.data.ex.tips);
   await new Promise(function (r) { setTimeout(r, 0); });
-  ok('没有 loader 时不卡在加载态（降级成「讲解还没补上」）', ep.data.loading === false && ep.data.failed === true,
-    'loading=' + ep.data.loading + ' failed=' + ep.data.failed);
-  ok('「怎么记」按单位给文案', ep.data.howto.indexOf('按重量记') === 0, ep.data.howto);
+  ok('没有 loader 时页面不卡（要点本地就有）', !!ep.data.ex.tips);
 
   /* ---- 9.2 拉到 steps + 大图 ---- */
   fakeDetail({ steps: ['躺下，肩胛后收', '起杠，落到胸口', '推起，别锁死肘'], imgDetail: 'https://cdn.example.com/g1.jpg' });
@@ -298,10 +296,12 @@ function fakeDetail(out) {
   await new Promise(function (r) { setTimeout(r, 0); });
   ok('请求路径是 /exercises/{id}', detailCalls.length === 1 && detailCalls[0][0] === '/exercises/g1',
     JSON.stringify(detailCalls));
-  ok('步骤渲染成 01/02/03', ep.data.steps.length === 3 && ep.data.steps[2].no === '03',
-    ep.data.steps.map(function (s) { return s.no; }).join(','));
+  ok('现在不再渲染步骤', ep.data.steps === undefined);
   ok('大图地址进了页面', ep.data.imgUrl === 'https://cdn.example.com/g1.jpg', ep.data.imgUrl);
-  ok('有内容时不算失败、不在加载态', ep.data.loading === false && ep.data.failed === false);
+  ok('动作档案 5 项都在（难度/器材/肌群/单双侧/类型）',
+    ep.data.metaRows.length === 5 && ep.data.metaRows[4].k === '类型',
+    ep.data.metaRows.map(function (x) { return x.k + '=' + x.v; }).join(' · '));
+  ok('页面不再有加载/失败态字段', ep.data.loading === undefined && ep.data.failed === undefined);
 
   /* ---- 9.2b 再进来一次走缓存，不重复打后端 ---- */
   const callsBefore = detailCalls.length;
@@ -310,15 +310,15 @@ function fakeDetail(out) {
   await new Promise(function (r) { setTimeout(r, 0); });
   ok('7 天内再进同一个动作不重复请求（走详情缓存）', detailCalls.length === callsBefore,
     callsBefore + ' → ' + detailCalls.length);
-  ok('缓存里的步骤照样渲染', ep.data.steps.length === 3, ep.data.steps.length + ' 步');
+  ok('缓存里也能拿到插画地址', ep.data.imgUrl === 'https://cdn.example.com/g1.jpg', ep.data.imgUrl);
 
   /* ---- 9.3 请求失败：不阻塞，要点照旧（换一个没缓存的 id） ---- */
   CAT.setDetailLoader(function () { return Promise.reject(new Error('network')); });
   ep = loadPage('./pages/exercise/index');
   ep.onLoad({ id: 'g15' });
   await new Promise(function (r) { setTimeout(r, 0); });
-  ok('拉不到讲解 → 标失败并给「再试一次」', ep.data.failed === true && ep.data.steps.length === 0);
-  ok('失败时标题和要点没丢', ep.data.ex.cn === '上斜卧推' && !!ep.data.ex.tips, ep.data.ex.cn);
+  ok('拉不到讲解不崩、也不留破图框', ep.data.imgUrl === '');
+  ok('拉不到讲解时标题和要点没丢', ep.data.ex.cn === '上斜卧推' && !!ep.data.ex.tips, ep.data.ex.cn);
   ok('图挂了就当没图（不留破图框）', ep.data.imgUrl === '', ep.data.imgUrl);
 
   /* ---- 9.4 自建动作：不打后端 ---- */
@@ -331,7 +331,7 @@ function fakeDetail(out) {
   ep.onLoad({ id: mine.exId });
   await new Promise(function (r) { setTimeout(r, 0); });
   ok('自建动作不去问服务端（服务端也没有这条）', detailCalls.length === 0, detailCalls.length + ' 次请求');
-  ok('自建动作标记成 custom、直接结束加载', ep.data.custom === true && ep.data.loading === false);
+  ok('自建动作不额外打后端、页面照常', ep.data.ex.cn === '绳索夹胸');
   ok('自建动作显示自己的要点', ep.data.ex.tips === '肘别乱飞', ep.data.ex.tips);
 
   /* ---- 9.5 id 不存在 ---- */
