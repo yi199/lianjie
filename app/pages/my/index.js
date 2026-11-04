@@ -58,6 +58,10 @@ Page({
     wx.navigateTo({ url: '/pages/programs/index' });
   },
 
+  gotoMetrics() {
+    wx.navigateTo({ url: '/pages/metrics/index' });
+  },
+
   setDays(e) {
     this.apply({ days: Number(e.currentTarget.dataset.v) });
   },

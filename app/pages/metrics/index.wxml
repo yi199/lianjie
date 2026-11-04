@@ -1,0 +1,92 @@
+<view class="sb" style="height:{{sbh}}px"></view>
+
+<view class="nav">
+  <view class="back" bindtap="back" hover-class="back-hover">
+    <text>‹</text>
+  </view>
+  <view class="tt">
+    <text>身体指标</text>
+    <text class="en">Body Metrics</text>
+  </view>
+</view>
+
+<view class="wrap">
+
+  <!-- 大数字：最新值 -->
+  <view class="hero">
+    <view class="hero-label">{{def.cn}}</view>
+    <view class="hero-num">{{latest ? latest.value : '—'}}<text class="u">{{def.unit}}</text></view>
+    <view class="hero-delta" wx:if="{{delta}}">
+      <text class="{{delta.delta < 0 ? 'down' : (delta.delta > 0 ? 'up' : '')}}">
+        {{delta.delta > 0 ? '+' : ''}}{{delta.delta}}{{def.unit}}
+      </text>
+      <text class="hero-delta-cn">比 30 天前</text>
+    </view>
+    <view class="hero-hint" wx:if="{{!latest}}">还没有记录，填今天的一个数就开始有曲线了。</view>
+  </view>
+
+  <!-- 切换指标 -->
+  <view class="kinds">
+    <view
+      class="kind {{active === item.kind ? 'on' : ''}}"
+      wx:for="{{kinds}}"
+      wx:key="kind"
+      data-kind="{{item.kind}}"
+      bindtap="switchKind"
+    >
+      <text class="kind-cn">{{item.cn}}</text>
+      <text class="kind-unit">{{item.unit}}</text>
+    </view>
+  </view>
+
+  <!-- 趋势图 -->
+  <view class="chartbox {{chartEmpty ? 'blank' : ''}}">
+    <canvas type="2d" id="trend" class="trend"></canvas>
+    <view class="chart-empty" wx:if="{{chartEmpty}}">
+      <text>至少两条记录才有曲线</text>
+    </view>
+    <view class="chart-foot" wx:if="{{!chartEmpty}}">
+      <text>最早 {{records[records.length - 1].date}}</text>
+      <text>最近 {{latest.date}}</text>
+    </view>
+  </view>
+
+  <!-- 最近记录 -->
+  <view class="sec" wx:if="{{records.length}}">
+    <view class="sec-h">最近记录</view>
+    <view class="rlist">
+      <view class="ritem {{item.isToday ? 'today' : ''}}" wx:for="{{records}}" wx:key="date">
+        <text class="rdate num">{{item.date}}</text>
+        <text class="rval num">{{item.value}}</text>
+        <text class="runit">{{item.unit}}</text>
+        <text class="rtoday" wx:if="{{item.isToday}}">今天</text>
+        <text class="rdel" wx:if="{{item.isToday}}" bindtap="removeToday">×</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="tip">体重一份数据三处用：自重动作的实际负荷、力量水平评级、这里的趋势。同一份，不重复填。</view>
+
+</view>
+
+<!-- 底部录入 -->
+<view class="bar">
+  <view class="barlabel">
+    <text class="barcn">{{def.cn}}</text>
+    <text class="bardate num">{{today}}</text>
+  </view>
+  <view class="barinput">
+    <input
+      class="barnum num"
+      type="digit"
+      value="{{inputValue}}"
+      placeholder="0"
+      placeholder-class="ph"
+      bindinput="onInput"
+      bindconfirm="save"
+      confirm-type="done"
+    />
+    <text class="barunit">{{def.unit}}</text>
+  </view>
+  <view class="barsave" hover-class="barsave-hover" bindtap="save">记下</view>
+</view>

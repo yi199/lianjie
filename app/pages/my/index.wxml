@@ -27,6 +27,16 @@
     </view>
   </view>
 
+  <!-- 身体指标 -->
+  <view class="card sec">
+    <view class="cardlabel">身体指标</view>
+    <view class="cname">体重 · 体脂 · 腰围 · 静息心率</view>
+    <view class="changebtn" hover-class="changebtn-hover" bindtap="gotoMetrics">
+      <text>记录今天 / 看趋势</text>
+      <text class="changearrow">→</text>
+    </view>
+  </view>
+
   <!-- 一周几次 -->
   <view class="sec">
     <view class="sec-h">一周练几次</view>

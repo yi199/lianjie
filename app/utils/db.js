@@ -492,6 +492,117 @@ function applyConfigDoc(doc) {
   return true;
 }
 
+/* ---------------- 身体指标 ---------------- */
+
+/**
+ * 身体指标（P5）。
+ *
+ * 服务端 `metrics` 表和同步协议早就有（kind / date / value / unit / note / done / updatedAt），
+ * 前端这边只做「录入 + 看趋势」：一天一个值，同一天再填就是改。
+ *
+ * 为什么只放 4 种：体重、体脂、腰围、静息心率 —— 正好覆盖开发计划 M2 说的
+ * 「体重 / 体脂 / 围度 / 静息心率」，其余（胸围臀围臂围睡眠）字段留着，等真要用再加。
+ */
+const METRIC_KINDS = [
+  { kind: 'weight', cn: '体重', en: 'Weight', unit: 'kg', step: 0.1, min: 20, max: 300 },
+  { kind: 'bodyfat', cn: '体脂率', en: 'Body Fat', unit: '%', step: 0.1, min: 3, max: 60 },
+  { kind: 'waist', cn: '腰围', en: 'Waist', unit: 'cm', step: 0.5, min: 40, max: 200 },
+  { kind: 'hrrest', cn: '静息心率', en: 'Resting HR', unit: 'bpm', step: 1, min: 30, max: 150 }
+];
+
+const METRIC_BY_KIND = {};
+METRIC_KINDS.forEach(function (k) { METRIC_BY_KIND[k.kind] = k; });
+
+function metricKinds() { return METRIC_KINDS.slice(); }
+
+function metricDef(kind) { return METRIC_BY_KIND[kind] || null; }
+
+/** 某天某种指标（不含墓碑）；没有返回 null */
+function metricOf(kind, date) {
+  const r = S.metric(kind, date || D.today());
+  return r && r.done ? r : null;
+}
+
+/**
+ * 存一个值（同一天同一种覆盖）。超范围直接拒绝，不做静默裁剪 —— 手滑输入 500 公斤
+ * 应该当场发现，而不是被「修正」成 300。
+ * @returns {object|null} 存下来的行；参数不合法返回 null
+ */
+function saveMetric(rec) {
+  const def = metricDef((rec || {}).kind);
+  if (!def) return null;
+  const date = rec.date || D.today();
+  const v = Number(rec.value);
+  if (!isFinite(v) || v < def.min || v > def.max) return null;
+
+  const rounded = Math.round(v / def.step) * def.step;
+  const row = {
+    kind: def.kind,
+    date: date,
+    // 0.1 这类步长乘回来会有浮点尾巴（75.1 * 0.1），按步长定小数位收干净
+    value: Number(rounded.toFixed(def.step < 1 ? 1 : 0)),
+    unit: def.unit,
+    note: String(rec.note || '').slice(0, 200),
+    done: true
+  };
+  const saved = S.putMetricLocal(row, syncOn());
+  store.touchSets();
+  return saved;
+}
+
+/** 删掉某天某个指标：同步开着写墓碑，同步关着直接物理删 */
+function removeMetric(kind, date) {
+  const day = date || D.today();
+  const prev = S.metric(kind, day);
+  if (!prev || !prev.done) return false;
+  if (syncOn()) S.putMetricLocal(Object.assign({}, prev, { done: false }), true);
+  else S.removeMetrics([{ kind: kind, date: day }]);
+  store.touchSets();
+  return true;
+}
+
+/**
+ * 某个指标的序列（只有有效值，按日期升序）。
+ * @param {string} kind
+ * @param {{from?:string, to?:string, limit?:number}} [opts]
+ */
+function metricSeries(kind, opts) {
+  const o = opts || {};
+  let list = S.metrics().filter(function (r) {
+    return r.kind === kind && r.done;
+  });
+  if (o.from) list = list.filter(function (r) { return r.date >= o.from; });
+  if (o.to) list = list.filter(function (r) { return r.date <= o.to; });
+  if (o.limit) list = list.slice(-o.limit);
+  return list;
+}
+
+/** 最近一次记录的该指标，没有返回 null */
+function latestMetric(kind) {
+  const list = metricSeries(kind);
+  return list.length ? list[list.length - 1] : null;
+}
+
+/**
+ * 和 N 天前比变了多少（找那天或之前最近的一次记录）。
+ * @returns {{now:number, before:number, delta:number, days:number, beforeDate:string}|null}
+ */
+function metricDelta(kind, days) {
+  const now = latestMetric(kind);
+  if (!now) return null;
+  const cutoff = D.shift(now.date, -(days || 30));
+  const earlier = metricSeries(kind, { to: cutoff });
+  if (!earlier.length) return null;
+  const before = earlier[earlier.length - 1];
+  return {
+    now: now.value,
+    before: before.value,
+    delta: Math.round((now.value - before.value) * 10) / 10,
+    days: days || 30,
+    beforeDate: before.date
+  };
+}
+
 /* ---------------- 同步层接口（sync.js 只用这几个，页面不用） ---------------- */
 
 /** 待上传总数：记录 + 训练 + 配置算 1 */
@@ -524,6 +635,7 @@ function syncApply(pulled) {
   let n = 0;
   if (pulled.sets && pulled.sets.length) n += S.applyRemote(pulled.sets);
   if (pulled.workouts && pulled.workouts.length) n += S.applyRemoteWorkouts(pulled.workouts);
+  if (pulled.metrics && pulled.metrics.length) n += S.applyRemoteMetrics(pulled.metrics);
   if (pulled.config) n += applyConfigDoc(pulled.config) ? 1 : 0;
   return n;
 }
@@ -1698,6 +1810,8 @@ module.exports = {
   todayReport, detectPRs,
   /* 统计 */
   monthlyStats, weeklyProgress,
+  /* 身体指标 */
+  metricKinds, metricDef, metricOf, saveMetric, removeMetric, metricSeries, latestMetric, metricDelta,
   /* 可视化 */
   partTerrain, weeklyVolume, allTimeStats,
   /* 配置文档 */

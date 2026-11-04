@@ -26,12 +26,17 @@ const K_DIRTY = 'lj.sync.dirty';
 const K_W_YEARS = 'lj.workouts.years';
 const K_W_PREFIX = 'lj.workouts.';
 const W_PREFIX = 'w:';                 // 待上传队列里训练的 id 前缀
+// 身体指标：一天一个值，按月分（一个月最多 9 种 × 31 天 ≈ 28KB）
+const K_M_MONTHS = 'lj.metrics.months';
+const K_M_PREFIX = 'lj.metrics.';
+const M_PREFIX = 'm:';                 // 待上传队列里指标的 id 前缀
 
 // 老数据没有 updatedAt：给一个足够早的时刻，和服务端（别的设备）的版本冲突时让对方赢
 const LEGACY_STAMP = '2000-01-01T00:00:00.000Z';
 
 let cache = null;        // { months: {'2026-10': [row]}, live: [row] | null }
 let wcache = null;       // { '2026': [workout] }
+let mcache = null;       // { '2026-11': [metric] }
 let dirtyCache = null;
 let lastStamp = 0;
 const listeners = [];
@@ -266,6 +271,115 @@ function removeWorkouts(dates) {
   if (dirtyChanged) wx.setStorageSync(K_DIRTY, d);
 }
 
+/* ---------------- 身体指标 ---------------- */
+
+function monthOfDate(date) { return String(date).slice(0, 7); }
+function metricKey(r) { return r.kind + '|' + r.date; }
+function mid(r) { return M_PREFIX + metricKey(r); }
+
+function mload() {
+  if (mcache) return mcache;
+  mcache = {};
+  const months = wx.getStorageSync(K_M_MONTHS) || [];
+  months.forEach(function (m) {
+    const rows = wx.getStorageSync(K_M_PREFIX + m);
+    mcache[m] = Array.isArray(rows) ? rows : [];
+  });
+  return mcache;
+}
+
+function mwrite(m) {
+  const list = mcache[m] || [];
+  if (list.length) {
+    wx.setStorageSync(K_M_PREFIX + m, list);
+  } else {
+    wx.removeStorageSync(K_M_PREFIX + m);
+    delete mcache[m];
+  }
+  wx.setStorageSync(K_M_MONTHS, Object.keys(mcache).sort());
+}
+
+function mupsert(row) {
+  const c = mload();
+  const m = monthOfDate(row.date);
+  if (!c[m]) c[m] = [];
+  const list = c[m];
+  const k = metricKey(row);
+  const idx = list.findIndex(function (r) { return metricKey(r) === k; });
+  if (idx >= 0) list[idx] = row; else list.push(row);
+  return m;
+}
+
+/** 某天某种指标（含墓碑），没有返回 null */
+function metric(kind, date) {
+  const list = mload()[monthOfDate(date)] || [];
+  return list.filter(function (r) { return r.kind === kind && r.date === date; })[0] || null;
+}
+
+/** 全部指标（含墓碑），按日期升序、同日按 kind 排 */
+function metrics() {
+  const c = mload();
+  const out = [];
+  Object.keys(c).sort().forEach(function (m) {
+    c[m].forEach(function (r) { out.push(r); });
+  });
+  return out.sort(function (a, b) {
+    if (a.date === b.date) return a.kind < b.kind ? -1 : 1;
+    return a.date < b.date ? -1 : 1;
+  });
+}
+
+/** 本地产生的指标改动：盖时间戳；同步打开时进待上传队列 */
+function putMetricLocal(row, track) {
+  const r = Object.assign({}, row);
+  r.updatedAt = stamp();
+  mwrite(mupsert(r));
+  if (track) markDirty(mid(r), r.updatedAt);
+  return r;
+}
+
+/** 批量写入（服务端下发）：不改时间戳、不进队列 */
+function putMetrics(list) {
+  const touched = {};
+  list.forEach(function (row) { touched[mupsert(Object.assign({}, row))] = true; });
+  Object.keys(touched).forEach(mwrite);
+}
+
+/** 物理删除，keys 是 [{kind,date}] */
+function removeMetrics(keys) {
+  const c = mload();
+  const touched = {};
+  const d = dirtyMap();
+  let dirtyChanged = false;
+  keys.forEach(function (k) {
+    const m = monthOfDate(k.date);
+    const list = c[m];
+    if (list) {
+      const idx = list.findIndex(function (r) { return r.kind === k.kind && r.date === k.date; });
+      if (idx >= 0) { list.splice(idx, 1); touched[m] = true; }
+    }
+    const id = M_PREFIX + k.kind + '|' + k.date;
+    if (d[id]) { delete d[id]; dirtyChanged = true; }
+  });
+  Object.keys(touched).forEach(mwrite);
+  if (dirtyChanged) wx.setStorageSync(K_DIRTY, d);
+}
+
+/** 应用服务端下发的指标：本地有未上传改动的先不动；墓碑直接删 */
+function applyRemoteMetrics(list) {
+  const d = dirtyMap();
+  const puts = [];
+  const dels = [];
+  list.forEach(function (r) {
+    if (d[mid(r)]) return;
+    if (r.done) puts.push(r);
+    else if (metric(r.kind, r.date)) dels.push({ kind: r.kind, date: r.date });
+  });
+  if (puts.length) putMetrics(puts);
+  if (dels.length) removeMetrics(dels);
+  return puts.length + dels.length;
+}
+
 /* ---------------- 全部清空 ---------------- */
 
 /** 组记录、训练、待上传队列全部清掉 */
@@ -276,9 +390,13 @@ function removeAll() {
   const w = wload();
   Object.keys(w).forEach(function (y) { wx.removeStorageSync(K_W_PREFIX + y); });
   wx.removeStorageSync(K_W_YEARS);
+  const mm = mload();
+  Object.keys(mm).forEach(function (m) { wx.removeStorageSync(K_M_PREFIX + m); });
+  wx.removeStorageSync(K_M_MONTHS);
   wx.removeStorageSync(K_DIRTY);
   cache = { months: {}, live: null };
   wcache = {};
+  mcache = {};
   dirtyCache = {};
 }
 
@@ -314,28 +432,44 @@ function markAllDirty() {
     if (w.demo) return;
     if (!d[wid(w.date)]) d[wid(w.date)] = w.updatedAt || LEGACY_STAMP;
   });
+  metrics().forEach(function (r) {
+    if (r.demo) return;
+    if (!d[mid(r)]) d[mid(r)] = r.updatedAt || LEGACY_STAMP;
+  });
   wx.setStorageSync(K_DIRTY, d);
 }
 
 /**
- * 取一批待上传的行（组记录 + 训练合计不超过 limit）。
- * @returns {{ rows: Array, workouts: Array, sent: {id: updatedAt} }}
+ * 取一批待上传的行（组记录 + 训练 + 指标合计不超过 limit）。
+ * @returns {{ rows: Array, workouts: Array, metrics: Array, sent: {id: updatedAt} }}
  */
 function dirtyBatch(limit) {
   const d = dirtyMap();
   const outS = [];
   const outW = [];
+  const outM = [];
   const sent = {};
   const ids = Object.keys(d);
-  for (let i = 0; i < ids.length && outS.length + outW.length < limit; i++) {
+  for (let i = 0; i < ids.length && outS.length + outW.length + outM.length < limit; i++) {
     const id = ids[i];
     const isW = id.indexOf(W_PREFIX) === 0;
-    const r = isW ? workout(id.slice(W_PREFIX.length)) : get(id);
+    const isM = id.indexOf(M_PREFIX) === 0;
+    let r;
+    if (isW) {
+      r = workout(id.slice(W_PREFIX.length));
+    } else if (isM) {
+      const parts = id.slice(M_PREFIX.length).split('|');
+      r = metric(parts[0], parts[1]);
+    } else {
+      r = get(id);
+    }
     if (!r) { delete d[id]; continue; }          // 行已经不在了（被物理删掉），队列里的残留
-    (isW ? outW : outS).push(r);
+    if (isW) outW.push(r);
+    else if (isM) outM.push(r);
+    else outS.push(r);
     sent[id] = d[id];
   }
-  return { rows: outS, workouts: outW, sent: sent };
+  return { rows: outS, workouts: outW, metrics: outM, sent: sent };
 }
 
 /**
@@ -347,12 +481,19 @@ function ack(sent, rejectedIds) {
   const d = dirtyMap();
   const drop = [];
   const dropW = [];
+  const dropM = [];
   Object.keys(sent).forEach(function (id) {
     if (d[id] !== sent[id]) return;
     delete d[id];
     if (id.indexOf(W_PREFIX) === 0) {
       const w = workout(id.slice(W_PREFIX.length));
       if (w && !w.done) dropW.push(w.date);
+      return;
+    }
+    if (id.indexOf(M_PREFIX) === 0) {
+      const parts = id.slice(M_PREFIX.length).split('|');
+      const r = metric(parts[0], parts[1]);
+      if (r && !r.done) dropM.push({ kind: r.kind, date: r.date });
       return;
     }
     const r = get(id);
@@ -362,6 +503,7 @@ function ack(sent, rejectedIds) {
   wx.setStorageSync(K_DIRTY, d);
   if (drop.length) remove(drop);
   if (dropW.length) removeWorkouts(dropW);
+  if (dropM.length) removeMetrics(dropM);
 }
 
 /**
@@ -416,6 +558,8 @@ function rejectedIds(batch, rejected) {
       out.push(rowId(b.rows[r.index]));
     } else if (r.kind === 'workout' && b.workouts && b.workouts[r.index]) {
       out.push(wid(b.workouts[r.index].date));
+    } else if (r.kind === 'metric' && b.metrics && b.metrics[r.index]) {
+      out.push(mid(b.metrics[r.index]));
     }
   });
   return out;
@@ -465,6 +609,7 @@ function migrateLegacy() {
 function reset() {
   cache = null;
   wcache = null;
+  mcache = null;
   dirtyCache = null;
 }
 
@@ -474,6 +619,7 @@ module.exports = {
   rows, live, get,
   putLocal, putMany, remove,
   workout, workouts, putWorkoutLocal, putWorkouts, removeWorkouts,
+  metric, metrics, putMetricLocal, putMetrics, removeMetrics, applyRemoteMetrics,
   removeAll,
   dirtyMap, markAllDirty, dirtyBatch, ack, applyRemote, applyRemoteWorkouts, pendingCount, onDirty,
   rejectedIds,

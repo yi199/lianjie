@@ -197,10 +197,10 @@ function syncOnce(token) {
       cursor: getCursor(),
       sets: batch.rows,
       workouts: batch.workouts,
-      metrics: [],               // 身体指标模块（P5）还没做
+      metrics: batch.metrics || [],
       config: batch.config       // 没改动时是 null
     };
-    pushedRows += batch.rows.length + batch.workouts.length + (batch.config ? 1 : 0);
+    pushedRows += batch.rows.length + batch.workouts.length + (batch.metrics || []).length + (batch.config ? 1 : 0);
 
     return call('/sync', body, token)
       .catch(function (err) {
@@ -221,6 +221,7 @@ function syncOnce(token) {
         appliedRows += db.syncApply({
           sets: out.sets,
           workouts: out.workouts,
+          metrics: out.metrics,
           config: out.config
         });
         setCursor(out.cursor);

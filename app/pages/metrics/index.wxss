@@ -1,0 +1,292 @@
+/* ================= 页头 ================= */
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 16rpx 32rpx 0;
+}
+
+.back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-h1);
+  line-height: 1;
+  color: var(--ink);
+}
+
+.back-hover { background: var(--card); border-radius: 50%; }
+
+.tt { display: flex; flex-direction: column; }
+.tt text:first-child { font-size: var(--fs-h2); font-weight: 700; letter-spacing: -.01em; }
+.tt .en {
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-label);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--muted2);
+  margin-top: 2rpx;
+}
+
+.wrap { padding: 0 var(--sp3) 240rpx; }
+
+/* ================= 大数字 ================= */
+
+.hero { padding: 40rpx 0 8rpx; }
+
+.hero-label {
+  font-size: var(--fs-note);
+  color: var(--muted);
+  letter-spacing: .04em;
+}
+
+.hero-num {
+  /* 数字和单位放在同一段行内流里：不靠 flex 分栏，字体换掉也不会挤到一起 */
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-display);
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1.02;
+  margin-top: 3rpx;
+}
+
+.hero-num .u {
+  margin-left: 12rpx;
+  font-size: var(--fs-h2);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+.hero-delta {
+  margin-top: 8rpx;
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  font-size: var(--fs-note);
+}
+
+.hero-delta .up { color: var(--clay); }
+.hero-delta .down { color: var(--green); }
+.hero-delta-cn { color: var(--muted2); }
+
+.hero-hint {
+  margin-top: 10rpx;
+  font-size: var(--fs-note);
+  color: var(--muted2);
+}
+
+/* ================= 指标切换 ================= */
+
+.kinds {
+  display: flex;
+  gap: 12rpx;
+  margin-top: var(--sp3);
+}
+
+.kind {
+  flex: 1;
+  padding: 16rpx 8rpx;
+  border: 1rpx solid var(--line);
+  border-radius: 4rpx;
+  text-align: center;
+  background: transparent;
+  transition: background .2s, border-color .2s;
+}
+
+.kind-cn { display: block; font-size: var(--fs-note); color: var(--muted); }
+.kind-unit {
+  display: block;
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+  margin-top: 2rpx;
+}
+
+.kind.on {
+  background: var(--green);
+  border-color: var(--green);
+}
+.kind.on .kind-cn { color: #F2F0E6; font-weight: 600; }
+.kind.on .kind-unit { color: rgba(242, 240, 230, .6); }
+
+/* ================= 趋势图 ================= */
+
+.chartbox {
+  position: relative;
+  margin-top: var(--sp3);
+  height: 300rpx;
+  background: var(--card);
+  border-radius: 4rpx;
+  overflow: hidden;
+}
+
+.chartbox.blank { background: transparent; border: 1rpx dashed var(--line); }
+
+.trend { width: 100%; height: 300rpx; }
+
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-note);
+  color: var(--muted2);
+}
+
+.chart-foot {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 14rpx;
+  display: flex;
+  justify-content: space-between;
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+}
+
+/* ================= 记录列表 ================= */
+
+.sec { margin-top: var(--sp4); }
+
+.sec-h {
+  font-size: var(--fs-note);
+  color: var(--muted);
+  letter-spacing: .04em;
+  margin-bottom: var(--sp2);
+}
+
+.rlist { border-top: 1rpx solid var(--line); }
+
+.ritem {
+  display: flex;
+  align-items: baseline;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.rdate {
+  flex: 1;
+  font-size: var(--fs-note);
+  color: var(--muted);
+}
+
+.rval {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.runit {
+  margin-left: 8rpx;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+  min-width: 56rpx;
+}
+
+.rtoday {
+  margin-left: 12rpx;
+  font-size: var(--fs-label);
+  color: var(--clay);
+}
+
+.ritem.today .rdate { color: var(--ink); }
+
+.tip {
+  margin-top: var(--sp4);
+  font-size: var(--fs-note);
+  color: var(--muted2);
+  line-height: 1.7;
+}
+
+/* ================= 底部录入条 ================= */
+
+/* 底部条：绝对定位排版。
+   不用 flex —— 输入框在不同字体/基础库下的 min-content 宽度不可控，
+   一挤就把右边的「记下」顶出屏幕。左右都钉死，中间留多宽就是多宽。 */
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 132rpx;
+  box-sizing: border-box;
+  background: var(--card);
+  border-top: 1rpx solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.barlabel {
+  position: absolute;
+  left: 32rpx;
+  bottom: 30rpx;
+  width: 184rpx;
+}
+.barcn { font-size: var(--fs-note); color: var(--ink); white-space: nowrap; }
+.bardate {
+  display: block;
+  font-family: 'LJGrotesk', sans-serif;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+  white-space: nowrap;
+}
+
+.barinput {
+  position: absolute;
+  left: 232rpx;
+  right: 284rpx;
+  bottom: 32rpx;
+  display: flex;
+  align-items: baseline;
+  border-bottom: 2rpx solid var(--ink);
+  padding-bottom: 4rpx;
+}
+
+.barnum {
+  width: 100%;
+  min-width: 0;
+  font-size: var(--fs-h1);
+  font-weight: 600;
+  text-align: right;
+}
+
+.barunit {
+  flex: none;
+  margin-left: 6rpx;
+  font-size: var(--fs-note);
+  color: var(--muted);
+}
+
+.ph { color: var(--muted2); }
+
+.barsave {
+  position: absolute;
+  right: 32rpx;
+  bottom: 26rpx;
+  width: 208rpx;
+  height: 76rpx;
+  line-height: 76rpx;
+  text-align: center;
+  background: var(--green);
+  color: #F2F0E6;
+  border-radius: 4rpx;
+  font-size: var(--fs-note);
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+
+.barsave-hover { background: var(--green-deep); }
+
+/* 今天那条记录右边的删除 */
+.rdel {
+  margin-left: 14rpx;
+  padding: 0 8rpx;
+  font-size: var(--fs-h2);
+  line-height: 1;
+  color: var(--muted2);
+}
