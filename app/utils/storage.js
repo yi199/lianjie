@@ -31,6 +31,7 @@ const X_PREFIX = 'x:';                 // 待上传队列里自建动作的 id �
 // 自建动作的存储与合并规则在 catalog 里（它是动作数据的唯一入口），
 // 这里只负责「它在待上传队列里怎么排队」。依赖方向 catalog → storage 不能反。
 const CAT = require('./catalog');
+const safeStorage = require('./safeStorage');
 
 // 老数据没有 updatedAt：给一个足够早的时刻，和服务端（别的设备）的版本冲突时让对方赢
 const LEGACY_STAMP = '2000-01-01T00:00:00.000Z';
@@ -40,6 +41,31 @@ let wcache = null;       // { '2026': [workout] }
 let dirtyCache = null;
 let lastStamp = 0;
 const listeners = [];
+
+/* ---------------- 写入保护（本地空间满） ---------------- */
+
+/**
+ * 存储写满时 wx.setStorageSync 会直接抛异常（单 key 1MB / 总共 10MB）。
+ * 真正兜住它的是 safeStorage（storage 和 catalog 共用），这里只负责本模块的额外一步：
+ * **写失败就丢掉内存缓存**，让下一次读回到磁盘真相
+ * —— 宁可「刚记的那组没显示」，也不做「看着有、重进就没」。
+ *
+ * 注意：写失败后缓存整体失效，所以 persist 返回 false 时调用方必须**立刻返回**，
+ * 不要继续往索引 key（lj.sets.months 之类）里写半截数据，否则索引和分片对不上。
+ */
+function dropCaches() {
+  cache = null;
+  wcache = null;
+  mcache = null;
+  dirtyCache = null;
+}
+
+function persist(key, val) {
+  if (safeStorage.set(key, val)) return true;
+  dropCaches();
+  return false;
+}
+
 
 /* ---------------- 时间戳 ---------------- */
 
@@ -106,12 +132,13 @@ function writeMonth(m) {
   const c = cache;
   const list = c.months[m] || [];
   if (list.length) {
-    wx.setStorageSync(K_PREFIX + m, list);
+    // 写失败：缓存已整体失效，立刻返回，别把索引写成和分片对不上的样子
+    if (!persist(K_PREFIX + m, list)) return;
   } else {
     wx.removeStorageSync(K_PREFIX + m);
     delete c.months[m];
   }
-  wx.setStorageSync(K_MONTHS, Object.keys(c.months).sort());
+  persist(K_MONTHS, Object.keys(c.months).sort());
   c.live = null;
 }
 
@@ -177,7 +204,7 @@ function remove(ids) {
     if (dirty[id]) { delete dirty[id]; dirtyChanged = true; }
   });
   Object.keys(touched).forEach(writeMonth);
-  if (dirtyChanged) wx.setStorageSync(K_DIRTY, dirty);
+  if (dirtyChanged) persist(K_DIRTY, dirty);
 }
 
 /* ---------------- 一次训练 ---------------- */
@@ -203,12 +230,12 @@ function wload() {
 function wwrite(y) {
   const list = wcache[y] || [];
   if (list.length) {
-    wx.setStorageSync(K_W_PREFIX + y, list);
+    if (!persist(K_W_PREFIX + y, list)) return;
   } else {
     wx.removeStorageSync(K_W_PREFIX + y);
     delete wcache[y];
   }
-  wx.setStorageSync(K_W_YEARS, Object.keys(wcache).sort());
+  persist(K_W_YEARS, Object.keys(wcache).sort());
 }
 
 function wupsert(row) {
@@ -268,7 +295,7 @@ function removeWorkouts(dates) {
     if (d[wid(date)]) { delete d[wid(date)]; dirtyChanged = true; }
   });
   Object.keys(touched).forEach(wwrite);
-  if (dirtyChanged) wx.setStorageSync(K_DIRTY, d);
+  if (dirtyChanged) persist(K_DIRTY, d);
 }
 
 /* ---------------- 全部清空 ---------------- */
@@ -297,7 +324,7 @@ function dirtyMap() {
 function markDirty(id, updatedAt) {
   const d = dirtyMap();
   d[id] = updatedAt;
-  wx.setStorageSync(K_DIRTY, d);
+  persist(K_DIRTY, d);
   listeners.slice().forEach(function (fn) {
     try { fn(); } catch (e) { /* 单个监听器出错不影响写入 */ }
   });
@@ -323,7 +350,7 @@ function markAllDirty() {
   CAT.rawCustom().forEach(function (e) {
     if (!d[X_PREFIX + e.exId]) d[X_PREFIX + e.exId] = e.updatedAt || LEGACY_STAMP;
   });
-  wx.setStorageSync(K_DIRTY, d);
+  persist(K_DIRTY, d);
 }
 
 /**
@@ -398,7 +425,7 @@ function ack(sent, rejectedIds) {
     if (r && !r.done) drop.push(id);
   });
   (rejectedIds || []).forEach(function (id) { delete d[id]; });
-  wx.setStorageSync(K_DIRTY, d);
+  persist(K_DIRTY, d);
   if (drop.length) remove(drop);
   if (dropW.length) removeWorkouts(dropW);
   dropX.forEach(function (exId) { CAT.dropCustom(exId); });
@@ -505,14 +532,18 @@ function migrateLegacy() {
   });
 
   const months = Object.keys(byMonth).sort();
+  let allWritten = true;
   months.forEach(function (m) {
     const list = Object.keys(byMonth[m]).map(function (k) { return byMonth[m][k]; });
-    wx.setStorageSync(K_PREFIX + m, list);
+    if (!persist(K_PREFIX + m, list)) allWritten = false;
   });
+  // 只要有一个分片没写进去，就保留老 key 下次重来（不然老数据就没了）
+  if (!allWritten) return;
+
   const existing = wx.getStorageSync(K_MONTHS) || [];
   const all = {};
   existing.concat(months).forEach(function (m) { all[m] = true; });
-  wx.setStorageSync(K_MONTHS, Object.keys(all).sort());
+  if (!persist(K_MONTHS, Object.keys(all).sort())) return;   // 索引没写成，老 key 也留着
   wx.removeStorageSync(K_LEGACY);    // 最后才删老 key：中途崩了下次还能重来
 }
 
