@@ -24,6 +24,10 @@ global.wx = {
   switchTab(o) { calls.push(['tab', o.url]); },
   navigateBack() { calls.push(['back']); },
   vibrateShort() { },
+  createSelectorQuery() {
+    const q = { in: () => q, select: () => q, fields: () => q, exec: (cb) => { if (cb) cb([]); } };
+    return q;
+  },
   pageScrollTo() { },
   showActionSheet() { }
 };
@@ -532,6 +536,51 @@ function fakeDetail(out) {
   ok('数据页的「强了多少」跳到进步页',
     calls.length === 1 && calls[0][1] === '/pages/progress/index', JSON.stringify(calls));
   statsEntry.onUnload();
+
+  /* ================= 指标补录（可以往回录） ================= */
+  console.log('\n=== 8c. 指标补录 ===');
+  const MP = loadPage('./pages/metrics/index');
+  MP.onLoad();
+  MP.onShow();
+  ok('默认选中今天', MP.data.pickDate === D.today() && MP.data.pickLabel === '今天',
+    MP.data.pickDate + ' / ' + MP.data.pickLabel);
+
+  const yDay = D.shift(D.today(), -1);
+  MP.onPickDate({ detail: { value: yDay } });
+  ok('选昨天 → 标签变「昨天」', MP.data.pickLabel === '昨天', MP.data.pickLabel);
+
+  MP.onInput({ detail: { value: '71.4' } });
+  MP.save();
+  const yRow = db.metricOf('weight', yDay);
+  ok('补录的值落在选中的那天', !!yRow && yRow.value === 71.4, yRow ? String(yRow.value) : 'null');
+  ok('不会顺手把今天也写脏', !db.metricOf('weight', D.today()), JSON.stringify(db.metricOf('weight', D.today())));
+
+  MP.pickRow({ currentTarget: { dataset: { date: yDay } } });
+  ok('点记录行 → 切到那天', MP.data.pickDate === yDay, MP.data.pickDate);
+  ok('切到那天后输入框是那天的值', MP.data.inputValue === '71.4', MP.data.inputValue);
+
+  MP.removeAt({ currentTarget: { dataset: { date: yDay } } });
+  ok('× 能删掉指定那天的值', !db.metricOf('weight', yDay), JSON.stringify(db.metricOf('weight', yDay)));
+
+  /* ================= 同步状态（我的页那一栏） ================= */
+  console.log('\n=== 8d. 同步状态 ===');
+  const CFG = require('./utils/config');
+  const myPage = loadPage('./pages/my/index');
+  myPage.onLoad();
+  myPage.onShow();
+  ok('没接后端 → 说「本地模式」', myPage.data.syncState === 'local' && myPage.data.syncTitle === '本地模式',
+    myPage.data.syncState + ' / ' + myPage.data.syncTitle);
+
+  CFG.setApiBase('http://fake.local/api');
+  myPage.refresh();
+  ok('接了后端 → 不再说本地模式', myPage.data.syncState !== 'local',
+    myPage.data.syncState + ' / ' + myPage.data.syncTitle);
+
+  CFG.setApiBase(null);
+  myPage.refresh();
+  calls.length = 0;
+  myPage.tapSync();
+  ok('本地模式点同步 → 只说实话，不发请求', calls.length === 1 && calls[0][0] === 'toast', JSON.stringify(calls));
 
   CAT.setDetailLoader(null);
   runResult();

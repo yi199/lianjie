@@ -4,6 +4,13 @@ const CHART = require('../../utils/metricChart');
 
 const SHOW_POINTS = 30;   // 图上最多画最近 30 次记录
 
+/** 底部那行日期：今天 / 昨天 / 10.03 */
+function dateLabel(d, today) {
+  if (d === today) return '今天';
+  if (d === D.shift(today, -1)) return '昨天';
+  return String(d).slice(5).replace('-', '.');
+}
+
 Page({
   data: {
     sbh: 20,
@@ -16,16 +23,23 @@ Page({
     empty: true,
     inputValue: '',
     today: '',
-    saved: false,      // 今天已经有值 → 显示「删除今天」
+    pickDate: '',      // 正在录入/查看的那一天（默认今天，可以往前翻着补）
+    pickLabel: '今天',
+    minDate: '',
+    saved: false,      // 选中的那天已经有值
     chartEmpty: true
   },
 
   onLoad() {
     const app = getApp();
+    const today = D.today();
     this.setData({
       sbh: app.globalData.statusBarHeight,
       kinds: db.metricKinds(),
-      today: D.today()
+      today: today,
+      pickDate: today,
+      pickLabel: dateLabel(today, today),
+      minDate: D.shift(today, -365)
     });
     this.chartHeight = 0;
   },
@@ -35,13 +49,21 @@ Page({
   refresh() {
     const kind = this.data.active;
     const today = D.today();
+    const pickDate = this.data.pickDate || today;
     const series = db.metricSeries(kind, { limit: SHOW_POINTS });
     const latest = db.latestMetric(kind);
     const delta = db.metricDelta(kind, 30);
-    const todayRow = db.metricOf(kind, today);
+    const pickedRow = db.metricOf(kind, pickDate);
 
     const records = db.metricSeries(kind).slice(-8).reverse().map(function (r) {
-      return { date: r.date.slice(5).replace('-', '.'), value: r.value, unit: r.unit, isToday: r.date === today };
+      return {
+        date: r.date.slice(5).replace('-', '.'),
+        full: r.date,
+        value: r.value,
+        unit: r.unit,
+        isToday: r.date === today,
+        picked: r.date === pickDate
+      };
     });
 
     this._series = series;
@@ -52,8 +74,10 @@ Page({
       records: records,
       empty: !series.length,
       today: today,
-      saved: !!todayRow,
-      inputValue: todayRow ? String(todayRow.value) : this.data.inputValue,
+      pickDate: pickDate,
+      pickLabel: dateLabel(pickDate, today),
+      saved: !!pickedRow,
+      inputValue: pickedRow ? String(pickedRow.value) : (pickDate === today ? this.data.inputValue : ''),
       chartEmpty: series.length < 2
     }, this.draw.bind(this));
   },
@@ -88,6 +112,22 @@ Page({
       });
   },
 
+  /** 底部日期选择：可以往回补录，最远一年 */
+  onPickDate(e) {
+    const d = e.detail && e.detail.value;
+    if (!d || d === this.data.pickDate) return;
+    this.setData({ pickDate: d, inputValue: '' });
+    this.refresh();
+  },
+
+  /** 点「最近记录」里的一行 → 切到那天，方便改已经记过的值 */
+  pickRow(e) {
+    const d = e.currentTarget.dataset.date;
+    if (!d || d === this.data.pickDate) return;
+    this.setData({ pickDate: d, inputValue: '' });
+    this.refresh();
+  },
+
   switchKind(e) {
     const kind = e.currentTarget.dataset.kind;
     if (!kind || kind === this.data.active) return;
@@ -105,7 +145,7 @@ Page({
       return;
     }
     const def = db.metricDef(this.data.active);
-    const saved = db.saveMetric({ kind: this.data.active, date: this.data.today, value: Number(raw) });
+    const saved = db.saveMetric({ kind: this.data.active, date: this.data.pickDate, value: Number(raw) });
     if (!saved) {
       wx.showToast({ title: '超出合理范围（' + def.min + '~' + def.max + def.unit + '）', icon: 'none' });
       return;
@@ -114,15 +154,18 @@ Page({
     this.refresh();
   },
 
-  removeToday() {
+  /** 删掉某一天的值：从记录行点 × 进来，或者删当前选中的那天 */
+  removeAt(e) {
     const self = this;
+    const d = (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.date) || this.data.pickDate;
+    const label = dateLabel(d, D.today());
     wx.showModal({
-      title: '删掉今天这条？',
-      content: '只删「' + this.data.def.cn + '」今天的值，以前的不动。',
+      title: '删掉「' + label + '」这条？',
+      content: '只删「' + this.data.def.cn + '」这一天的值，其它天不动。',
       success(res) {
         if (!res.confirm) return;
-        db.removeMetric(self.data.active, self.data.today);
-        self.setData({ inputValue: '' });
+        db.removeMetric(self.data.active, d);
+        if (d === self.data.pickDate) self.setData({ inputValue: '' });
         self.refresh();
       }
     });

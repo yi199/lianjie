@@ -197,6 +197,21 @@
 
 .ritem.today .rdate { color: var(--ink); }
 
+/* 正在看的那天：左侧一道陶土色细边，和「今天」的深色字区分开 */
+.ritem.picked {
+  border-left: 3rpx solid var(--clay);
+  padding-left: 16rpx;
+}
+
+.ritem.picked .rdate {
+  color: var(--clay);
+}
+
+/* 行按下压深一档（本项目的按下语言：只压深，不变白） */
+.ritem-hover {
+  background: var(--card-press);
+}
+
 .tip {
   margin-top: var(--sp4);
   font-size: var(--fs-note);
@@ -234,6 +249,12 @@
   font-size: var(--fs-label);
   color: var(--muted2);
   white-space: nowrap;
+}
+
+/* 日期可以点（往回补录）：给一条虚线下划线，说明「这不是死文字」 */
+.pickable {
+  border-bottom: 1rpx dashed var(--muted2);
+  padding-bottom: 2rpx;
 }
 
 .barinput {

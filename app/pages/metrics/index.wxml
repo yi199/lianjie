@@ -22,7 +22,7 @@
       </text>
       <text class="hero-delta-cn">比 30 天前</text>
     </view>
-    <view class="hero-hint" wx:if="{{!latest}}">还没有记录，填今天的一个数就开始有曲线了。</view>
+    <view class="hero-hint" wx:if="{{!latest}}">还没有记录，填一个数就开始有曲线了。</view>
   </view>
 
   <!-- 切换指标 -->
@@ -55,12 +55,21 @@
   <view class="sec" wx:if="{{records.length}}">
     <view class="sec-h">最近记录</view>
     <view class="rlist">
-      <view class="ritem {{item.isToday ? 'today' : ''}}" wx:for="{{records}}" wx:key="date">
+      <view
+        class="ritem {{item.picked ? 'picked' : ''}} {{item.isToday ? 'today' : ''}}"
+        wx:for="{{records}}"
+        wx:key="date"
+        data-date="{{item.full}}"
+        bindtap="pickRow"
+        hover-class="ritem-hover"
+        hover-start-time="0"
+        hover-stay-time="120"
+      >
         <text class="rdate num">{{item.date}}</text>
         <text class="rval num">{{item.value}}</text>
         <text class="runit">{{item.unit}}</text>
         <text class="rtoday" wx:if="{{item.isToday}}">今天</text>
-        <text class="rdel" wx:if="{{item.isToday}}" bindtap="removeToday">×</text>
+        <text class="rdel" data-date="{{item.full}}" catchtap="removeAt">×</text>
       </view>
     </view>
   </view>
@@ -73,7 +82,9 @@
 <view class="bar">
   <view class="barlabel">
     <text class="barcn">{{def.cn}}</text>
-    <text class="bardate num">{{today}}</text>
+    <picker mode="date" value="{{pickDate}}" start="{{minDate}}" end="{{today}}" bindchange="onPickDate">
+      <text class="bardate num pickable">{{pickLabel}} ▾</text>
+    </picker>
   </view>
   <view class="barinput">
     <input
