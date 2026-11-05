@@ -363,10 +363,10 @@ const th = STD.thresholdsOf('g1', 'm');
 ok('男卧推有 4 个门槛', th.length === 4 && th[0] === 0.5, th.join(' / '));
 ok('0.49× → 新手', STR.levelFor(0.49, th).idx === 0, STR.levelFor(0.49, th).name);
 ok('0.50× → 入门（边界算进上一档）', STR.levelFor(0.5, th).idx === 1, STR.levelFor(0.5, th).name);
-ok('0.80× → 中级', STR.levelFor(0.8, th).name === '中级', STR.levelFor(0.8, th).name);
+ok('0.90× → 中级（1 倍体重还不算进阶）', STR.levelFor(0.9, th).name === '中级', STR.levelFor(0.9, th).name);
 ok('1.60× → 精英，且没有下一档',
   STR.levelFor(1.6, th).idx === 4 && STR.levelFor(1.6, th).next === null, STR.levelFor(1.6, th).name);
-ok('到下一档还差多少算得出来', Math.abs(STR.levelFor(0.8, th).toNext - 0.2) < 1e-9, STR.levelFor(0.8, th).toNext);
+ok('到下一档还差多少算得出来', Math.abs(STR.levelFor(0.9, th).toNext - 0.3) < 1e-9, STR.levelFor(0.9, th).toNext);
 ok('没收录的动作不给门槛', STD.thresholdsOf('g15', 'm') === null, String(STD.thresholdsOf('g15', 'm')));
 
 // 缺资料 / 缺体重：说清缺什么，不编默认值
