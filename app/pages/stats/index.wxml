@@ -74,6 +74,12 @@
           class="cell {{item.on ? 'on' : ''}} {{item.today ? 'today' : ''}}"
           wx:for="{{cells}}"
           wx:key="d"
+          data-date="{{item.date}}"
+          data-on="{{item.on}}"
+          bindtap="openDay"
+          hover-class="{{item.on ? 'cellh' : 'none'}}"
+          hover-start-time="0"
+          hover-stay-time="120"
         >
           <view class="cd">{{item.d}}</view>
         </view>

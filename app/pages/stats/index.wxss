@@ -156,6 +156,13 @@
   color: #F6F4EA;
 }
 
+/* 有记录的日子按下：圆圈压深一档 + 微微缩小，和卡片同一套手感 */
+.cellh .cd {
+  background: #2C3826;
+  transform: scale(.94);
+  transition: background .12s, transform .12s cubic-bezier(.2, .8, .2, 1);
+}
+
 .cell.today .cd {
   border: 1rpx solid var(--clay);
   color: var(--clay);

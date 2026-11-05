@@ -5,7 +5,7 @@
   <view class="head rise d1">
     <view class="kicker">{{dateText}}</view>
     <view class="h1en">Session Report</view>
-    <view class="h1">今天练完了。</view>
+    <view class="h1">{{head}}</view>
     <view class="plan">{{r.planName}}</view>
   </view>
 
@@ -29,7 +29,7 @@
   <view class="prbox rise d3" wx:if="{{r.prs.length}}">
     <view class="prhead">
       <text class="prdot"></text>
-      <text class="prtitle">今天破了 {{r.prs.length}} 个纪录</text>
+      <text class="prtitle">{{dayWord}}破了 {{r.prs.length}} 个纪录</text>
     </view>
     <view class="prrow" wx:for="{{r.prs}}" wx:key="exId">
       <text class="prcn">{{item.cn}}</text>
@@ -40,7 +40,7 @@
 
   <!-- 部位 -->
   <view class="block rise d4" wx:if="{{r.parts.length}}">
-    <view class="bh">今天练了</view>
+    <view class="bh">{{dayWord}}练了</view>
     <view class="prow" wx:for="{{r.parts}}" wx:key="key">
       <text class="nm">{{item.name}}</text>
       <view class="bw"><view class="bf" style="width:{{item.pct}}%"></view></view>
@@ -53,5 +53,5 @@
 </view>
 
 <view class="footbar rise d6">
-  <view class="btn" hover-class="btn-hover" bindtap="done">完成</view>
+  <view class="btn" hover-class="btn-hover" bindtap="done">{{btnText}}</view>
 </view>

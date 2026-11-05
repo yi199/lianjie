@@ -262,6 +262,54 @@ ok('stats 页也订阅了变更（不报错、数据可重算）',
   'days ' + beforeDays + ' → ' + statsPage.data.days);
 statsPage.onUnload();
 
+/* ---- 数据页日历：点某天 → 那天的战报 ---- */
+console.log('\n=== 8b. 日历回看 ===');
+calls.length = 0;
+statsPage.openDay({ currentTarget: { dataset: { date: '2026-10-27', on: true } } });
+ok('点练过的日子 → 跳那天的战报',
+  calls.length === 1 && calls[0][1] === '/pages/report/index?date=2026-10-27', JSON.stringify(calls));
+
+calls.length = 0;
+statsPage.openDay({ currentTarget: { dataset: { date: '2026-10-03', on: false } } });
+ok('点没练的日子 → 只提示、不跳转',
+  calls.length === 1 && calls[0][0] === 'toast' && calls[0][1] === '这天没练', JSON.stringify(calls));
+
+// 日历每格都带完整日期（战报页靠它跳）
+const stCells = statsPage.data.cells;
+ok('日历格子带 YYYY-MM-DD',
+  stCells.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(stCells[0].date),
+  stCells.length ? stCells[0].date : '（空）');
+
+/* ---- 战报页：翻回去的那天不许说「今天」 ---- */
+// 造一条 3 天前的记录（示例数据只铺了过去的周，本月的日子本来空着）
+const pastDate = D.shift(D.today(), -3);
+db.saveSet({
+  date: pastDate, exId: item0.exId, setNo: 1, exCn: item0.cn, part: item0.part,
+  planKey: 'A', sig: db.planSig(), weight: item0.weight || 0, reps: item0.reps,
+  unit: item0.unit, done: true
+});
+
+const pastReport = loadPage('./pages/report/index');
+pastReport.onLoad({ date: pastDate });
+ok('过去的战报 → 标题是「那天」', pastReport.data.isToday === false && pastReport.data.head === '那天练完了。',
+  pastReport.data.head);
+ok('过去的战报 → 按钮是「回到数据」', pastReport.data.btnText === '回到数据', pastReport.data.btnText);
+calls.length = 0;
+pastReport.done();
+ok('过去的战报 → 退回上一页，不跳「今天」', calls.length === 1 && calls[0][0] === 'back', JSON.stringify(calls));
+
+const emptyPast = loadPage('./pages/report/index');
+emptyPast.onLoad({ date: D.shift(D.today(), -9) });
+ok('过去那天没记录 → 说「那天没有记录」', emptyPast.data.head === '那天没有记录。', emptyPast.data.head);
+
+const todayReport = loadPage('./pages/report/index');
+todayReport.onLoad({ date: D.today() });
+ok('今天的战报不受影响（今天 + 完成）',
+  todayReport.data.isToday === true && todayReport.data.btnText === '完成', todayReport.data.head);
+calls.length = 0;
+todayReport.done();
+ok('今天的战报 → 仍然回今天的训练页', calls.length === 1 && calls[0][0] === 'tab', JSON.stringify(calls));
+
 /* ================= 9. 动作详情页（E4） ================= */
 console.log('\n=== 9. 动作详情页 ===');
 

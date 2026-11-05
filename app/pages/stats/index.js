@@ -172,6 +172,22 @@ Page({
     wx.switchTab({ url: '/pages/today/index' });
   },
 
+  /**
+   * 日历格子 → 那天的战报。
+   * 战报页本来就收 ?date=，以前只是没有入口：练过但记错了，只能在当天回不去。
+   * 没练的日子点了给一句实话，别让人以为点了没反应。
+   */
+  openDay(e) {
+    const ds = (e && e.currentTarget && e.currentTarget.dataset) ? e.currentTarget.dataset.date : '';
+    if (!ds) return;
+    const on = !!(e.currentTarget.dataset.on === true || e.currentTarget.dataset.on === 'true');
+    if (!on) {
+      wx.showToast({ title: '这天没练', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/report/index?date=' + ds });
+  },
+
   /** 「强了多少」是另一个问题，进「进步」页看 */
   gotoProgress() {
     wx.navigateTo({ url: '/pages/progress/index' });

@@ -1878,7 +1878,7 @@ function monthlyStats(y, m) {
   const calendar = [];
   for (let d = 1; d <= dim; d++) {
     const ds = pre + D.pad(d);
-    calendar.push({ d: d, on: !!daySet[ds], today: ds === todayS });
+    calendar.push({ d: d, date: ds, on: !!daySet[ds], today: ds === todayS });
   }
 
   // 部位分布：按「练了多少组」算，比按容量更直观
