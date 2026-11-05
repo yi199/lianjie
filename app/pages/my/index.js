@@ -66,6 +66,8 @@ Page({
     profile: { days: 3, place: 'gym', level: 'some' },
     profileText: '',
     planKeys: [],
+    thisYear: 2026,
+    birthValue: '1995-01-01',
     syncState: 'local',
     syncTitle: '本地模式',
     syncSub: '',
@@ -103,8 +105,11 @@ Page({
       return { key: x.key, name: x.name };
     });
     const sv = syncView();
+    const thisYear = new Date().getFullYear();
     this.setData({
       profile: p,
+      thisYear: thisYear,
+      birthValue: (Number(p.birthYear) || 1995) + '-01-01',
       profileText: db.profileText(),
       planKeys: keys,
       syncState: sv.state,
@@ -137,6 +142,25 @@ Page({
     wx.showToast({ title: '正在同步…', icon: 'none' });
     const self = this;
     setTimeout(function () { self.refresh(); }, 900);
+  },
+
+  /**
+   * 只改个人资料（性别 / 出生年）：不重排计划、不弹「已按参数重排」。
+   * 这两项只服务「力量水平」评级，和训练日队列没关系。
+   */
+  setField(patch) {
+    const p = Object.assign({}, this.data.profile, patch);
+    db.saveProfile(p);
+    this.refresh();
+  },
+
+  setSex(e) {
+    this.setField({ sex: e.currentTarget.dataset.v || '' });
+  },
+
+  setBirth(e) {
+    const y = String((e.detail && e.detail.value) || '').slice(0, 4);
+    this.setField({ birthYear: Number(y) || 0 });
   },
 
   gotoPrograms() {

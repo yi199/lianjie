@@ -50,11 +50,24 @@ function profile() {
  *   方案 id   用官方 / 自定义方案里显式写死的动作表
  */
 function saveProfile(p) {
+  // sex / birthYear 只给「力量水平评级」用（设计文档 §8）：选填，不填就是空。
+  // 显式传空串表示「清除」，不传则沿用上一次的值（改计划不该把这些抹掉）。
+  const prev = profile() || {};
+  const has = function (k) { return Object.prototype.hasOwnProperty.call(p, k); };
+  const sex = has('sex')
+    ? (p.sex === 'm' || p.sex === 'f' ? p.sex : '')
+    : (prev.sex === 'm' || prev.sex === 'f' ? prev.sex : '');
+  const birthYear = has('birthYear')
+    ? (Number(p.birthYear) || 0)
+    : (Number(prev.birthYear) || 0);
+
   const prof = {
-    level: p.level || 'some',
-    days: Number(p.days) || 3,
-    place: p.place === 'home' ? 'home' : 'gym',
-    programId: p.programId || 'auto'
+    level: p.level || prev.level || 'some',
+    days: Number(p.days) || prev.days || 3,
+    place: p.place === 'home' ? 'home' : (p.place === 'gym' ? 'gym' : (prev.place || 'gym')),
+    programId: p.programId || 'auto',
+    sex: sex,
+    birthYear: birthYear
   };
   const oldSig = planSig();
   safeStorage.set(K_PROFILE, prof);
