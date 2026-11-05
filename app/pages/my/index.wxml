@@ -77,6 +77,21 @@
     <view class="hint">改完立刻生效，之后的训练按新计划走。已有的训练记录不会丢。</view>
   </view>
 
+  <!-- 同步 -->
+  <view class="sec">
+    <view class="sec-h">同步</view>
+    <view
+      class="syncrow {{syncState}}"
+      bindtap="tapSync"
+      hover-class="syncrow-hover"
+      hover-start-time="0"
+      hover-stay-time="120"
+    >
+      <text class="stitle">{{syncTitle}}</text>
+      <text class="ssub">{{syncSub}}</text>
+    </view>
+  </view>
+
   <!-- 数据 -->
   <view class="sec">
     <view class="sec-h">数据</view>
@@ -96,6 +111,6 @@
     </view>
   </view>
 
-  <view class="about">练界 v0.1 · 数据只存在这台手机里，不上传</view>
+  <view class="about">练界 v0.1</view>
 
 </view>

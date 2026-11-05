@@ -1,4 +1,64 @@
 const db = require('../../utils/db');
+const sync = require('../../utils/sync');
+
+/** 「上次同步」说人话：刚刚 / 12 分钟前 / 3 小时前 / 2 天前 */
+function agoText(iso) {
+  if (!iso) return '还没同步过';
+  const t = Date.parse(iso);
+  if (!t) return '还没同步过';
+  const sec = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (sec < 45) return '刚刚';
+  if (sec < 3600) return Math.round(sec / 60) + ' 分钟前';
+  if (sec < 86400) return Math.round(sec / 3600) + ' 小时前';
+  return Math.round(sec / 86400) + ' 天前';
+}
+
+/**
+ * 同步这一栏要回答三个问题：开没开、传完没有、上次什么时候。
+ * 以前这些只在 console 里，用户看不出记录到底上云了没有。
+ */
+function syncView() {
+  const st = sync.status();
+
+  if (!st.enabled) {
+    return {
+      state: 'local',
+      title: '本地模式',
+      sub: '没接后端，数据只在这台手机上，换设备拉不回来'
+    };
+  }
+
+  if (st.running) {
+    return {
+      state: 'busy',
+      title: '正在同步…',
+      sub: st.pending > 0 ? '待上传 ' + st.pending + ' 条' : '正在上传'
+    };
+  }
+
+  if (st.lastError) {
+    const wait = st.retryDelay ? Math.round(st.retryDelay / 1000) + ' 秒后自动重试' : '稍后自动重试';
+    return {
+      state: 'error',
+      title: '这次没传上去',
+      sub: '待上传 ' + st.pending + ' 条 · ' + wait + ' · 点一下立即重试'
+    };
+  }
+
+  if (st.pending > 0) {
+    return {
+      state: 'wait',
+      title: '待上传 ' + st.pending + ' 条',
+      sub: '上次同步 ' + agoText(st.lastSyncAt) + ' · 点一下立即同步'
+    };
+  }
+
+  return {
+    state: 'ok',
+    title: '已同步',
+    sub: '上次同步 ' + agoText(st.lastSyncAt) + ' · 点一下再对一次'
+  };
+}
 
 Page({
   data: {
@@ -6,6 +66,9 @@ Page({
     profile: { days: 3, place: 'gym', level: 'some' },
     profileText: '',
     planKeys: [],
+    syncState: 'local',
+    syncTitle: '本地模式',
+    syncSub: '',
     enter: false
   },
 
@@ -39,10 +102,14 @@ Page({
     const keys = db.plans().map(function (x) {
       return { key: x.key, name: x.name };
     });
+    const sv = syncView();
     this.setData({
       profile: p,
       profileText: db.profileText(),
-      planKeys: keys
+      planKeys: keys,
+      syncState: sv.state,
+      syncTitle: sv.title,
+      syncSub: sv.sub
     });
   },
 
@@ -57,6 +124,19 @@ Page({
     db.saveProfile(p);
     this.refresh();
     wx.showToast({ title: '已按参数重排', icon: 'none' });
+  },
+
+  /** 点同步这一栏：本地模式说实话，接了后端就立刻推一轮 */
+  tapSync() {
+    const st = sync.status();
+    if (!st.enabled) {
+      wx.showToast({ title: '本地模式：没接后端', icon: 'none' });
+      return;
+    }
+    sync.kick();
+    wx.showToast({ title: '正在同步…', icon: 'none' });
+    const self = this;
+    setTimeout(function () { self.refresh(); }, 900);
   },
 
   gotoPrograms() {

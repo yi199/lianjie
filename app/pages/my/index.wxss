@@ -164,6 +164,39 @@
 
 /* ================= 页脚 ================= */
 
+/* 同步状态：一行标题 + 一行实话，点整块立即重试 */
+.syncrow {
+  display: flex;
+  flex-direction: column;
+  padding: 22rpx 26rpx;
+  border-radius: 20rpx;
+  background: var(--card);
+  border: 1rpx solid var(--line);
+}
+
+.syncrow-hover {
+  background: var(--card-press);
+}
+
+.stitle {
+  font-size: var(--fs-body);
+  color: var(--ink);
+}
+
+.ssub {
+  margin-top: 6rpx;
+  font-size: var(--fs-note);
+  color: var(--muted2);
+}
+
+.syncrow.error .stitle {
+  color: var(--clay);
+}
+
+.syncrow.wait .stitle {
+  color: var(--green);
+}
+
 .about {
   margin-top: var(--sp4);
   text-align: center;
