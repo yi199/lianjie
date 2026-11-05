@@ -68,6 +68,7 @@ Page({
     planKeys: [],
     thisYear: 2026,
     birthValue: '1995-01-01',
+    hasAny: false,
     syncState: 'local',
     syncTitle: '本地模式',
     syncSub: '',
@@ -112,6 +113,7 @@ Page({
       birthValue: (Number(p.birthYear) || 1995) + '-01-01',
       profileText: db.profileText(),
       planKeys: keys,
+      hasAny: db.hasAnyRecord(),
       syncState: sv.state,
       syncTitle: sv.title,
       syncSub: sv.sub
@@ -189,11 +191,17 @@ Page({
 
   fillDemo() {
     const n = db.loadDemo();
+    if (n < 0) {
+      // -1 = 已经有训练记录了，示例数据不许覆盖真实数据
+      wx.showToast({ title: '已经有训练记录了，示例不会覆盖', icon: 'none' });
+      return;
+    }
     if (!n) {
       wx.showToast({ title: '还没有计划', icon: 'none' });
       return;
     }
     wx.showToast({ title: '已填入 ' + n + ' 条示例', icon: 'none' });
+    this.refresh();
   },
 
   clearData() {

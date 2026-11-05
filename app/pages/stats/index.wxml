@@ -12,6 +12,12 @@
     <view class="sub" wx:if="{{!empty}}">每一座山，是一次训练。</view>
   </view>
 
+  <!-- 示例数据提示：混在统计里必须说清楚，否则分不清哪条是自己练的 -->
+  <view class="demobar" wx:if="{{hasDemo}}">
+    <text class="dbt">现在混着示例数据，只用于看图表效果</text>
+    <text class="dbb" bindtap="clearDemo" hover-class="dbb-hover" hover-start-time="0" hover-stay-time="120">清除</text>
+  </view>
+
   <!-- 进步：从「练了多少」走到「强了多少」 -->
   <view class="gocard" bindtap="gotoProgress" hover-class="gocard-hover" hover-start-time="0" hover-stay-time="120">
     <view class="gotext">

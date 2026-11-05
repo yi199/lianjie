@@ -1619,6 +1619,29 @@ function loadDemo() {
 }
 
 /**
+ * 有没有示例数据。
+ * 示例只是给人「先看看图表长什么样」，一旦开始记真实训练，它就会混在统计里、
+ * 而且页面上看不出哪条是假的 —— 所以需要一个能问、能只清它的接口。
+ */
+function hasDemo() {
+  return S.rows().some(function (r) { return r.demo; }) ||
+    S.workouts().some(function (w) { return w.demo; });
+}
+
+/**
+ * 只清示例数据，真实记录一条都不动。
+ * @returns {number} 删掉多少条组记录
+ */
+function clearDemo() {
+  const ids = S.rows().filter(function (r) { return !!r.demo; }).map(function (r) { return r.id; });
+  if (ids.length) S.remove(ids);
+  const dates = S.workouts().filter(function (w) { return !!w.demo; }).map(function (w) { return w.date; });
+  if (dates.length) S.removeWorkouts(dates);
+  if (ids.length || dates.length) store.touchSets();
+  return ids.length;
+}
+
+/**
  * 清空训练记录（计划设置保留）。
  * 同步打开时，真实记录写墓碑，其他设备也会一起清掉；示例数据直接删。
  */
@@ -1953,6 +1976,7 @@ module.exports = {
   metricKinds, metricDef, metricOf, saveMetric, removeMetric, metricSeries, latestMetric, metricDelta,
   /* 可视化 */
   partTerrain, weeklyVolume, allTimeStats,
+  hasDemo, clearDemo,
   /* 配置文档 */
   packConfig, takeConfig, ackConfig, applyConfigDoc, configPending, configUpdatedAt,
   markConfigDirty,

@@ -121,6 +121,7 @@ Page({
       bestShown: hasTon ? all.best : all.bestSets,
       amountUnit: hasTon ? '吨' : '组',
       terrUnit: loaded ? '吨' : '组',
+      hasDemo: db.hasDemo(),
       comment: makeComment(s.parts)
     }, function () {
       // canvas 要等节点渲染完才拿得到
@@ -160,11 +161,23 @@ Page({
   /** 空态时用来「先看看长什么样」，不是真实数据 */
   loadDemo() {
     const n = db.loadDemo();
+    if (n < 0) {
+      // -1 = 已经有训练记录了，示例数据不许覆盖真实数据
+      wx.showToast({ title: '已经有训练记录了，示例不会覆盖', icon: 'none' });
+      return;
+    }
     if (!n) {
       wx.showToast({ title: '还没有计划', icon: 'none' });
       return;
     }
     wx.showToast({ title: '已填入 ' + n + ' 条示例', icon: 'none' });
+    this.refresh();
+  },
+
+  /** 一键清掉示例数据：真实记录一条不动 */
+  clearDemo() {
+    const n = db.clearDemo();
+    wx.showToast({ title: n ? ('已清掉 ' + n + ' 条示例') : '没有示例数据', icon: 'none' });
     this.refresh();
   },
 

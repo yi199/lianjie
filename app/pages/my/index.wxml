@@ -113,7 +113,7 @@
   <view class="sec">
     <view class="sec-h">数据</view>
     <view class="rows">
-      <view class="row" bindtap="fillDemo" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
+      <view class="row" wx:if="{{!hasAny}}" bindtap="fillDemo" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
         <text class="rowt">填入示例数据</text>
         <text class="rownote">用来看图表效果</text>
       </view>
