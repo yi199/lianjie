@@ -24,6 +24,10 @@ global.wx = {
   switchTab(o) { calls.push(['tab', o.url]); },
   navigateBack() { calls.push(['back']); },
   vibrateShort() { },
+  createSelectorQuery() {
+    const q = { in: () => q, select: () => q, fields: () => q, exec: (cb) => { if (cb) cb([]); } };
+    return q;
+  },
   pageScrollTo() { },
   showActionSheet() { }
 };
@@ -262,6 +266,54 @@ ok('stats 页也订阅了变更（不报错、数据可重算）',
   'days ' + beforeDays + ' → ' + statsPage.data.days);
 statsPage.onUnload();
 
+/* ---- 数据页日历：点某天 → 那天的战报 ---- */
+console.log('\n=== 8b. 日历回看 ===');
+calls.length = 0;
+statsPage.openDay({ currentTarget: { dataset: { date: '2026-10-27', on: true } } });
+ok('点练过的日子 → 跳那天的战报',
+  calls.length === 1 && calls[0][1] === '/pages/report/index?date=2026-10-27', JSON.stringify(calls));
+
+calls.length = 0;
+statsPage.openDay({ currentTarget: { dataset: { date: '2026-10-03', on: false } } });
+ok('点没练的日子 → 只提示、不跳转',
+  calls.length === 1 && calls[0][0] === 'toast' && calls[0][1] === '这天没练', JSON.stringify(calls));
+
+// 日历每格都带完整日期（战报页靠它跳）
+const stCells = statsPage.data.cells;
+ok('日历格子带 YYYY-MM-DD',
+  stCells.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(stCells[0].date),
+  stCells.length ? stCells[0].date : '（空）');
+
+/* ---- 战报页：翻回去的那天不许说「今天」 ---- */
+// 造一条 3 天前的记录（示例数据只铺了过去的周，本月的日子本来空着）
+const pastDate = D.shift(D.today(), -3);
+db.saveSet({
+  date: pastDate, exId: item0.exId, setNo: 1, exCn: item0.cn, part: item0.part,
+  planKey: 'A', sig: db.planSig(), weight: item0.weight || 0, reps: item0.reps,
+  unit: item0.unit, done: true
+});
+
+const pastReport = loadPage('./pages/report/index');
+pastReport.onLoad({ date: pastDate });
+ok('过去的战报 → 标题是「那天」', pastReport.data.isToday === false && pastReport.data.head === '那天练完了。',
+  pastReport.data.head);
+ok('过去的战报 → 按钮是「回到数据」', pastReport.data.btnText === '回到数据', pastReport.data.btnText);
+calls.length = 0;
+pastReport.done();
+ok('过去的战报 → 退回上一页，不跳「今天」', calls.length === 1 && calls[0][0] === 'back', JSON.stringify(calls));
+
+const emptyPast = loadPage('./pages/report/index');
+emptyPast.onLoad({ date: D.shift(D.today(), -9) });
+ok('过去那天没记录 → 说「那天没有记录」', emptyPast.data.head === '那天没有记录。', emptyPast.data.head);
+
+const todayReport = loadPage('./pages/report/index');
+todayReport.onLoad({ date: D.today() });
+ok('今天的战报不受影响（今天 + 完成）',
+  todayReport.data.isToday === true && todayReport.data.btnText === '完成', todayReport.data.head);
+calls.length = 0;
+todayReport.done();
+ok('今天的战报 → 仍然回今天的训练页', calls.length === 1 && calls[0][0] === 'tab', JSON.stringify(calls));
+
 /* ================= 9. 动作详情页（E4） ================= */
 console.log('\n=== 9. 动作详情页 ===');
 
@@ -484,6 +536,63 @@ function fakeDetail(out) {
   ok('数据页的「强了多少」跳到进步页',
     calls.length === 1 && calls[0][1] === '/pages/progress/index', JSON.stringify(calls));
   statsEntry.onUnload();
+
+  /* ================= 指标补录（可以往回录） ================= */
+  console.log('\n=== 8c. 指标补录 ===');
+  const MP = loadPage('./pages/metrics/index');
+  MP.onLoad();
+  MP.onShow();
+  ok('默认选中今天', MP.data.pickDate === D.today() && MP.data.pickLabel === '今天',
+    MP.data.pickDate + ' / ' + MP.data.pickLabel);
+
+  const yDay = D.shift(D.today(), -1);
+  MP.onPickDate({ detail: { value: yDay } });
+  ok('选昨天 → 标签变「昨天」', MP.data.pickLabel === '昨天', MP.data.pickLabel);
+
+  MP.onInput({ detail: { value: '71.4' } });
+  MP.save();
+  const yRow = db.metricOf('weight', yDay);
+  ok('补录的值落在选中的那天', !!yRow && yRow.value === 71.4, yRow ? String(yRow.value) : 'null');
+  ok('不会顺手把今天也写脏', !db.metricOf('weight', D.today()), JSON.stringify(db.metricOf('weight', D.today())));
+
+  MP.pickRow({ currentTarget: { dataset: { date: yDay } } });
+  ok('点记录行 → 切到那天', MP.data.pickDate === yDay, MP.data.pickDate);
+  ok('切到那天后输入框是那天的值', MP.data.inputValue === '71.4', MP.data.inputValue);
+
+  MP.removeAt({ currentTarget: { dataset: { date: yDay } } });
+  ok('× 能删掉指定那天的值', !db.metricOf('weight', yDay), JSON.stringify(db.metricOf('weight', yDay)));
+
+  /* ================= 同步状态（我的页那一栏） ================= */
+  console.log('\n=== 8d. 同步状态 ===');
+  const CFG = require('./utils/config');
+  const myPage = loadPage('./pages/my/index');
+  myPage.onLoad();
+  myPage.onShow();
+  ok('本地模式 → 标题是「本地模式」', myPage.data.syncState === 'local' && myPage.data.syncTitle === '本地模式',
+    myPage.data.syncState + ' / ' + myPage.data.syncTitle);
+  ok('本地模式的副标题说人话（没有「后端」）',
+    myPage.data.syncSub.indexOf('后端') < 0 && myPage.data.syncSub.indexOf('云端') >= 0, myPage.data.syncSub);
+  ok('本地模式不起轮询（没有会变的状态，别空转）', !myPage.syncTimer);
+
+  CFG.setApiBase('http://fake.local/api');
+  myPage.refresh();
+  ok('连上云端后不再说本地模式', myPage.data.syncState !== 'local',
+    myPage.data.syncState + ' / ' + myPage.data.syncTitle);
+  ok('正常状态下点这一栏什么都不做（同步是全自动的）', myPage.tapSync() === false);
+
+  CFG.setApiBase(null);
+  myPage.refresh();
+  calls.length = 0;
+  ok('本地模式点它 → 只说实话、不算重试',
+    myPage.tapSync() === false && calls.length === 1 && calls[0][0] === 'toast', JSON.stringify(calls));
+
+  CFG.setApiBase('http://fake.local/api');
+  myPage.refresh();
+  myPage.startSyncTick();
+  ok('连上云端后开始 3 秒轮询', !!myPage.syncTimer);
+  myPage.onHide();
+  ok('离开页面就停掉轮询', !myPage.syncTimer);
+  CFG.setApiBase(null);
 
   CAT.setDetailLoader(null);
   runResult();

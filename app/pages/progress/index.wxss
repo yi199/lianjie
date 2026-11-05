@@ -363,3 +363,106 @@
   text-align: center;
   color: var(--muted2);
 }
+
+/* ================= 力量水平（§8） ================= */
+
+.sec-note {
+  margin-left: 12rpx;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+  letter-spacing: 0;
+}
+
+.pw-head {
+  margin-bottom: var(--sp2);
+  font-size: var(--fs-note);
+  color: var(--muted);
+}
+
+.pw-row {
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.pw-row:last-child {
+  border-bottom: 0;
+}
+
+.pw-top {
+  display: flex;
+  align-items: baseline;
+}
+
+.pw-cn {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-body);
+  color: var(--ink);
+}
+
+.pw-ratio {
+  margin-left: 16rpx;
+  font-size: var(--fs-body);
+  color: var(--green);
+  /* 「1.44× 体重」在 430 宽的机器上会被挤成两行：数字不换行、不参与压缩 */
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pw-dots {
+  margin-top: 12rpx;
+  display: flex;
+  align-items: center;
+}
+
+/* 五档：到过的档位实心，没到的是空心 */
+.pw-dot {
+  width: 14rpx;
+  height: 14rpx;
+  margin-right: 8rpx;
+  border-radius: 50%;
+  border: 1rpx solid var(--muted2);
+}
+
+.pw-dot.on {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.pw-lv {
+  margin-left: 10rpx;
+  font-size: var(--fs-note);
+  color: var(--ink);
+}
+
+.pw-next {
+  margin-top: 10rpx;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+}
+
+.pw-next.top {
+  color: var(--clay);
+}
+
+.pw-empty {
+  padding: 22rpx 0;
+  font-size: var(--fs-note);
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.pw-btn {
+  margin-top: var(--sp2);
+  display: inline-block;
+  padding: 14rpx 26rpx;
+  border-radius: 999rpx;
+  background: var(--soft);
+  color: var(--green);
+  font-size: var(--fs-note);
+}
+
+.pw-btn-hover {
+  background: var(--green);
+  color: var(--soft);
+}

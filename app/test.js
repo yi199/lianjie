@@ -173,6 +173,16 @@ ok('近 8 周返回 8 项', wv.length === 8, wv.map(w => w.ton).join(' / '));
 ok('最后一项是本周', wv[7].label === '本周', wv[7].label);
 ok('吨数不为负', wv.every(w => w.ton >= 0));
 
+// 地形刻度：上限定在「好看的数」，高度按上限归一（0 的周贴基线，不虚高）
+const TER = require('./utils/terrain');
+ok('刻度上限取整档（3.2 → 4）', TER.niceScale([0, 1.2, 3.2]) === 4, String(TER.niceScale([0, 1.2, 3.2])));
+ok('刻度上限跨十位也对（12.4 → 15）', TER.niceScale([12.4, 3]) === 15, String(TER.niceScale([12.4, 3])));
+ok('全 0 不把刻度压成 0', TER.niceScale([0, 0]) === 1, String(TER.niceScale([0, 0])));
+const hh = TER.toHeights([0, 8], 10);
+ok('高度 = 值 / 上限（8 / 10 = .8）', Math.abs(hh[1] - 0.8) < 1e-9, String(hh[1]));
+ok('没练的周贴基线但还看得见（0 < h < .05）', hh[0] > 0 && hh[0] < 0.05, String(hh[0]));
+ok('高度不超过 1（最大值也不会顶格）', TER.toHeights([10, 4], 10).every(v => v <= 1), TER.toHeights([10, 4], 10).join('/'));
+
 /* ================= 10. 示例数据 ================= */
 console.log('\n=== 9. 示例数据 ===');
 db.clearSets();
@@ -301,6 +311,29 @@ ok('练完还是当天那个训练日（不跳到下一个）', full.plan.key ==
 /* ================= 16. 示例数据不覆盖真实记录 ================= */
 console.log('\n=== 16. 示例数据保护 ===');
 ok('已有记录时拒绝覆盖', db.loadDemo() === -1);
+
+/* 示例数据能识别、能只清它（不碰真实记录） */
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+ok('一开始没有示例数据', db.hasDemo() === false);
+
+const demoN = db.loadDemo();
+ok('示例数据填入', demoN > 0, demoN + ' 条');
+ok('能识别出「现在混着示例」', db.hasDemo() === true);
+ok('有示例时再填一次也被拒', db.loadDemo() === -1);
+
+// 先填示例、再记一条真实：这条真实必须活下来
+db.saveSet({
+  date: D.today(), exId: 'g1', setNo: 1, weight: 60, reps: 5, unit: 'kg',
+  exCn: '卧推', part: 'chest', planKey: 'A', sig: db.planSig(), done: true
+});
+const beforeClear = db.allSets().length;
+const clearedN = db.clearDemo();
+ok('只清示例：删掉的条数 = 原有 - 那 1 条真实', clearedN === beforeClear - 1, clearedN + ' / ' + (beforeClear - 1));
+ok('清完只剩那条真实记录', db.allSets().length === 1, db.allSets().length + ' 组');
+ok('真实记录一条没被动过', db.allSets().every(function (x) { return !x.demo; }), db.allSets().length + ' 组');
+ok('清完统计里也只剩真实那组', db.allTimeStats().totalSets === 1, db.allTimeStats().totalSets);
+ok('清完 hasDemo = false', db.hasDemo() === false);
 
 /* ================= 17. 官方方案 ================= */
 console.log('\n=== 17. 官方方案 ===');

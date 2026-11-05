@@ -12,6 +12,12 @@
     <view class="sub" wx:if="{{!empty}}">每一座山，是一次训练。</view>
   </view>
 
+  <!-- 示例数据提示：混在统计里必须说清楚，否则分不清哪条是自己练的 -->
+  <view class="demobar" wx:if="{{hasDemo}}">
+    <text class="dbt">现在混着示例数据，只用于看图表效果</text>
+    <text class="dbb" bindtap="clearDemo" hover-class="dbb-hover" hover-start-time="0" hover-stay-time="120">清除</text>
+  </view>
+
   <!-- 进步：从「练了多少」走到「强了多少」 -->
   <view class="gocard" bindtap="gotoProgress" hover-class="gocard-hover" hover-start-time="0" hover-stay-time="120">
     <view class="gotext">
@@ -23,8 +29,9 @@
 
   <block wx:if="{{!empty}}">
 
-    <!-- 山脊线：12 周，每周一个峰，本周是陶土色那个点 -->
+    <!-- 山脊线：12 周，每周一个峰，本周是陶土色那个点；左边三档刻度 -->
     <view class="terrain-wrap">
+      <view class="terr-cap">每周容量 · {{terrUnit}}</view>
       <canvas type="2d" id="terrain" class="terrain"></canvas>
       <view class="terr-lab">
         <text>12 周前</text>
@@ -73,6 +80,12 @@
           class="cell {{item.on ? 'on' : ''}} {{item.today ? 'today' : ''}}"
           wx:for="{{cells}}"
           wx:key="d"
+          data-date="{{item.date}}"
+          data-on="{{item.on}}"
+          bindtap="openDay"
+          hover-class="{{item.on ? 'cellh' : 'none'}}"
+          hover-start-time="0"
+          hover-stay-time="120"
         >
           <view class="cd">{{item.d}}</view>
         </view>

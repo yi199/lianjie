@@ -21,6 +21,41 @@
     <view class="sub" wx:else>同一个动作练满 3 次，这里就会画出它的坡。</view>
   </view>
 
+    <!-- 力量水平：估算 1RM ÷ 体重，查标准表。缺资料就说缺什么，不编默认值 -->
+    <view class="sec" wx:if="{{power.show}}">
+      <view class="sec-h">力量水平<text class="sec-note">仅供参考</text></view>
+
+      <view wx:if="{{power.ready}}">
+        <view class="pw-head">{{power.sexCn}} · {{power.bw}}kg<text wx:if="{{power.age}}"> · {{power.age}} 岁</text></view>
+        <view class="pw-row" wx:for="{{power.items}}" wx:key="exId">
+          <view class="pw-top">
+            <text class="pw-cn">{{item.cn}}</text>
+            <text class="pw-ratio num">{{item.ratio}}× 体重</text>
+          </view>
+          <view class="pw-dots">
+            <view class="pw-dot {{dot.on ? 'on' : ''}}" wx:for="{{item.dots}}" wx:for-item="dot" wx:key="i"></view>
+            <text class="pw-lv">{{item.level}}</text>
+          </view>
+          <view class="pw-next" wx:if="{{item.next}}">估算 {{item.e1rm}}kg · 到下一档还差 {{item.toNext}}× 体重</view>
+          <view class="pw-next top" wx:else>估算 {{item.e1rm}}kg · 已经到顶档</view>
+        </view>
+      </view>
+
+      <view class="pw-empty" wx:else>
+        <view wx:if="{{power.reason === 'no-sex'}}">
+          <text>还不知道该按哪张标准表算 —— 去「我的」填一下性别（选填，不填就不显示这块）。</text>
+          <view class="pw-btn" hover-class="pw-btn-hover" bindtap="gotoMy">去填性别 →</view>
+        </view>
+        <view wx:elif="{{power.reason === 'no-weight'}}">
+          <text>力量水平要按体重折算，先去身体指标记一次体重。</text>
+          <view class="pw-btn" hover-class="pw-btn-hover" bindtap="gotoMetrics">去记体重 →</view>
+        </view>
+        <view wx:else>
+          <text>练过卧推 / 深蹲 / 硬拉 / 推举 / 引体之后，这里会给出评级。</text>
+        </view>
+      </view>
+    </view>
+
   <block wx:if="{{!empty}}">
 
     <!-- 全身指数 + 周走势 -->

@@ -94,7 +94,10 @@ Page({
     // 纯自重 / 计时党没有吨数，退回用组数画，别让地形塌成一条平地
     const wv = db.weeklyVolume(12);
     const loaded = wv.some(function (w) { return w.ton > 0; });
-    this.heights = TER.toHeights(wv.map(function (w) { return loaded ? w.ton : w.sets; }));
+    const raw = wv.map(function (w) { return loaded ? w.ton : w.sets; });
+    // 纵轴上限定在「好看的数」上（5 / 8 / 12 …），刻度才是整数，最高的山也不顶格
+    this.scale = TER.niceScale(raw);
+    this.heights = TER.toHeights(raw, this.scale);
 
     // 三个数字卡同理：负重看吨，自重 / 计时看组
     const hasTon = all.totalTon > 0;
@@ -117,6 +120,8 @@ Page({
       totalShown: hasTon ? all.totalTon : all.totalSets,
       bestShown: hasTon ? all.best : all.bestSets,
       amountUnit: hasTon ? '吨' : '组',
+      terrUnit: loaded ? '吨' : '组',
+      hasDemo: db.hasDemo(),
       comment: makeComment(s.parts)
     }, function () {
       // canvas 要等节点渲染完才拿得到
@@ -149,13 +154,18 @@ Page({
         canvas.height = h * dpr;
         ctx.scale(dpr, dpr);
 
-        TER.drawRidge(ctx, w, h, self.heights || []);
+        TER.drawRidge(ctx, w, h, self.heights || [], { scale: self.scale });
       });
   },
 
   /** 空态时用来「先看看长什么样」，不是真实数据 */
   loadDemo() {
     const n = db.loadDemo();
+    if (n < 0) {
+      // -1 = 已经有训练记录了，示例数据不许覆盖真实数据
+      wx.showToast({ title: '已经有训练记录了，示例不会覆盖', icon: 'none' });
+      return;
+    }
     if (!n) {
       wx.showToast({ title: '还没有计划', icon: 'none' });
       return;
@@ -164,8 +174,31 @@ Page({
     this.refresh();
   },
 
+  /** 一键清掉示例数据：真实记录一条不动 */
+  clearDemo() {
+    const n = db.clearDemo();
+    wx.showToast({ title: n ? ('已清掉 ' + n + ' 条示例') : '没有示例数据', icon: 'none' });
+    this.refresh();
+  },
+
   gotoToday() {
     wx.switchTab({ url: '/pages/today/index' });
+  },
+
+  /**
+   * 日历格子 → 那天的战报。
+   * 战报页本来就收 ?date=，以前只是没有入口：练过但记错了，只能在当天回不去。
+   * 没练的日子点了给一句实话，别让人以为点了没反应。
+   */
+  openDay(e) {
+    const ds = (e && e.currentTarget && e.currentTarget.dataset) ? e.currentTarget.dataset.date : '';
+    if (!ds) return;
+    const on = !!(e.currentTarget.dataset.on === true || e.currentTarget.dataset.on === 'true');
+    if (!on) {
+      wx.showToast({ title: '这天没练', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/report/index?date=' + ds });
   },
 
   /** 「强了多少」是另一个问题，进「进步」页看 */

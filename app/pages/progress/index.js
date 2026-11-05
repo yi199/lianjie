@@ -1,5 +1,6 @@
 const db = require('../../utils/db');
 const P = require('../../utils/progress');
+const STR = require('../../utils/strength');
 
 /** 高光 → 一句话（页面只负责讲，判断都在 utils/progress 里） */
 function highlightText(h) {
@@ -32,6 +33,7 @@ Page({
     parts: [],
     highlights: [],
     actions: [],
+    power: { ready: false, reason: '', items: [] },
     openId: '',
     openSeries: [],
     openStall: '',
@@ -52,11 +54,14 @@ Page({
     const real = db.allSets().filter(function (s) { return !s.demo && !s.warmup; }).length > 0;
     const o = { includeDemo: !real };
     const ov = P.overallNow(o);
+    // 力量水平只看真实记录：示例数据不参与（否则会给出一个假评级）
+    const power = real ? STR.strengthNow() : { show: true, ready: false, reason: 'no-data', items: [] };
 
     if (!ov.ok) {
       this.setData({
         empty: true,
         demo: !real,
+        power: power,
         actions: P.actionsNow(o).map(function (a) {
           return { exId: a.exId, cn: a.cn, exposures: a.exposures, need: a.need, status: 'new', statusCn: STATUS_CN.new };
         })
@@ -128,7 +133,8 @@ Page({
         });
       })(),
       highlights: highlights,
-      actions: actions
+      actions: actions,
+      power: power
     });
   },
 
@@ -167,6 +173,15 @@ Page({
         ? '已经 ' + t.stall.flatCount + ' 次没超过 ' + t.stall.bestValue + '（' + t.stall.bestDate.slice(5).replace('-', '/') + ' 那次）'
         : ''
     });
+  },
+
+  /** 「力量水平」缺资料时 → 去我的页填性别 / 记体重 */
+  gotoMy() {
+    wx.switchTab({ url: '/pages/my/index' });
+  },
+
+  gotoMetrics() {
+    wx.navigateTo({ url: '/pages/metrics/index' });
   },
 
   back() {

@@ -11,6 +11,10 @@ function amountText(r) {
 Page({
   data: {
     sbh: 20,
+    isToday: true,
+    dayWord: '今天',
+    head: '今天练完了。',
+    btnText: '完成',
     dateText: '',
     r: {
       planName: '', sets: 0, plannedSets: 0, exercises: 0,
@@ -25,19 +29,29 @@ Page({
 
     const r = db.todayReport(date);
 
+    // 从数据页日历点进来的可能是过去某天：文案要跟着换，别对着上周三说「今天」
+    const isToday = date === D.today();
+    const dayWord = isToday ? '今天' : '那天';
+
     let comment;
     if (!r.sets) {
-      comment = '今天还没有记录。练一组，这里就有东西了。';
+      comment = isToday
+        ? '今天还没有记录。练一组，这里就有东西了。'
+        : '这天没有训练记录。';
     } else if (r.plannedSets && r.sets >= r.plannedSets) {
       comment = '计划全部完成。好好吃一顿，好好睡。';
     } else if (r.plannedSets) {
       comment = '计划 ' + r.plannedSets + ' 组，完成 ' + r.sets + ' 组。留点力气给下次也好。';
     } else {
-      comment = '今天练了 ' + r.sets + ' 组。';
+      comment = dayWord + '练了 ' + r.sets + ' 组。';
     }
 
     this.setData({
       sbh: app.globalData.statusBarHeight,
+      isToday: isToday,
+      dayWord: dayWord,
+      head: r.sets ? (isToday ? '今天练完了。' : '那天练完了。') : (isToday ? '今天还没开练。' : '那天没有记录。'),
+      btnText: isToday ? '完成' : '回到数据',
       dateText: D.weekdayCN(new Date(date + 'T00:00:00')) + ' · ' + date.replace(/-/g, '.'),
       r: r,
       comment: comment
@@ -50,7 +64,14 @@ Page({
   },
 
   done() {
-    wx.switchTab({ url: '/pages/today/index' });
+    // 今天 → 回今天的训练页；翻过去某天 → 退回数据页，别把人扔到「今天」去
+    if (this.data.isToday) {
+      wx.switchTab({ url: '/pages/today/index' });
+      return;
+    }
+    wx.navigateBack({
+      fail: function () { wx.switchTab({ url: '/pages/stats/index' }); }
+    });
   },
 
   onShareAppMessage() {

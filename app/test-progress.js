@@ -348,6 +348,75 @@ ok('动作列表里能认出「新动作」（不够 3 次的不出趋势）',
 ok('数据不够时说清楚还差几次', P.trendOf('g1', { from: '2026-09-05' }).need === 1,
   P.trendOf('g1', { from: '2026-09-05' }).need);
 
+/* ================= 力量水平（§8 · V3） ================= */
+sec('力量水平');
+
+const STD = require('./data/strength-standard');
+const STR = require('./utils/strength');
+
+// 先清干净，这一节要的是确定的输入
+db.clearSets();
+(db.metricSeries('weight') || []).forEach(function (r) { db.removeMetric('weight', r.date); });
+
+// 段位边界：男性卧推门槛 [0.5, 0.75, 1.0, 1.5]
+const th = STD.thresholdsOf('g1', 'm');
+ok('男卧推有 4 个门槛', th.length === 4 && th[0] === 0.5, th.join(' / '));
+ok('0.49× → 新手', STR.levelFor(0.49, th).idx === 0, STR.levelFor(0.49, th).name);
+ok('0.50× → 入门（边界算进上一档）', STR.levelFor(0.5, th).idx === 1, STR.levelFor(0.5, th).name);
+ok('0.90× → 中级（1 倍体重还不算进阶）', STR.levelFor(0.9, th).name === '中级', STR.levelFor(0.9, th).name);
+ok('1.60× → 精英，且没有下一档',
+  STR.levelFor(1.6, th).idx === 4 && STR.levelFor(1.6, th).next === null, STR.levelFor(1.6, th).name);
+ok('到下一档还差多少算得出来', Math.abs(STR.levelFor(0.9, th).toNext - 0.3) < 1e-9, STR.levelFor(0.9, th).toNext);
+ok('没收录的动作不给门槛', STD.thresholdsOf('g15', 'm') === null, String(STD.thresholdsOf('g15', 'm')));
+
+// 缺资料 / 缺体重：说清缺什么，不编默认值
+db.saveProfile({ days: 3, place: 'gym', level: 'some', sex: '', birthYear: 0 });
+ok('没填性别 → 缺性别', STR.strengthNow().reason === 'no-sex', STR.strengthNow().reason);
+
+db.saveProfile({ days: 3, place: 'gym', level: 'some', sex: 'm' });
+ok('填了性别但没体重 → 缺体重', STR.strengthNow().reason === 'no-weight', STR.strengthNow().reason);
+
+// 有体重 + 一条卧推 → 能评级
+db.saveMetric({ kind: 'weight', date: '2026-09-01', value: 80 });
+db.saveSet({
+  date: '2026-09-02', exId: 'g1', setNo: 1, weight: 60, reps: 5, unit: 'kg',
+  exCn: '卧推', part: 'chest', planKey: 'A', sig: db.planSig(), done: true
+});
+
+const pwr = STR.strengthNow();
+ok('有体重有记录 → ready', pwr.ready === true && pwr.items.length >= 1,
+  pwr.items.map(function (i) { return i.cn + ' ' + i.ratio + '×'; }).join(' / '));
+
+const bench = pwr.items.filter(function (i) { return i.exId === 'g1'; })[0];
+// 60kg × 5（默认 RIR=1）→ 估算 60 × (1 + 6/30) = 72kg；72 / 80 = 0.90 倍
+ok('卧推 60kg×5 / 体重 80 → 估算 72kg',
+  !!bench && bench.e1rm === 72, bench ? bench.e1rm : 'null');
+ok('倍体重算对了（0.9×）', !!bench && bench.ratio === 0.9, bench ? bench.ratio : 'null');
+ok('0.9× 落在中级', !!bench && bench.level === '中级', bench ? bench.level : 'null');
+ok('五档点里亮了 3 个', !!bench && bench.dots.filter(function (d) { return d.on; }).length === 3,
+  bench ? JSON.stringify(bench.dots) : 'null');
+ok('每个点都带下标（wx:key 要用）', !!bench && bench.dots.every(function (d, i) { return d.i === i; }),
+  bench ? bench.dots.map(function (d) { return d.i; }).join(',') : 'null');
+ok('没练过的标准动作不出现', !pwr.items.some(function (i) { return i.exId === 'g40'; }),
+  pwr.items.map(function (i) { return i.cn; }).join(','));
+
+// 同一成绩换女表 → 档位更高（女卧推精英门槛 0.9）
+db.saveProfile({ days: 3, place: 'gym', level: 'some', sex: 'f' });
+const fBench = STR.strengthNow().items.filter(function (i) { return i.exId === 'g1'; })[0];
+ok('同样 0.9× 对女表是精英', !!fBench && fBench.level === '精英', fBench ? fBench.level : 'null');
+
+// 年龄只做展示，不参与评级
+ok('出生年份算年龄', STR.ageOf(new Date().getFullYear() - 20) === 20, STR.ageOf(new Date().getFullYear() - 20));
+ok('没填出生年份 → 0（不瞎猜）', STR.ageOf(0) === 0, String(STR.ageOf(0)));
+
+// profile 存得住这两项，改计划不会把它们抹掉
+db.saveProfile({ days: 3, place: 'gym', level: 'some', sex: 'f', birthYear: 2000 });
+db.saveProfile({ days: 4, place: 'home', level: 'new' });
+ok('改天数不会抹掉性别/出生年', db.profile().sex === 'f' && db.profile().birthYear === 2000,
+  JSON.stringify(db.profile()));
+db.saveProfile({ days: 4, place: 'home', level: 'new', sex: '' });
+ok('显式传空 → 能清除', db.profile().sex === '', JSON.stringify(db.profile().sex));
+
 /* ================= 结果 ================= */
 console.log('\n' + (failed ? ('有 ' + failed + ' 项失败') : '进步计算全部通过') + '\n');
 if (failed) process.exitCode = 1;

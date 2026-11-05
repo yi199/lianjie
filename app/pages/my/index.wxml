@@ -77,11 +77,47 @@
     <view class="hint">改完立刻生效，之后的训练按新计划走。已有的训练记录不会丢。</view>
   </view>
 
+  <!-- 个人资料（选填）：只服务力量水平评级 -->
+  <view class="sec">
+    <view class="sec-h">个人资料<text class="sec-note">选填</text></view>
+    <view class="chips">
+      <view class="chip {{profile.sex == 'm' ? 'on' : ''}}" data-v="m" bindtap="setSex" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">男</view>
+      <view class="chip {{profile.sex == 'f' ? 'on' : ''}}" data-v="f" bindtap="setSex" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">女</view>
+      <view class="chip {{!profile.sex ? 'on' : ''}}" data-v="" bindtap="setSex" hover-class="chip-hover" hover-start-time="0" hover-stay-time="120">不填</view>
+    </view>
+    <picker mode="date" fields="year" value="{{birthValue}}" start="1940-01-01" end="{{thisYear}}-12-31" bindchange="setBirth">
+      <view class="pickerrow">
+        <text class="pickert">出生年份</text>
+        <text class="pickerv num">{{profile.birthYear ? profile.birthYear : '不填'}} ▾</text>
+      </view>
+    </picker>
+    <view class="hint">只用来算「力量水平」（估算 1RM ÷ 体重 对照标准表）。不填就不显示评级，别的功能不受影响。</view>
+  </view>
+
+  <!-- 同步 -->
+  <view class="sec">
+    <view class="sec-h">同步</view>
+    <view class="syncrow {{syncState}}">
+      <view class="smain">
+        <text class="stitle">{{syncTitle}}</text>
+        <text class="ssub">{{syncSub}}</text>
+      </view>
+      <text
+        wx:if="{{syncState === 'error'}}"
+        class="sretry"
+        bindtap="tapSync"
+        hover-class="sretry-hover"
+        hover-start-time="0"
+        hover-stay-time="120"
+      >重试</text>
+    </view>
+  </view>
+
   <!-- 数据 -->
   <view class="sec">
     <view class="sec-h">数据</view>
     <view class="rows">
-      <view class="row" bindtap="fillDemo" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
+      <view class="row" wx:if="{{!hasAny}}" bindtap="fillDemo" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
         <text class="rowt">填入示例数据</text>
         <text class="rownote">用来看图表效果</text>
       </view>
@@ -96,6 +132,6 @@
     </view>
   </view>
 
-  <view class="about">练界 v0.1 · 数据只存在这台手机里，不上传</view>
+  <view class="about">练界 v0.1</view>
 
 </view>

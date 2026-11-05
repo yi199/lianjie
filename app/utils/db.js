@@ -50,11 +50,24 @@ function profile() {
  *   方案 id   用官方 / 自定义方案里显式写死的动作表
  */
 function saveProfile(p) {
+  // sex / birthYear 只给「力量水平评级」用（设计文档 §8）：选填，不填就是空。
+  // 显式传空串表示「清除」，不传则沿用上一次的值（改计划不该把这些抹掉）。
+  const prev = profile() || {};
+  const has = function (k) { return Object.prototype.hasOwnProperty.call(p, k); };
+  const sex = has('sex')
+    ? (p.sex === 'm' || p.sex === 'f' ? p.sex : '')
+    : (prev.sex === 'm' || prev.sex === 'f' ? prev.sex : '');
+  const birthYear = has('birthYear')
+    ? (Number(p.birthYear) || 0)
+    : (Number(prev.birthYear) || 0);
+
   const prof = {
-    level: p.level || 'some',
-    days: Number(p.days) || 3,
-    place: p.place === 'home' ? 'home' : 'gym',
-    programId: p.programId || 'auto'
+    level: p.level || prev.level || 'some',
+    days: Number(p.days) || prev.days || 3,
+    place: p.place === 'home' ? 'home' : (p.place === 'gym' ? 'gym' : (prev.place || 'gym')),
+    programId: p.programId || 'auto',
+    sex: sex,
+    birthYear: birthYear
   };
   const oldSig = planSig();
   safeStorage.set(K_PROFILE, prof);
@@ -1606,6 +1619,29 @@ function loadDemo() {
 }
 
 /**
+ * 有没有示例数据。
+ * 示例只是给人「先看看图表长什么样」，一旦开始记真实训练，它就会混在统计里、
+ * 而且页面上看不出哪条是假的 —— 所以需要一个能问、能只清它的接口。
+ */
+function hasDemo() {
+  return S.rows().some(function (r) { return r.demo; }) ||
+    S.workouts().some(function (w) { return w.demo; });
+}
+
+/**
+ * 只清示例数据，真实记录一条都不动。
+ * @returns {number} 删掉多少条组记录
+ */
+function clearDemo() {
+  const ids = S.rows().filter(function (r) { return !!r.demo; }).map(function (r) { return r.id; });
+  if (ids.length) S.remove(ids);
+  const dates = S.workouts().filter(function (w) { return !!w.demo; }).map(function (w) { return w.date; });
+  if (dates.length) S.removeWorkouts(dates);
+  if (ids.length || dates.length) store.touchSets();
+  return ids.length;
+}
+
+/**
  * 清空训练记录（计划设置保留）。
  * 同步打开时，真实记录写墓碑，其他设备也会一起清掉；示例数据直接删。
  */
@@ -1878,7 +1914,7 @@ function monthlyStats(y, m) {
   const calendar = [];
   for (let d = 1; d <= dim; d++) {
     const ds = pre + D.pad(d);
-    calendar.push({ d: d, on: !!daySet[ds], today: ds === todayS });
+    calendar.push({ d: d, date: ds, on: !!daySet[ds], today: ds === todayS });
   }
 
   // 部位分布：按「练了多少组」算，比按容量更直观
@@ -1940,6 +1976,7 @@ module.exports = {
   metricKinds, metricDef, metricOf, saveMetric, removeMetric, metricSeries, latestMetric, metricDelta,
   /* 可视化 */
   partTerrain, weeklyVolume, allTimeStats,
+  hasDemo, clearDemo,
   /* 配置文档 */
   packConfig, takeConfig, ackConfig, applyConfigDoc, configPending, configUpdatedAt,
   markConfigDirty,

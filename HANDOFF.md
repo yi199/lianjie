@@ -15,7 +15,8 @@
 
 | 位置 | 分支 | 指向 | 状态 |
 |---|---|---|---|
-| github + 本地 | **`main`** | **`35903a0`** | **唯一主线**。2026-11-04 合入了 feat/fonts-on-main 的全部内容（身体指标 P5 / 进步可视化 P7 / S7 部署 / 记录单位三态 / 详情页动作档案） |
+| **本地 + github** | **`feat/dev`** | 从 `ac1a0f5` 起，现 tip `eb6281e` | **日常工作分支（2026-11-04 起）**。所有修改先提交到这里，稳定后再合 main |
+| github + 本地 | **`main`** | **`ac1a0f5`** | **主线**。只有从 feat/dev 合过去的稳定内容；不直接往上提交 |
 | github | `feat/fonts-tabbar` `feat/catalog` `feat/fonts-rebuild` `feat/fonts-rebuild-2` `feat/safe-storage` | `b78a4ee` `17c559a` `f2e72f6` `1bb28cb` `05b291b` | **协作者的分支**（对应 PR #37–#41，内容已进 main）。**不要删**，即使看起来"已经合并了" |
 | 本地 | `feat/backend-sync-design` `feat/onboarding-rewards` | `f055522` `452ad47` | 历史残留，远端本来就没有这两个 |
 | 本地 | `backup/pre-main-merge` | `0f84b6e` | 合并前的临时备份，确认小程序跑得没问题后可 `git branch -D` |
@@ -23,7 +24,7 @@
 
 远端：`gitee`(man-qianyi/lianjie) + `github`(yi199/lianjie，ssh://git@ssh.github.com:443)。
 
-2026-11-04 只删了**自己的** `feat/fonts-on-main`（已合并进 main）。
+2026-11-04 删过**自己的** `feat/fonts-on-main`（已合并进 main）；同一天新开了 `feat/dev` 作为日常分支。
 
 ### ★ squash 合并的坑（2026-11-04 踩到，已处理完）
 
@@ -166,29 +167,25 @@ docs/                   文档体系（见下）
 - **动作库 E4 动作详情页**（2026-11-04，`699c254`）：`pages/exercise`——骨架同步渲染（名字/英文/部位·场所·记法/要点/怎么记全走本地 `catalog.find`），再异步 `catalog.detail(id)` 拉 `steps` + `imgDetail`（缓存 7 天 TTL + 50 条 LRU 由 catalog 负责，页面不自己实现）；没图给虚线占位不空白、图挂了 `binderror` 就当没图、讲解拉不到显示「讲解没拉到 + 再试一次」而要点照旧；自建动作不打后端。训练页动作名旁加「看讲解 ›」入口。`test-page.js` +19 项。
 - **自定义底部 tabBar**（2026-11-04）：`app/custom-tab-bar/`，纸面底 `#EDE8D9`（比页面深一档）+ 上沿细线 + 选中项陶土色小把手 + 按压缩放；栏高 92rpx（≈原生）。三个 tab 页 `onShow` 里 `getTabBar().setData({selected})`，页面自己让出 `104rpx + 安全区`。
 - **文档体系**：拆成 `接口/` + `设计文档/`，新增 `开发标准.md`、`CONTRIBUTING.md`、PR 模板。
-- **上线加固 P0-1（2026-11-04）**：`utils/safeStorage.js` 成为**唯一**的本地写入入口（storage / catalog / db / sync 全部改走它）。本地空间满时 `wx.setStorageSync` 抛异常不再冒到页面；storage 层写失败即丢内存缓存回落到磁盘真相（宁可少显示，不做「看着有、重进就没」）；提示只弹一次、带真实用量。索引 key 写失败时不写半截（`migrateLegacy` 失败保留老 key 下次重来）。**`test.js` 第 21 节 5 项**专门测这条路径（monkey-patch 让 `lj.sets.*` 写失败）→ 七套 **614 项**全绿。
+- **上线加固 P0-1（2026-11-04）**：`utils/safeStorage.js` 成为**唯一**的本地写入入口（storage / catalog / db / sync 全部改走它）。本地空间满时 `wx.setStorageSync` 抛异常不再冒到页面；storage 层写失败即丢内存缓存回落到磁盘真相（宁可少显示，不做「看着有、重进就没」）；提示只弹一次、带真实用量。索引 key 写失败时不写半截（`migrateLegacy` 失败保留老 key 下次重来）。**`test.js` 第 21 节 5 项**专门测这条路径（monkey-patch 让 `lj.sets.*` 写失败）→ 七套 **630 项**全绿。
+- **力量地形纵轴（2026-11-05，`eb6281e`）**：左边三档刻度（顶 / 中 / 0）+ 轴线 + 两条极淡虚线；上限定在 1/1.5/2/2.5/3/4/5/6/8×10ⁿ 整档，最高峰留一成余量；山脚收在 0 基线；单位由「每周容量 · 吨/组」小字交代。演示页 `练界_小程序演示.html` 同步改（该文件被 `.gitignore:59` 忽略，不进库）。
 - **上线加固 P0-2（2026-11-04）**：`project.config.json` 的 `packOptions.ignore` 排掉 8 个 `test*.js`（**156KB** 不再进线上包）。
+
+- **力量水平 V3（2026-11-05）**：`data/strength-standard.js`（5 个标准动作 × 男/女 × 四档门槛，**参考值不是研究数据**，界面标「仅供参考」）+ `utils/strength.js`（估算 1RM ÷ 体重 → 新手/入门/中级/进阶/精英，缺性别或缺体重就只提示缺什么，绝不编默认值）；性别 / 出生年份进配置文档（`saveProfile` 显式传空才清除，改计划不会抹掉）；进步页新增「力量水平」栏（**放在空态之外**——只练过一次的人也看得到），五档小圆点 + 距下一档还差多少。`test-progress.js` 95 → 115 项。**RIR 录入界面仍未做**（字段早就有了）。
+- **同步可见（2026-11-05）**：我的页「同步」栏四态（本地模式 / 正在同步 / 没传上去 / 已同步 + 上次多久前），页面可见时 3 秒轮询自动更新；**只有失败态才出现「重试」**——同步本来就是全自动的（2 秒防抖 + 指数退避 + 空闲轮询），不该给用户一个「要按一下」的按钮。删掉「数据只存在这台手机里，不上传」那句错话。
+- **补录与回看（2026-11-05）**：数据页日历格子可点 → 那天战报（战报认日期，过去那天说「那天」、按钮变「回到数据」）；身体指标页可把日期往回翻着录（今天 / 昨天 / 10.03），记录行点一下切到那天、每行都能删。
+- **P7 进步可视化 V1 + V2**（2026-11-04，`9ce7717`）：`data/progress-model.js`（**纯参数表**：四种模型归属、体重系数、肌群参与度、进阶阶梯、噪声/停滞/起点参数）+ `utils/progress.js`（实际负荷、Epley+RIR 估算、序列/趋势/停滞事实/全身指数/肌群分摊/七类高光/数据质量）；`pages/progress` 整体变化页（指数、周走势、肌群、高光、动作榜可展开）+ 数据页入口。**`test-progress.js` 95 项**。示例数据默认不进统计，且铺了 12 周、带「涨→卡住→突破」的故事（点「示例数据」就能看到停滞提示和升级高光）。V3（体重/性别/评级/RIR 录入）与 V4 校准未做。
+- **动作库 v1.3 · E1 服务端**（2026-11-04）：`exercises` / `catalog_meta` / `user_exercises` 三张表；`GET /api/catalog?since=`（免登录、独立 IP 限流、`since>=rev` → 304 空 body、`order by hot desc,id`）；`GET /api/exercises/{id}`（要登录，`steps: string[]` + `imgDetail`，都可空）；`/sync` 加第 4 类资源 `customExercises`（LWW + 墓碑 + `rejected.kind=customExercise`）和 `catalogRev`；`cmd/seed-catalog` + `content/exercises.json`（105 个动作 / 18 个 hot）。后端 **76 项断言组全绿**（14 单元 + 23 集成，含四表分页、rev 区间、坏行隔离），HTTP 契约升到 **v3.3**。**E2（数据源）/ E3（我的动作页）/ E4（详情页）客户端三块均已完成**（见上）。
 
 ### 未完成 / 在飞
 
-- **★ 待拆的下几批 PR（47 文件 / 4355 行，都在 `feat/fonts-on-main` 上）**。按 `git diff --stat github/main feat/fonts-on-main` 看真实剩余，能干净拆成 4 个主题：
-
-  | 主题 | 主要文件 | 规模 |
-  |---|---|---|
-  | 身体指标 P5 v0.1 | `pages/metrics/*`、`utils/metricChart.js`、`storage.js` 的 metric 段、`test-metrics.js`、`docs/设计文档/身体指标.md` | 200+ |
-  | 进步可视化 P7 V1+V2 | `utils/progress.js`(697)、`data/progress-model.js`、`pages/progress/*`、`test-progress.js`(353)、示例数据两个提交 | **1400+** |
-  | S7 部署 | `server/deploy/*`、`docker-compose.yml`、`.env.example` | 270+ |
-  | 真后端测试 C6 | `test-sync-real.js` | 212 |
-
-  注意：`storage.js` / `sync.js` 在这批里是**按 hunk 混主题**的（safeStorage 的改动已经拆走了，剩下的是 metrics 载荷），cherry-pick 时要看清 diff 别把 metrics 带错地方。
+- ~~待拆的下几批 PR~~ **已作废**：`feat/fonts-on-main` 已于 2026-11-04 19:23 整体合进 `main`（merge `39652f7`），身体指标 P5 v0.1 / 进步可视化 P7 V1+V2 / S7 部署配置 / 真后端测试 `test-sync-real.js` 现在都在 main 里。
 - **C6 测试补强**：双设备并发、分页、时钟偏差；`test-sync.js` 现在只有「顺序模拟换设备」，没有两套独立状态。
 - **S7 部署实操**：配置齐了，缺「在一台真服务器上照 README 走一遍」——证书签发、`limit_req` 生效、备份还原演练都没验过。
 - **P0 备案**：域名 + ICP。**只卡上线不卡开发**，第一天就该提交，现在还没开始。
 - **P4 真机联调**：两台真机互相同步、弱网、杀进程、改时钟——**一次都没做过**（开发者工具≠真机）。
-- **P5 身体指标**：M1–M3 已做（v0.1）；**剩下**：和进步可视化 V3 对接（体重换算自重负荷、力量水平评级）。
+- **P5 身体指标**：M1–M3 已做（v0.1）；和 V3 的对接（体重换算自重负荷、力量水平评级）2026-11-05 已补完。
 - **P6 上线准备**：隐私协议、数据导出/注销、监控告警、备份演练、灰度。
-- **P7 进步可视化 V1 + V2**（2026-11-04，`9ce7717`）：`data/progress-model.js`（**纯参数表**：四种模型归属、体重系数、肌群参与度、进阶阶梯、噪声/停滞/起点参数）+ `utils/progress.js`（实际负荷、Epley+RIR 估算、序列/趋势/停滞事实/全身指数/肌群分摊/七类高光/数据质量）；`pages/progress` 整体变化页（指数、周走势、肌群、高光、动作榜可展开）+ 数据页入口。**`test-progress.js` 95 项**。示例数据默认不进统计，且铺了 12 周、带「涨→卡住→突破」的故事（点「示例数据」就能看到停滞提示和升级高光）。V3（体重/性别/评级/RIR 录入）与 V4 校准未做。
-- **动作库 v1.3 · E1 服务端已完成**（2026-11-04）：`exercises` / `catalog_meta` / `user_exercises` 三张表；`GET /api/catalog?since=`（免登录、独立 IP 限流、`since>=rev` → 304 空 body、`order by hot desc,id`）；`GET /api/exercises/{id}`（要登录，`steps: string[]` + `imgDetail`，都可空）；`/sync` 加第 4 类资源 `customExercises`（LWW + 墓碑 + `rejected.kind=customExercise`）和 `catalogRev`；`cmd/seed-catalog` + `content/exercises.json`（105 个动作 / 18 个 hot）。后端 **76 项断言组全绿**（14 单元 + 23 集成，含四表分页、rev 区间、坏行隔离），HTTP 契约升到 **v3.3**。**E2（数据源）/ E3（我的动作页）/ E4（详情页）客户端三块均已完成**（见上）。
 - **训练日程 / 有氧记录**：只有 v0.1 设计，无代码。
 
 ## 已知的坑
@@ -200,7 +197,7 @@ docs/                   文档体系（见下）
 | **测试把日期写死** | 过几天跑就红，误以为是回归 | **已修（2026-11-03）**：`weeklyProgress(date)` / `alternatives(exId, planKey, date)` 都接受可选日期，测试传固定日期；示例数据改成「最近五周含今天」。以后新增用例别用 `D.today()` 当真值 |
 | **换字体后文字被挤断** | 「4 × 10」断成两行、`一周 2 练` 的「练」掉下去压住标签行 | Space Grotesk 比 Georgia 宽。flex 行里的数字/短句加 `flex-shrink: 0; white-space: nowrap`（`.pss` / `.pm` 已加） |
 | **WSL 里的 Postgres 会自己消失** | 后端突然全是 `500 DB_ERROR`（10s 超时），PG 日志里是「上次 09:13 干净关闭，09:24 才启动」，且这段时间写的数据可能丢 | WSL2 会空闲回收虚拟机。跑联调前先挂一个 `wsl -u root -- sleep infinity`（后台进程）把 VM 钉住；真要认真跑集成测试，用服务器上的 PG 或 Windows 原生安装 |
-| **分支被删 / 推错** | `git fetch --prune` 后本地跟踪分支 `[deleted]`；或推了非当前分支显示 up-to-date | 先 `git branch --show-current`；工作分支 = `feat/fonts-on-main` |
+| **分支被删 / 推错** | `git fetch --prune` 后本地跟踪分支 `[deleted]`；或推了非当前分支显示 up-to-date | 先 `git branch --show-current`；工作分支 = **`feat/dev`**（2026-11-04 起） |
 | **Edge headless 截图** | 目标 HTML 被浏览器进程锁住，写入失败 | 换文件名再写 |
 | **中文日期字距** | 套英文的 `0.26em` → "周 三 · 1 0 月 2 9 日" | 中文用 `.date`，字距 `0.06em` |
 | **类名冲突** | `.today` / `.side` 在 demo 里撞名，布局塌 | 加前缀或改名 |
@@ -209,13 +206,15 @@ docs/                   文档体系（见下）
 | **8080 被别的进程（Docker）占** | 后端连不上 / 连错了进程 | `netstat -ano \| grep :8080` 找到占用者，再换端口或停它 |
 | **`wx.login` 每次都是新用户** | 开发者工具里重新登录一次，数据就没了 | `config.js` 的 `DEV_LOGIN_CODE`：**开发版返回固定 code**，同步层据此走固定身份；只有非 develop 环境才走真实 `wx.login` |
 | **拆 PR 脚本的 `git reset --hard`** | 开发者工具同时开着时，热重载读到「文件刚被删、还没写回」的瞬间：报 `app.json: 未找到 pages/xxx/index.wxml`，或者更阴的 `module 'utils/xxx.js' is not defined`（模块表里还挂着「已删除」状态，文件明明在磁盘上）。2026-11-04 13:06 那次 5 个新页面全报 ENOENT，就是 `_cache/build_tabbar_pr.sh` 的 reset 干的 | 跑这类脚本前先关掉模拟器；已经踩了分两步：① `cli.bat cache --clean compile --project ...` ② `touch` 引用它的模块（如 `utils/catalog.js`）逼编译器重新解析依赖图。判据是日志里出现 `Compiling utils/xxx.js suceess` |
+| **`wx://not-found`（点某个页面就报）** | Console 报 `Component is not found in path "wx://not-found"`，栈里全是 `recurseComponentImpl`，**不给页面名也不给文件名**；从数据页点「强了多少」进进步页时必现（2026-11-05） | wxml 里只有 `view` / `text` / `block` 三个内置标签、开闭配平、页面 json 无组件声明、app.json 无全局组件 —— 静态查不出野组件。最后**同时**做了两件事才消失：① 清缓存重编译（批量脚本改过 wxml，编译产物可能是半截的）；② 把嵌套的 `<block wx:else>` 换成扁平 `<view wx:if>/<view wx:else>`，嵌套 `wx:for-item` 补 `wx:key`。两处一起改的，**没法定论是哪一处**。以后遇到按这个顺序：先清缓存 → 再查嵌套 block / 无 key 的 for-item → 最后用 `wx:if` 开关一行关掉可疑区块做二分 |
+| **并行会话 `reset --hard` 吞掉未提交改动** | 2026-11-04 19:21 另一个会话在同一工作树里 `git reset --hard` + 切分支，把未提交的 5 个文件改动整个清空（页面看着像「改回去了」，`git status` 却是干净的） | 收工前把改动落成提交，或至少 `git diff > _cache/xxx.patch`（`_cache` 被 ignore，不会被 reset 碰掉）；改代码前先 `git rev-parse --abbrev-ref HEAD` 确认落在哪条分支 |
 | **字体子集是全局生成物** | 合完 PR 才发现界面出方框。`node test-*.js` 永远抓不到（缺字只在渲染时暴露），`check_app.sh` 也只比较字数不比较字符集 | **所有会改文案的 PR 合完之后最后重建**，否则每合一个就要补一次（2026-11-04 连着补了两次）。重建后必须按 cmap 实测：从 `.js/.wxml/.json` 剥掉注释取中文，与子集 cmap 求差集，测试文件和 `.wxss` 不计入 |
 | **squash 合并让 rev-list 失真** | `git rev-list --count main..分支` 显示领先 32 个提交，实际内容早就合过一大半 | 看真实剩余量用 `git diff --stat main 分支`。拆 PR 从新 main 开分支 + cherry-pick，别再用旧基点 reset |
 
 ## 常用操作
 
 ```bash
-# 七套自测（改完必跑，现在全绿 · 合计 595 项）
+# 七套自测（改完必跑，现在全绿 · 合计 630 项）
 cd app && for f in test.js test-page.js test-sync.js test-training.js test-metrics.js test-catalog.js test-progress.js; do echo "--- $f"; node $f || break; done
 
 # 同上但只报项数（_cache 不进版本库；没有就手敲上面那行）
