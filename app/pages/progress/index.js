@@ -55,7 +55,7 @@ Page({
     const o = { includeDemo: !real };
     const ov = P.overallNow(o);
     // 力量水平只看真实记录：示例数据不参与（否则会给出一个假评级）
-    const power = real ? STR.strengthNow() : { ready: false, reason: 'no-data', items: [] };
+    const power = real ? STR.strengthNow() : { show: true, ready: false, reason: 'no-data', items: [] };
 
     if (!ov.ok) {
       this.setData({

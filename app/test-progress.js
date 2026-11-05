@@ -393,8 +393,10 @@ ok('卧推 60kg×5 / 体重 80 → 估算 72kg',
   !!bench && bench.e1rm === 72, bench ? bench.e1rm : 'null');
 ok('倍体重算对了（0.9×）', !!bench && bench.ratio === 0.9, bench ? bench.ratio : 'null');
 ok('0.9× 落在中级', !!bench && bench.level === '中级', bench ? bench.level : 'null');
-ok('五档点里亮了 3 个', !!bench && bench.dots.filter(Boolean).length === 3,
+ok('五档点里亮了 3 个', !!bench && bench.dots.filter(function (d) { return d.on; }).length === 3,
   bench ? JSON.stringify(bench.dots) : 'null');
+ok('每个点都带下标（wx:key 要用）', !!bench && bench.dots.every(function (d, i) { return d.i === i; }),
+  bench ? bench.dots.map(function (d) { return d.i; }).join(',') : 'null');
 ok('没练过的标准动作不出现', !pwr.items.some(function (i) { return i.exId === 'g40'; }),
   pwr.items.map(function (i) { return i.cn; }).join(','));
 

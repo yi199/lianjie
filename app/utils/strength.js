@@ -82,6 +82,7 @@ function strengthNow() {
   const sex = prof.sex === 'f' ? 'f' : (prof.sex === 'm' ? 'm' : '');
   const bw = latestWeight();
   const out = {
+    show: true,          // 力量水平这一栏默认就显示（缺资料时显示「缺什么」）
     ready: false,
     reason: '',
     sex: sex,
@@ -109,8 +110,8 @@ function strengthNow() {
       levelIdx: lv.idx,
       next: lv.next,
       toNext: lv.toNext,
-      // 五档进度：已到的档数 / 总档数（用来画那一排小方块）
-      dots: STD.LEVELS.map(function (_, i) { return i <= lv.idx; })
+      // 五档进度：数组里每项带下标（wx:key 要用），on = 这一档到过没有
+      dots: STD.LEVELS.map(function (_, i) { return { i: i, on: i <= lv.idx }; })
     };
   }).filter(Boolean);
 
