@@ -16,6 +16,10 @@ function agoText(iso) {
 /**
  * 同步这一栏要回答三个问题：开没开、传完没有、上次什么时候。
  * 以前这些只在 console 里，用户看不出记录到底上云了没有。
+ *
+ * 同步本来就是全自动的（改完 2 秒防抖上传 + 失败指数退避 + 空闲轮询），
+ * 所以这一栏默认只是「显示」：点它没有任何用，也不要暗示「不点就不传」。
+ * 只有失败态才给一个「重试」——那才是真的需要人来催一脚的场合。
  */
 function syncView() {
   const st = sync.status();
@@ -24,7 +28,7 @@ function syncView() {
     return {
       state: 'local',
       title: '本地模式',
-      sub: '没接后端，数据只在这台手机上，换设备拉不回来'
+      sub: '还没连上云端，数据只在这台手机上，换手机会丢'
     };
   }
 
@@ -41,7 +45,7 @@ function syncView() {
     return {
       state: 'error',
       title: '这次没传上去',
-      sub: '待上传 ' + st.pending + ' 条 · ' + wait + ' · 点一下立即重试'
+      sub: '待上传 ' + st.pending + ' 条 · ' + wait
     };
   }
 
@@ -49,14 +53,14 @@ function syncView() {
     return {
       state: 'wait',
       title: '待上传 ' + st.pending + ' 条',
-      sub: '上次同步 ' + agoText(st.lastSyncAt) + ' · 点一下立即同步'
+      sub: '上次同步 ' + agoText(st.lastSyncAt) + ' · 会自动传上去'
     };
   }
 
   return {
     state: 'ok',
     title: '已同步',
-    sub: '上次同步 ' + agoText(st.lastSyncAt) + ' · 点一下再对一次'
+    sub: '上次同步 ' + agoText(st.lastSyncAt)
   };
 }
 
@@ -91,7 +95,16 @@ Page({
       return;
     }
     this.refresh();
+    this.startSyncTick();
     this.playEnter();
+  },
+
+  onHide() {
+    this.stopSyncTick();
+  },
+
+  onUnload() {
+    this.stopSyncTick();
   },
 
   playEnter() {
@@ -133,17 +146,45 @@ Page({
     wx.showToast({ title: '已按参数重排', icon: 'none' });
   },
 
-  /** 点同步这一栏：本地模式说实话，接了后端就立刻推一轮 */
+  /**
+   * 只有「没传上去」的时候这一栏才可点：手动催一轮。
+   * 其它状态点它什么都不做 —— 自动会传，别让用户以为要靠他按。
+   * @returns {boolean} 是否真的重试了（测试用）
+   */
   tapSync() {
     const st = sync.status();
     if (!st.enabled) {
-      wx.showToast({ title: '本地模式：没接后端', icon: 'none' });
-      return;
+      wx.showToast({ title: '本地模式：还没连上云端', icon: 'none' });
+      return false;
     }
+    if (!st.lastError) return false;
     sync.kick();
-    wx.showToast({ title: '正在同步…', icon: 'none' });
+    wx.showToast({ title: '正在重试…', icon: 'none' });
     const self = this;
-    setTimeout(function () { self.refresh(); }, 900);
+    setTimeout(function () { self.refreshSync(); }, 600);
+    return true;
+  },
+
+  /** 只刷新同步那一栏（3 秒轮询用它，别整页重算） */
+  refreshSync() {
+    const sv = syncView();
+    if (sv.state === this.data.syncState && sv.title === this.data.syncTitle && sv.sub === this.data.syncSub) return;
+    this.setData({ syncState: sv.state, syncTitle: sv.title, syncSub: sv.sub });
+  },
+
+  /** 页面可见时才轮询：状态自己会走到「已同步」，用户不用盯着 */
+  startSyncTick() {
+    this.stopSyncTick();
+    if (!sync.status().enabled) return;      // 本地模式没有会变的状态，别空转
+    const self = this;
+    this.syncTimer = setInterval(function () { self.refreshSync(); }, 3000);
+  },
+
+  stopSyncTick() {
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+    }
   },
 
   /**

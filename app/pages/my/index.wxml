@@ -97,15 +97,19 @@
   <!-- 同步 -->
   <view class="sec">
     <view class="sec-h">同步</view>
-    <view
-      class="syncrow {{syncState}}"
-      bindtap="tapSync"
-      hover-class="syncrow-hover"
-      hover-start-time="0"
-      hover-stay-time="120"
-    >
-      <text class="stitle">{{syncTitle}}</text>
-      <text class="ssub">{{syncSub}}</text>
+    <view class="syncrow {{syncState}}">
+      <view class="smain">
+        <text class="stitle">{{syncTitle}}</text>
+        <text class="ssub">{{syncSub}}</text>
+      </view>
+      <text
+        wx:if="{{syncState === 'error'}}"
+        class="sretry"
+        bindtap="tapSync"
+        hover-class="sretry-hover"
+        hover-start-time="0"
+        hover-stay-time="120"
+      >重试</text>
     </view>
   </view>
 

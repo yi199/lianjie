@@ -568,19 +568,31 @@ function fakeDetail(out) {
   const myPage = loadPage('./pages/my/index');
   myPage.onLoad();
   myPage.onShow();
-  ok('没接后端 → 说「本地模式」', myPage.data.syncState === 'local' && myPage.data.syncTitle === '本地模式',
+  ok('本地模式 → 标题是「本地模式」', myPage.data.syncState === 'local' && myPage.data.syncTitle === '本地模式',
     myPage.data.syncState + ' / ' + myPage.data.syncTitle);
+  ok('本地模式的副标题说人话（没有「后端」）',
+    myPage.data.syncSub.indexOf('后端') < 0 && myPage.data.syncSub.indexOf('云端') >= 0, myPage.data.syncSub);
+  ok('本地模式不起轮询（没有会变的状态，别空转）', !myPage.syncTimer);
 
   CFG.setApiBase('http://fake.local/api');
   myPage.refresh();
-  ok('接了后端 → 不再说本地模式', myPage.data.syncState !== 'local',
+  ok('连上云端后不再说本地模式', myPage.data.syncState !== 'local',
     myPage.data.syncState + ' / ' + myPage.data.syncTitle);
+  ok('正常状态下点这一栏什么都不做（同步是全自动的）', myPage.tapSync() === false);
 
   CFG.setApiBase(null);
   myPage.refresh();
   calls.length = 0;
-  myPage.tapSync();
-  ok('本地模式点同步 → 只说实话，不发请求', calls.length === 1 && calls[0][0] === 'toast', JSON.stringify(calls));
+  ok('本地模式点它 → 只说实话、不算重试',
+    myPage.tapSync() === false && calls.length === 1 && calls[0][0] === 'toast', JSON.stringify(calls));
+
+  CFG.setApiBase('http://fake.local/api');
+  myPage.refresh();
+  myPage.startSyncTick();
+  ok('连上云端后开始 3 秒轮询', !!myPage.syncTimer);
+  myPage.onHide();
+  ok('离开页面就停掉轮询', !myPage.syncTimer);
+  CFG.setApiBase(null);
 
   CAT.setDetailLoader(null);
   runResult();

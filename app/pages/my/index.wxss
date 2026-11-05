@@ -196,15 +196,34 @@
 /* 同步状态：一行标题 + 一行实话，点整块立即重试 */
 .syncrow {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   padding: 22rpx 26rpx;
   border-radius: 20rpx;
   background: var(--card);
   border: 1rpx solid var(--line);
 }
 
-.syncrow-hover {
-  background: var(--card-press);
+.smain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 重试只在失败态出现：同步平时是全自动的，不该给人一个「要按一下」的按钮 */
+.sretry {
+  flex-shrink: 0;
+  margin-left: 20rpx;
+  padding: 10rpx 22rpx;
+  border-radius: 999rpx;
+  background: var(--soft);
+  color: var(--green);
+  font-size: var(--fs-note);
+}
+
+.sretry-hover {
+  background: var(--green);
+  color: var(--soft);
 }
 
 .stitle {
