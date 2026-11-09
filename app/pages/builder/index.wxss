@@ -203,9 +203,9 @@
   bottom: 0;
   z-index: 21;
   height: 78vh;
-  display: flex;
-  flex-direction: column;
-  /* 子项（scroll-view）在 WebKit 里不一定肯收缩，兜底裁掉，别画到圆角外面 */
+  /* 不用 flex 列：scroll-view 一旦参与 flex 尺寸计算，iOS 就会按内容高度把它算成
+     撑爆整个抽屉（chip 被压、footer 被顶出去）。这里三段全部走块级流 + 显式高度，
+     列表用 calc 精确扣掉头尾 —— 微信里最保守、最不会出偏差的写法。 */
   overflow: hidden;
   background: var(--bg);
   border-top-left-radius: 32rpx;
@@ -219,8 +219,11 @@
 }
 
 .sheeth {
-  flex: none;
-  padding: var(--sp3) var(--sp3) var(--sp2);
+  /* 定高 120rpx = 上留白 40 + 文字行 56 + 下留白 24，给下面的 calc 一个准确的头高 */
+  height: 120rpx;
+  box-sizing: border-box;
+  padding: var(--sp3) var(--sp3) 0;
+  line-height: 56rpx;
   display: flex;
   align-items: baseline;
 }
@@ -236,12 +239,8 @@
 }
 
 .parttabs {
-  /* scroll-view 在 iOS 上不会像普通 div 那样按内容撑高：不给死高度的话，
-     它会被后面的 scroll-view 挤成 0~几十 rpx，chip 只剩半截（iPhone 14 Pro 实测）。
-     border-box 高度 = chip 64rpx + 下留白 sp2 24rpx */
-  flex: none;
+  /* 横向 chip 行：死高度 88rpx（chip 64 + 下留白 24），border-box 收进去 */
   height: 88rpx;
-  min-height: 0;
   box-sizing: border-box;
   white-space: nowrap;
   padding: 0 var(--sp3) var(--sp2);
@@ -266,25 +265,11 @@
   color: #F6F4EA;
 }
 
-.exwrap {
-  /* scroll-view 不参与 flex 尺寸计算：由这层普通 view 承接剩余空间，
-     scroll-view 自己用 absolute 撑满它。
-     上一版（aa053ed）靠给 scroll-view 写 flex:1;height:0 治标，但 iOS 上
-     它仍按内容高度（全部动作 ≈1900px）参与计算，抽屉还是可能被撑爆。 */
-  flex: 1;
-  height: 0;
-  min-height: 0;
-  position: relative;
-}
-
 .exscroll {
-  /* 绝对定位：几何只由 top/left/right/bottom 决定，与内容多少无关。
-     任何内核都算不出「按内容撑爆」这种偏差。 */
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  /* 高度 = 抽屉高 − 头 120rpx − chip 88rpx − 底 128rpx − 安全区（用 vw 表达 rpx：
+     1rpx = 100/750 vw，所以 336rpx = 44.8vw）。scroll-view 拿到明确的像素高度，
+     既不需要参与任何 flex 计算，也不依赖 absolute 撑高 —— 微信两种内核都认。 */
+  height: calc(78vh - 44.8vw - env(safe-area-inset-bottom));
   box-sizing: border-box;
   padding: 0 var(--sp3);
 }
@@ -340,7 +325,9 @@
 }
 
 .sheetf {
-  flex: none;
+  /* 定高 = 上留白 24 + 按钮 80 + 下留白 24 + 安全区 = 128rpx + safe */
+  height: calc(128rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   padding: var(--sp2) var(--sp3) calc(var(--sp2) + env(safe-area-inset-bottom));

@@ -116,29 +116,25 @@
     >{{item.name}}</view>
   </scroll-view>
 
-  <!-- 列表套一层普通 view 承接 flex：scroll-view 自己绝不参与 flex 尺寸计算，
-       否则 iOS 会按内容高度（30 个动作 ≈1900px）把它算成撑爆抽屉 -->
-  <view class="exwrap">
-    <scroll-view class="exscroll" scroll-y>
-      <view
-        class="exrow {{item.picked ? 'on' : ''}}"
-        wx:for="{{sheetList}}"
-        wx:key="id"
-        data-id="{{item.id}}"
-        bindtap="toggleEx"
-      >
-        <view class="exrowl">
-          <text class="exrowcn">{{item.cn}}</text>
-          <text class="exrowen">{{item.en}}</text>
-        </view>
-        <text class="exrowmeta">{{item.partCn}} · {{item.unitCn}}</text>
-        <text class="exrowtick">{{item.picked ? '✓' : '+'}}</text>
+  <scroll-view class="exscroll" scroll-y>
+    <view
+      class="exrow {{item.picked ? 'on' : ''}}"
+      wx:for="{{sheetList}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="toggleEx"
+    >
+      <view class="exrowl">
+        <text class="exrowcn">{{item.cn}}</text>
+        <text class="exrowen">{{item.en}}</text>
       </view>
+      <text class="exrowmeta">{{item.partCn}} · {{item.unitCn}}</text>
+      <text class="exrowtick">{{item.picked ? '✓' : '+'}}</text>
+    </view>
 
-      <view class="exnone" wx:if="{{!sheetList.length}}">这个部位在这个场所下没有动作。</view>
-      <view style="height:40rpx"></view>
-    </scroll-view>
-  </view>
+    <view class="exnone" wx:if="{{!sheetList.length}}">这个部位在这个场所下没有动作。</view>
+    <view style="height:40rpx"></view>
+  </scroll-view>
 
   <view class="sheetf">
     <text class="sheetcount num">已选 {{sheetCount}} 个</text>
