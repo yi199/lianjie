@@ -1,7 +1,7 @@
 # 练界 — 项目交接（新对话开工先读这份）
 
 > 换新对话时，第一句话直接说：**读一下 E:\wx小程序\HANDOFF.md，我们接着做**。
-> 最后更新：2026-11-04 16:5x（`main` 已推进到 `0677811`，PR #37–#41 已合入）
+> 最后更新：2026-11-11（上线加固第一轮：错误兜底 / 删除账号 / 数据导出 / 限流信任开关 / 胶囊适配）
 
 ## 一句话
 
@@ -145,6 +145,14 @@ docs/                   文档体系（见下）
 
 ### 已完成
 
+- **★ 上线加固第一轮（2026-11-11）**：把「上线前代码审计」里能自己改的五条全部落地。
+  - **全局错误兜底**：`utils/report.js`（叶子模块，只依赖 config）+ `app.js` 的 `onError`/`onUnhandledRejection`/`onPageNotFound`；节流（同一错误 60 秒一次、单次启动最多 20 条）、纯本地模式**一行请求都不发**；`onPageNotFound` 顺手 `reLaunch` 回首页，不让用户停在白屏。
+  - **后端 `POST /api/client-error`（v3.4）**：免登录、8KB 体积上限、字段长度上限、`kind` 白名单、按 IP 独立限流；**只记日志不落库**，栈里的换行压成 `⏎` 保证一条错误占一行。
+  - **删除账号（合规）**：后端 `DELETE /api/account` 一条 `delete from users` 走外键级联（五张业务表都带 `on delete cascade`），幂等；客户端「我的 → 数据 → 删除账号」二次确认 → `sync.deleteAccount()` → `db.resetAll()` → 回引导页。**成功后必须清 token/游标**，否则下次请求会 401 重登、建新号再把本地残留推上去。
+  - **导出数据**：`我的 → 导出我的数据` 把 profile / sets / metrics / 自建动作 / 自建方案打成 JSON 复制到剪贴板（纯本地生成，不需要后端）。
+  - **限流信任开关**：`ratelimit.go` 的 `X-Real-IP` 改成只有 `TRUST_PROXY=true` 才采信，默认按 `RemoteAddr`；`.env.example` 与 `deploy/README.md` 已写「前面有 Nginx 才打开」。
+  - **胶囊适配**：`app.js` 用 `getMenuButtonBoundingClientRect` 算 `capsulePad`（拿不到时按右边距 7 + 宽 87 兜底）；记录页「换一个」、动作页/进步页的右上英文小标加 `padding-right`，不再被胶囊盖住（之前 iPhone 上那块按钮被系统层吃掉点击）。
+  - **验收**：七套自测 **705 项全绿**（+21）、`check_app.sh` 全过、字体子集重建到 **925 字 / 360KB**（`check-font-cmap.py` 0 缺字）、Go 单测 + `TRUST_PROXY` / 错误上报 / `oneLine` 共 8 项新增；**用 WSL 真 PG 跑了全套集成测试（含新的 `TestIntegrationDeleteAccount`）全 PASS**，临时库跑完已 `drop`。
 - **★ 2026-11-04 主线合并**：`github/main` 从 `5c530a9` 推到 `0677811`，一口气合了 5 个 PR —— #37 字体 + 自定义 tabBar、#38 动作库 E1–E4、#39 字体补动作库新页面的 7 个缺字、#40 本地写满不丢数据（`safeStorage`）、#41 补安全存储提示里的 3 个字。
   - 合并前先在独立 worktree 里预演过：tabbar 零冲突，catalog 只有 `app/utils/db.js` 的 `alternatives` 一处 8 行冲突（取 `CAT.candidates`）。
   - **合完在真实 main 上复验**：449 项测试全过、0 缺字、字体子集 319KB。
@@ -185,7 +193,7 @@ docs/                   文档体系（见下）
 - **P0 备案**：域名 + ICP。**只卡上线不卡开发**，第一天就该提交，现在还没开始。
 - **P4 真机联调**：两台真机互相同步、弱网、杀进程、改时钟——**一次都没做过**（开发者工具≠真机）。
 - **P5 身体指标**：M1–M3 已做（v0.1）；和 V3 的对接（体重换算自重负荷、力量水平评级）2026-11-05 已补完。
-- **P6 上线准备**：隐私协议、数据导出/注销、监控告警、备份演练、灰度。
+- **P6 上线准备**：隐私协议 / 用户协议页面**还没做**（全项目 grep「隐私」0 命中，后台「用户隐私保护指引」也没填）；监控告警、备份演练、灰度仍未做。~~数据导出 / 注销~~ **已完成（2026-11-11）**。
 - **训练日程 / 有氧记录**：只有 v0.1 设计，无代码。
 
 ## 已知的坑
@@ -208,6 +216,7 @@ docs/                   文档体系（见下）
 | **拆 PR 脚本的 `git reset --hard`** | 开发者工具同时开着时，热重载读到「文件刚被删、还没写回」的瞬间：报 `app.json: 未找到 pages/xxx/index.wxml`，或者更阴的 `module 'utils/xxx.js' is not defined`（模块表里还挂着「已删除」状态，文件明明在磁盘上）。2026-11-04 13:06 那次 5 个新页面全报 ENOENT，就是 `_cache/build_tabbar_pr.sh` 的 reset 干的 | 跑这类脚本前先关掉模拟器；已经踩了分两步：① `cli.bat cache --clean compile --project ...` ② `touch` 引用它的模块（如 `utils/catalog.js`）逼编译器重新解析依赖图。判据是日志里出现 `Compiling utils/xxx.js suceess` |
 | **`wx://not-found`（点某个页面就报）** | Console 报 `Component is not found in path "wx://not-found"`，栈里全是 `recurseComponentImpl`，**不给页面名也不给文件名**；从数据页点「强了多少」进进步页时必现（2026-11-05） | wxml 里只有 `view` / `text` / `block` 三个内置标签、开闭配平、页面 json 无组件声明、app.json 无全局组件 —— 静态查不出野组件。最后**同时**做了两件事才消失：① 清缓存重编译（批量脚本改过 wxml，编译产物可能是半截的）；② 把嵌套的 `<block wx:else>` 换成扁平 `<view wx:if>/<view wx:else>`，嵌套 `wx:for-item` 补 `wx:key`。两处一起改的，**没法定论是哪一处**。以后遇到按这个顺序：先清缓存 → 再查嵌套 block / 无 key 的 for-item → 最后用 `wx:if` 开关一行关掉可疑区块做二分 |
 | **scroll-view 放进 flex 列里会把兄弟压扁** | iPhone 14 Pro 真机：建方案页的「选动作」抽屉，部位 chip 只剩半截、底部「已选 N 个 / 完成」整条消失（2026-11-08）。三版才收口：`flex:1;height:0`（aa053ed）真机仍复现；「外套 view + scroll-view 绝对定位撑满」（3395419）真机**更乱**；`f7d21ee` 版待真机确认（用户报「全乱」后改的第三版） | 根因是 scroll-view 内部有滚动层，不肯像普通 div 那样把「自动最小尺寸」缩到内容以下，用内容高度参与 flex 计算。**终版：让 scroll-view 只有一种高度来源——显式像素高度**：`.sheet` 不做 flex 列，`.sheeth` 定高 120rpx、`.parttabs` 死高 88rpx、`.sheetf` 定高 `calc(128rpx + env(safe-area-inset-bottom))`，列表 `height: calc(78vh - 44.8vw - env(safe-area-inset-bottom))`（44.8vw = 336rpx = 头 120 + chip 88 + 底 128；用 vw 不赌 rpx 在 calc 里的转换）。**别用 absolute 救**：微信里 scroll-view 靠绝对定位算不出高度，会塌成一团。渲染管线仍是 Chromium，只能证明算式自洽（393 视口 62.9+46.1+488.5+67.1=664.6=78vh、scrollH 2557/clientH 488），真机结论必须由用户确认 |
+| **顶行右侧元素被胶囊压住** | 自定义导航（`navigationStyle: custom`）下，页面顶行右侧的按钮/英文小标在 iPhone 上正好落在微信胶囊下面，**系统层会吃掉那块点击**：记录页「换一个」点了没反应（2026-11-11 实测几何：iPhone 14 Pro 内容行 y 62–94、胶囊 y 59–91，水平重叠） | `app.js` 的 `capsulePad()` 用 `getMenuButtonBoundingClientRect` 算出「右侧要让出多少 px」（缺省按右边距 7 + 宽 87 兜底），顶行加 `style="padding-right:{{cpad}}px"`。**别用 `sbh`（状态栏高度）硬推** —— 它只管垂直，不管胶囊的宽度 |
 | **并行会话 `reset --hard` 吞掉未提交改动** | 2026-11-04 19:21 另一个会话在同一工作树里 `git reset --hard` + 切分支，把未提交的 5 个文件改动整个清空（页面看着像「改回去了」，`git status` 却是干净的） | 收工前把改动落成提交，或至少 `git diff > _cache/xxx.patch`（`_cache` 被 ignore，不会被 reset 碰掉）；改代码前先 `git rev-parse --abbrev-ref HEAD` 确认落在哪条分支 |
 | **字体子集是全局生成物** | 合完 PR 才发现界面出方框。`node test-*.js` 永远抓不到（缺字只在渲染时暴露），`check_app.sh` 也只比较字数不比较字符集 | **所有会改文案的 PR 合完之后最后重建**，否则每合一个就要补一次（2026-11-04 连着补了两次）。重建后必须按 cmap 实测：从 `.js/.wxml/.json` 剥掉注释取中文，与子集 cmap 求差集，测试文件和 `.wxss` 不计入 |
 | **squash 合并让 rev-list 失真** | `git rev-list --count main..分支` 显示领先 32 个提交，实际内容早就合过一大半 | 看真实剩余量用 `git diff --stat main 分支`。拆 PR 从新 main 开分支 + cherry-pick，别再用旧基点 reset |
@@ -215,7 +224,7 @@ docs/                   文档体系（见下）
 ## 常用操作
 
 ```bash
-# 七套自测（改完必跑，现在全绿 · 合计 630 项）
+# 七套自测（改完必跑，现在全绿 · 合计 705 项）
 cd app && for f in test.js test-page.js test-sync.js test-training.js test-metrics.js test-catalog.js test-progress.js; do echo "--- $f"; node $f || break; done
 
 # 同上但只报项数（_cache 不进版本库；没有就手敲上面那行）
