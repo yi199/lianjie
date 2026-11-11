@@ -23,6 +23,7 @@ const store = require('../store/index');
 
 const K_AUTH = 'lj.auth';
 const K_CURSOR = 'lj.sync.cursor';
+const K_BACKFILL = 'lj.sync.backfilled';   // 首次接上云端时「把本机历史全量排进队列」做过没
 
 const BATCH_ROWS = 500;      // 服务端单批上限（sets + workouts + metrics 合计）
 const MAX_ROUNDS = 20;       // 单次触发最多循环轮数，防止 hasMore 异常时打转
@@ -213,6 +214,39 @@ function deleteAccount() {
   });
 }
 
+/* ---------------- 首次接上云端：把本机历史全量排进队列 ---------------- */
+
+/**
+ * 「今天纯本地，明天开云端」的那一脚 —— 后端的可扩展性靠它才算兑现。
+ *
+ * 为什么必须有：纯本地模式下 `db.saveSet` 走的是 `S.putLocal(row, track=false)`，
+ * 行**根本不进待上传队列**。所以直接给 config.js 填上地址，只有「填完之后新写的」
+ * 会上云，之前练的几百上千组永远留在手机里 —— 云端是空的，换手机照样丢。
+ * `db.syncMarkAll()` 早就写好了（连示例数据都跳过、自己也带测试），但从来没人调它。
+ *
+ * 只在第一次真的和云端握上手时做一次，之后靠 `lj.sync.backfilled` 记住：
+ * 不然每次冷启动都会把几千行重推一遍（服务端幂等、不会错，但流量和电量白烧）。
+ *
+ * @returns {number} 本次新排进队列的条数（0 = 不用做或已经做过）
+ */
+function backfillOnce() {
+  try {
+    if (wx.getStorageSync(K_BACKFILL)) return 0;
+    const before = db.syncPending();
+    db.syncMarkAll();                       // 组记录 / 训练 / 指标 / 自建动作 / 配置，一次全排
+    const after = db.syncPending();
+    safeStorage.set(K_BACKFILL, new Date().toISOString());
+    if (after > before) {
+      log('首次接上云端：本机 ' + (after - before) + ' 条历史已排进上传队列');
+    }
+    return after - before;
+  } catch (e) {
+    // 失败不挡同步，也不写标记：下一轮还会再试
+    log('首次全量入队失败（下一轮重试）：' + ((e && e.message) || e));
+    return 0;
+  }
+}
+
 /**
  * 官方动作清单：整份拉取并写入本地。
  *
@@ -388,7 +422,11 @@ function run() {
   clearTimers();
 
   inflight = ensureToken()
-    .then(function (token) { return syncOnce(token); })
+    .then(function (token) {
+      // 第一次和云端握上手：先把纯本地时期的历史全排进队列，再开始推
+      backfillOnce();
+      return syncOnce(token);
+    })
     .then(function (r) {
       lastSyncAt = new Date().toISOString();
       lastError = '';
@@ -486,5 +524,6 @@ module.exports = {
   init, kick, stop, status, setTransport, ready,
   request, refreshCatalog, deleteAccount,
   /* 测试用 */
-  __cursor: { get: getCursor, set: setCursor }
+  __cursor: { get: getCursor, set: setCursor },
+  __backfill: { run: backfillOnce, key: K_BACKFILL }
 };

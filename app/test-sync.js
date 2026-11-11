@@ -548,6 +548,41 @@ async function main() {
   for (let i = 0; i < 30; i++) report.send('onError', { msg: 'e' + i });
   ok('一次启动最多 20 条（不刷屏）', posted.length === 20, posted.length);
 
+  /* ---- 16. 纯本地 → 开云端：本机历史要自动全量上云（可扩展性） ---- */
+  console.log('\n=== 纯本地转云端（历史不能丢） ===');
+  CFG.setApiBase(null);
+  anotherDevice();
+  delete mem['lj.sync.backfilled'];          // 模拟「这个版本之前一直在纯本地用」
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  set(T, 'g1', 1, 50);
+  set(T, 'g1', 2, 50);
+  set(T, 'g2', 1, 40);
+  ok('纯本地时行不进上传队列（所以必须有 backfill）', db.syncPending() === 0, db.syncPending());
+
+  CFG.setApiBase('http://fake');
+  await sync.kick();
+  ok('接上云端后历史全传上去', db.syncPending() === 0, db.syncPending());
+  ok('backfill 标记已写入', !!mem['lj.sync.backfilled'], String(mem['lj.sync.backfilled']).slice(0, 10));
+
+  // 换设备：云端真的有了才拉得回来
+  anotherDevice();
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  await sync.kick();
+  ok('新设备拉回纯本地时期记的 3 组', db.allSets().length === 3, db.allSets().length);
+
+  // 只做一次：之后不能把历史重推一遍
+  const pushSizes = [];
+  const origTransport = srv.transport;
+  sync.setTransport(function (opt) {
+    if (opt.url.indexOf('/sync') >= 0) pushSizes.push(((opt.data || {}).sets || []).length);
+    return origTransport(opt);
+  });
+  set(T, 'g2', 2, 40);
+  await sync.kick();
+  ok('第二次同步只推新改的那 1 行，不重推历史',
+    pushSizes.length > 0 && pushSizes.every(function (n) { return n <= 1; }), JSON.stringify(pushSizes));
+  sync.setTransport(origTransport);
+
   sync.stop();
 }
 

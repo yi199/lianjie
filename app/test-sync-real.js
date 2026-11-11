@@ -201,7 +201,50 @@ async function main() {
   const rows = (pull.data && pull.data.sets) || [];
   ok('别的用户拉不到我的数据', rows.length === 0, rows.length);
 
+  /* ---- 7. 纯本地 → 开云端：本机历史自动全量上云（可扩展性） ---- */
+  console.log('\n=== 7. 纯本地转云端（历史不能丢）===');
+  anotherDevice();
+  delete mem['lj.sync.backfilled'];          // 模拟「这个版本之前一直在纯本地用」
+  CFG.setApiBase(null);                      // config.js 的 release 留空 = 纯本地
+  const LB = '2026-09-15';
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  for (let i = 1; i <= 3; i++) {
+    db.saveSet({ date: LB, exId: 'g2', setNo: i, weight: 30, reps: 12, unit: 'kg' });
+  }
+  ok('纯本地时行不进上传队列（所以必须有 backfill）', db.syncPending() === 0, db.syncPending());
+
+  // 现在等于「发布时给 config.js 的 release 填上域名」
+  CFG.setApiBase(API);
+  const pushSizes = [];
+  sync.setTransport(function (opt) {
+    if (opt.url.indexOf('/sync') >= 0) pushSizes.push(((opt.data || {}).sets || []).length);
+    return httpTransport(opt);
+  });
   sync.stop();
+  r = await sync.kick();
+  ok('同步没报错', !r || !r.error, JSON.stringify(r && r.error));
+  ok('队列清空（历史都推上去了）', db.syncPending() === 0, db.syncPending());
+  ok('第一批就把 3 组推出去了', pushSizes.indexOf(3) >= 0, JSON.stringify(pushSizes));
+  ok('backfill 标记已写', !!mem['lj.sync.backfilled'], String(mem['lj.sync.backfilled']).slice(0, 10));
+
+  // 换设备：云端真的有，才拉得回来
+  const beforeSwitch = db.allSets().length;
+  anotherDevice();
+  await sync.kick();
+  ok('换设备拉回纯本地时期记的 3 组', setsOn(LB).length === 3, setsOn(LB).length);
+  ok('组数对得上（不多不少）', db.allSets().length === beforeSwitch,
+    db.allSets().length + ' / ' + beforeSwitch);
+
+  // 只做一次：再同步不许把历史重推一遍
+  pushSizes.length = 0;
+  db.saveSet({ date: LB, exId: 'g2', setNo: 4, weight: 30, reps: 12, unit: 'kg' });
+  await sync.kick();
+  ok('之后只推新改的那 1 行', pushSizes.length > 0 && pushSizes.every(function (n) { return n <= 1; }),
+    JSON.stringify(pushSizes));
+  sync.setTransport(httpTransport);
+
+  sync.stop();
+
   console.log(failed === 0 ? '\n全部通过' : '\n有 ' + failed + ' 项失败');
   process.exit(failed === 0 ? 0 : 1);
 }
