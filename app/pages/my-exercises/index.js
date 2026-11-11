@@ -111,7 +111,7 @@ Page({
     const self = this;
     wx.showModal({
       title: '删除这个动作',
-      content: '已经记过的训练不会消失。删除会同步到你的其它设备。',
+      content: '已经记过的训练不会消失。',
       confirmText: '删除',
       confirmColor: '#B4795A',
       success(res) {

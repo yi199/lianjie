@@ -744,6 +744,186 @@ function syncMarkAll() {
   safeStorage.set(K_CONFIG_META, meta);
 }
 
+/* ---------------- 导出 / 导入（「无需登录」路线的换手机方案） ---------------- */
+
+/**
+ * 组装导出用的整份数据。数据本来就在这台手机上，所以不需要后端、也不需要登录态。
+ * workouts 不单独导：sets 是唯一真相，一次训练可以由它推导。
+ */
+function exportData() {
+  const metrics = {};
+  // ⚠️ metricKinds() 返回的是定义对象（{kind, cn, unit…}），不是字符串 —— 用 k.kind。
+  // （上一版把对象当 key 用过，结果导出的 JSON 里指标永远是空的，2026-11-11 修）
+  metricKinds().forEach(function (def) {
+    const list = metricSeries(def.kind);
+    if (!list.length) return;
+    metrics[def.kind] = list.map(function (r) {
+      return { date: r.date, value: r.value, unit: r.unit, updatedAt: r.updatedAt || '' };
+    });
+  });
+
+  return {
+    app: '练界',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    profile: profile() || {},
+    sets: allSets(),
+    metrics: metrics,
+    customExercises: customExercises(),
+    customPrograms: customPrograms()
+  };
+}
+
+function badDate(s) {
+  return !(typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00')));
+}
+
+/**
+ * 把「用户手里那段 JSON」清洗成能安全写库的形状。
+ * 这里**只认自己导出的东西**：`app` 字段不对就整份拒绝 —— 免得用户把别的 JSON
+ * （聊天记录、别的小程序的数据）粘进来，一半塞进训练记录里。
+ */
+function normalizeImport(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return { error: '这段内容不是练界导出的数据。' };
+  }
+  if (payload.app !== '练界') {
+    return { error: '这段内容不是练界导出的数据（缺少 app 标记）。' };
+  }
+
+  let bad = 0;
+
+  const sets = [];
+  ((payload.sets) || []).forEach(function (r) {
+    if (!r || badDate(r.date) || !r.exId || !(Number(r.setNo) > 0)) { bad++; return; }
+    if (r.demo) { bad++; return; }                 // 示例数据不落地成真实记录
+    sets.push({
+      date: r.date,
+      exId: String(r.exId),
+      setNo: Number(r.setNo),
+      exCn: String(r.exCn || ''),
+      part: String(r.part || ''),
+      planKey: String(r.planKey || ''),
+      sig: String(r.sig || ''),
+      weight: Number(r.weight) || 0,
+      reps: Number(r.reps) || 0,
+      unit: (r.unit === 'bw' || r.unit === 'sec') ? r.unit : 'kg',
+      warmup: !!r.warmup,
+      done: true,
+      updatedAt: String(r.updatedAt || '')
+    });
+  });
+
+  const metrics = [];
+  const srcMetrics = payload.metrics || {};
+  Object.keys(srcMetrics).forEach(function (k) {
+    (Array.isArray(srcMetrics[k]) ? srcMetrics[k] : []).forEach(function (r) {
+      if (!r || badDate(r.date) || !(Number(r.value) === Number(r.value))) { bad++; return; }
+      metrics.push({
+        kind: String(k), date: r.date, value: Number(r.value),
+        unit: String(r.unit || ''), note: '', done: true,
+        updatedAt: String(r.updatedAt || '')
+      });
+    });
+  });
+
+  const workouts = [];
+  ((payload.workouts) || []).forEach(function (w) {
+    if (!w || badDate(w.date)) { bad++; return; }
+    workouts.push(Object.assign({}, w, { done: true }));
+  });
+
+  const exercises = [];
+  ((payload.customExercises) || []).forEach(function (e) {
+    if (!e || !e.exId || !e.cn) { bad++; return; }
+    exercises.push(e);
+  });
+
+  const programs = [];
+  ((payload.customPrograms) || []).forEach(function (p) {
+    if (!p || !p.id || !p.name) { bad++; return; }
+    programs.push(p);
+  });
+
+  const prof = payload.profile;
+  const profileOk = !!(prof && prof.level && prof.days && prof.place);
+
+  return { sets: sets, metrics: metrics, workouts: workouts, exercises: exercises, programs: programs, profile: profileOk ? prof : null, bad: bad };
+}
+
+/**
+ * 算账：导入会发生什么，一个字都不写。
+ * 页面拿它弹确认框 —— 「将恢复 3120 组，覆盖 0 组，跳过 12 行」。
+ */
+function inspectImport(textOrPayload) {
+  let payload = textOrPayload;
+  if (typeof textOrPayload === 'string') {
+    try { payload = JSON.parse(textOrPayload); } catch (e) { return { ok: false, reason: '这段内容不是 JSON。' }; }
+  }
+  const n = normalizeImport(payload);
+  if (n.error) return { ok: false, reason: n.error };
+
+  const sets = S.importRows(n.sets, { dryRun: true });
+  const workouts = S.importWorkouts(n.workouts, { dryRun: true });
+  const metrics = S.importMetrics(n.metrics, { dryRun: true });
+  const exercises = S.importExercises(n.exercises, { dryRun: true });
+
+  return {
+    ok: true, sets: sets, workouts: workouts, metrics: metrics, exercises: exercises,
+    badRows: n.bad,
+    profiles: n.profile ? 1 : 0,
+    total: sets.added + sets.updated + workouts.added + workouts.updated +
+      metrics.added + metrics.updated + exercises.added + exercises.updated
+  };
+}
+
+/**
+ * 真导入。**只加不删**：最坏情况是什么都没变，不会把本机的记录搞丢。
+ * 若当前已连云端（syncOn），导进来的行同时排进上传队列，历史照样能上云。
+ * 配置只在「本地还没走完引导」时应用 —— 不能拿旧备份盖掉用户现在的设置。
+ */
+function applyImport(textOrPayload) {
+  let payload = textOrPayload;
+  if (typeof textOrPayload === 'string') {
+    try { payload = JSON.parse(textOrPayload); } catch (e) { return { ok: false, reason: '这段内容不是 JSON。' }; }
+  }
+  const n = normalizeImport(payload);
+  if (n.error) return { ok: false, reason: n.error };
+
+  const track = syncOn();
+  const out = {
+    ok: true,
+    sets: S.importRows(n.sets, { track: track }),
+    workouts: S.importWorkouts(n.workouts, { track: track }),
+    metrics: S.importMetrics(n.metrics, { track: track }),
+    exercises: S.importExercises(n.exercises, { track: track }),
+    programs: 0
+  };
+
+  // 自定义方案：没有 updatedAt，按 id 只补不覆盖
+  if (n.programs.length) {
+    const mine = customPrograms();
+    const ids = {};
+    mine.forEach(function (p) { ids[p.id] = true; });
+    n.programs.forEach(function (p) {
+      if (ids[p.id]) return;
+      mine.push(p);
+      out.programs++;
+    });
+    if (out.programs) safeStorage.set(K_CUSTOM, mine);
+  }
+
+  // 引导态：本地还没走过引导才用导入的配置
+  if (!hasOnboarded() && n.profile) {
+    finishOnboarding(n.profile);
+    out.profile = true;
+  }
+
+  store.touchSets();
+  markConfigDirty();
+  return out;
+}
+
 /** 有本地改动时通知（组记录 / 训练 / 配置都会触发） */
 function onDirty(fn) {
   S.onDirty(fn);
@@ -1981,5 +2161,7 @@ module.exports = {
   packConfig, takeConfig, ackConfig, applyConfigDoc, configPending, configUpdatedAt,
   markConfigDirty,
   /* 同步层接口（sync.js 用，页面不用） */
-  syncPending, syncPullBatch, syncAck, syncApply, syncMarkAll, onDirty, rejectedIds
+  syncPending, syncPullBatch, syncAck, syncApply, syncMarkAll, onDirty, rejectedIds,
+  /* 换手机：导出 / 导入（纯本地路线，不需要登录） */
+  exportData, inspectImport, applyImport
 };

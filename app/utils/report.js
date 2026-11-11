@@ -14,6 +14,7 @@
  */
 
 const CFG = require('./config');
+const diag = require('./diag');
 
 const MAX_PER_SESSION = 20;       // 一次启动最多上报条数
 const DEDUPE_MS = 60 * 1000;      // 同一条错误在这个窗口内只报一次
@@ -70,13 +71,18 @@ function reset() {
  */
 function send(kind, info) {
   try {
-    if (!CFG.syncEnabled()) return false;          // 纯本地模式：不打扰任何人
+    const i = info || {};
+    const msg = clip(i.msg || i.message || i.errMsg || i);
+    const page = i.page || currentPage();
+
+    // ① 先落本地：纯本地模式（没配后端）全靠这条，用户报障时「我的 → 诊断信息」能贴出来
+    diag.push(kind, msg + (i.stack ? ' ⏎ ' + clip(i.stack) : ''), page);
+
+    // ② 再尽量上报到服务端：没配地址就到此为止，一行请求都不发
+    if (!CFG.syncEnabled()) return false;
     if (sent >= MAX_PER_SESSION) return false;
     if (!wx || typeof wx.request !== 'function') return false;
 
-    const i = info || {};
-    const msg = clip(i.msg || i.message || i.errMsg || i);
-    const stack = clip(i.stack);
     const key = kind + '|' + msg;
     const now = Date.now();
     if (lastSeen[key] && now - lastSeen[key] < DEDUPE_MS) return false;
@@ -90,10 +96,10 @@ function send(kind, info) {
       timeout: 5000,
       data: {
         kind: clip(kind),
-        page: clip(i.page || currentPage()),
+        page: clip(page),
         path: clip(i.path),
         msg: msg,
-        stack: stack,
+        stack: clip(i.stack),
         sid: sessionId(),
         env: envVersion(),
         at: new Date().toISOString()

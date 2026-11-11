@@ -197,6 +197,7 @@
 .syncrow {
   display: flex;
   align-items: center;
+  margin-bottom: var(--sp2);      /* 下面紧跟备份/恢复列表，留一点呼吸 */
   padding: 22rpx 26rpx;
   border-radius: 20rpx;
   background: var(--card);

@@ -558,4 +558,86 @@ safe.resetWarn();
 wx.removeStorageSync = realRemove;
 db.resetAll();
 
+/* ================= 导出 / 导入（无登录换手机） ================= */
+console.log('\n=== 导出 / 导入 ===');
+db.resetAll();
+db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+db.saveSet({ date: '2026-09-01', exId: 'g1', setNo: 1, weight: 50, reps: 10, unit: 'kg' });
+db.saveSet({ date: '2026-09-01', exId: 'g1', setNo: 2, weight: 50, reps: 10, unit: 'kg' });
+db.saveMetric({ kind: 'weight', date: '2026-09-01', value: 74.2 });
+
+const payload = db.exportData();
+const backup = JSON.stringify(payload);
+ok('导出的 JSON 能序列化，并带 app 标记', payload.app === '练界' && backup.length > 100, backup.length + ' 字节');
+ok('导出里有 2 组记录和 1 条身体指标',
+  payload.sets.length === 2 && !!(payload.metrics && payload.metrics.weight && payload.metrics.weight.length === 1),
+  'sets=' + payload.sets.length);
+
+// 换手机：本机清空
+db.resetAll();
+ok('清空后本机确实是空的', db.allSets().length === 0 && !db.hasOnboarded(), db.allSets().length + ' 组');
+
+const look = db.inspectImport(backup);
+ok('算账：将恢复 2 组 + 1 条指标',
+  look.ok && look.sets.added === 2 && look.metrics.added === 1,
+  JSON.stringify(look.sets) + ' / ' + JSON.stringify(look.metrics));
+ok('算账一个字都不写（只读）', db.allSets().length === 0, db.allSets().length + ' 组');
+
+const restored = db.applyImport(backup);
+ok('恢复成功', restored.ok && restored.sets.added === 2, JSON.stringify(restored.sets));
+ok('记录回来了', db.allSets().length === 2, db.allSets().length + ' 组');
+ok('计划也回来了（不用重走引导）', db.hasOnboarded() && db.profile().days === 3,
+  JSON.stringify(db.profile()));
+ok('身体指标也回来了', !!db.metricOf('weight', '2026-09-01'),
+  db.metricOf('weight', '2026-09-01') && db.metricOf('weight', '2026-09-01').value);
+
+const again = db.applyImport(backup);
+ok('同一份备份再导一次：全部跳过（幂等）',
+  again.ok && again.sets.added === 0 && again.sets.updated === 0 && again.sets.skipped === 2,
+  JSON.stringify(again.sets));
+
+// LWW：备份里更新的行才覆盖本地
+const newer = JSON.parse(backup);
+newer.sets[0].weight = 55;
+newer.sets[0].updatedAt = '2099-01-01T00:00:00.000Z';
+const upOut = db.applyImport(newer);
+const upgraded = db.allSets().filter(function (x) {
+  return x.date === '2026-09-01' && x.setNo === newer.sets[0].setNo;
+})[0];
+ok('备份里更新的行会覆盖本地', upOut.sets.updated === 1 && upgraded && upgraded.weight === 55,
+  upOut.sets.updated + ' 更新 / ' + (upgraded && upgraded.weight));
+
+// 只加不删：导入不会删掉本机独有的记录
+db.saveSet({ date: '2026-09-02', exId: 'g2', setNo: 1, weight: 40, reps: 12, unit: 'kg' });
+const beforeImport = db.allSets().length;
+db.applyImport(backup);
+ok('导入不会删掉本机独有的记录', db.allSets().length === beforeImport, beforeImport + ' → ' + db.allSets().length);
+
+// 认出「不是自己的备份」
+ok('不是练界导出的 JSON 会被整份拒绝', db.inspectImport('{"app":"别的","sets":[]}').ok === false);
+ok('不是 JSON 的内容会被拒绝', db.inspectImport('今天练了卧推').ok === false);
+ok('拒绝时不写任何东西', db.allSets().length === beforeImport, db.allSets().length);
+
+// 自建动作：部位不合法的不能进来（会污染部位统计和「换动作」候选）
+const withEx = JSON.parse(backup);
+withEx.customExercises = [
+  { exId: 'u-test0001-aaaa', cn: '自家动作', part: 'chest', place: 'gym', unit: 'kg', updatedAt: '2026-09-01T00:00:00.000Z' },
+  { exId: 'u-test0002-bbbb', cn: '乱写部位', part: '乱写', place: 'gym', unit: 'kg', updatedAt: '2026-09-01T00:00:00.000Z' }
+];
+const exOut = db.applyImport(withEx);
+ok('自建动作：合法的进来，部位不合法的跳过',
+  exOut.exercises.added === 1 && exOut.exercises.skipped === 1, JSON.stringify(exOut.exercises));
+ok('导进来的自建动作查得到（界面看到的是 id 字段）',
+  db.customExercises().some(function (x) { return x.id === 'u-test0001-aaaa'; }),
+  JSON.stringify(db.customExercises().map(function (x) { return x.id; })));
+
+// 示例数据不能当真记录导进来
+const withDemo = JSON.parse(backup);
+withDemo.sets.push({ date: '2026-09-03', exId: 'g1', setNo: 1, weight: 10, reps: 10, unit: 'kg', demo: true });
+const demoLook = db.inspectImport(withDemo);
+ok('示例数据会被当成看不懂的行跳过', demoLook.ok && demoLook.badRows >= 1 && demoLook.sets.added === 0,
+  'bad=' + demoLook.badRows + ' added=' + demoLook.sets.added);
+
+db.resetAll();
+
 console.log('\n' + (process.exitCode ? '有失败项' : '全部通过') + '\n');

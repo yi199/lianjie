@@ -27,6 +27,10 @@ global.wx = {
     calls.push(['clipboard', String(o.data || '').length]);
     if (o.success) o.success({});
   },
+  getClipboardData(o) {
+    calls.push(['paste', String(clipboard || '').length]);
+    if (o.success) o.success({ data: clipboard });
+  },
   navigateTo(o) { calls.push(['nav', o.url]); },
   redirectTo(o) { calls.push(['redirect', o.url]); },
   switchTab(o) { calls.push(['tab', o.url]); },
@@ -577,10 +581,12 @@ function fakeDetail(out) {
   const myPage = loadPage('./pages/my/index');
   myPage.onLoad();
   myPage.onShow();
-  ok('本地模式 → 标题是「本地模式」', myPage.data.syncState === 'local' && myPage.data.syncTitle === '本地模式',
-    myPage.data.syncState + ' / ' + myPage.data.syncTitle);
-  ok('本地模式的副标题说人话（没有「后端」）',
-    myPage.data.syncSub.indexOf('后端') < 0 && myPage.data.syncSub.indexOf('云端') >= 0, myPage.data.syncSub);
+  ok('纯本地 → 只说「数据保存在这台手机上」', myPage.data.syncState === 'local' &&
+    myPage.data.syncTitle === '数据保存在这台手机上', myPage.data.syncState + ' / ' + myPage.data.syncTitle);
+  ok('纯本地的副标题指向「备份 / 恢复」，不出现技术词',
+    ['后端', '云端', '服务端', '同步'].every(function (w) { return myPage.data.syncSub.indexOf(w) < 0; }) &&
+    myPage.data.syncSub.indexOf('备份') >= 0 && myPage.data.syncSub.indexOf('恢复') >= 0,
+    myPage.data.syncSub);
   ok('本地模式不起轮询（没有会变的状态，别空转）', !myPage.syncTimer);
 
   CFG.setApiBase('http://fake.local/api');
@@ -631,8 +637,8 @@ function fakeDetail(out) {
     modalConfirm = false;
     calls.length = 0;
     my.deleteAccount();
-    ok('删除账号要二次确认', calls.some(function (c) { return c[0] === 'modal' && c[1] === '删除账号'; }),
-      JSON.stringify(calls));
+    ok('删除要二次确认，且标题是「删除我的全部数据」',
+      calls.some(function (c) { return c[0] === 'modal' && c[1] === '删除我的全部数据'; }), JSON.stringify(calls));
     ok('取消后记录还在', db.allSets().length > 0, db.allSets().length);
 
     // 确认（本地模式）→ 本机清空 + 回引导页
@@ -644,6 +650,70 @@ function fakeDetail(out) {
     ok('删完回引导页',
       calls.some(function (c) { return c[0] === 'relaunch' && c[1] === '/pages/welcome/index'; }),
       JSON.stringify(calls));
+  }
+
+  /* ================= 备份 / 恢复 / 诊断（无登录换手机） ================= */
+  console.log('\n=== 备份与恢复 ===');
+  {
+    CFG.setApiBase(null);
+    db.resetAll();
+    db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+    db.saveSet({ date: '2026-08-01', exId: 'g1', setNo: 1, weight: 45, reps: 10, unit: 'kg' });
+
+    const p = loadPage('./pages/my/index');
+    p.onLoad();
+
+    clipboard = '';
+    ok('备份：写进了剪贴板', p.exportData() === true && clipboard.length > 100, clipboard.length + ' 字节');
+    const backup = clipboard;
+
+    db.resetAll();
+    ok('换手机：本机清空', db.allSets().length === 0, db.allSets().length + ' 组');
+
+    clipboard = backup;
+    modalConfirm = true;
+    calls.length = 0;
+    p.restoreData();
+    ok('恢复前先弹确认框（标题「恢复备份」）',
+      calls.some(function (c) { return c[0] === 'modal' && c[1] === '恢复备份'; }), JSON.stringify(calls));
+    ok('确认后记录回来了', db.allSets().length === 1, db.allSets().length + ' 组');
+    ok('恢复成功有 toast', calls.some(function (c) { return c[0] === 'toast' && /已恢复/.test(c[1]); }),
+      JSON.stringify(calls.map(function (c) { return c[1]; })));
+
+    // 取消 → 一个字都不许动
+    db.resetAll();
+    clipboard = backup;
+    modalConfirm = false;
+    p.restoreData();
+    ok('取消恢复就不动本地', db.allSets().length === 0, db.allSets().length + ' 组');
+
+    // 粘错东西
+    clipboard = '随便一段话，不是备份';
+    calls.length = 0;
+    p.restoreData();
+    ok('粘错内容只提示、不写库', db.allSets().length === 0 && calls.some(function (c) { return c[0] === 'toast'; }),
+      JSON.stringify(calls));
+
+    // 剪贴板空着
+    clipboard = '';
+    calls.length = 0;
+    p.restoreData();
+    ok('剪贴板空着会提示', calls.some(function (c) { return c[0] === 'toast'; }), JSON.stringify(calls));
+
+    // 诊断信息：本地错误日志 + 本机数据量，一键复制
+    const diagMod = require('./utils/diag');
+    diagMod.clear();
+    diagMod.push('onError', '测试报错：Cannot read property', 'pages/today/index');
+
+    db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+    db.saveSet({ date: '2026-08-02', exId: 'g1', setNo: 1, weight: 50, reps: 10, unit: 'kg' });
+    clipboard = '';
+    p.diagInfo();
+    ok('诊断信息能复制', clipboard.indexOf('练界 · 诊断信息') === 0, clipboard.split('\n')[0]);
+    ok('诊断信息带本机数据量', clipboard.indexOf('本机数据') >= 0,
+      (clipboard.split('\n').filter(function (l) { return l.indexOf('本机数据') >= 0; })[0] || ''));
+    ok('诊断信息带最近错误（纯本地也能查到问题）', clipboard.indexOf('测试报错') >= 0);
+    diagMod.clear();
   }
 
   CAT.setDetailLoader(null);

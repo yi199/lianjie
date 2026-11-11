@@ -532,6 +532,17 @@ async function main() {
   ok('本地模式不上报（一行请求都不发）',
     report.send('onError', { msg: 'x' }) === false && posted.length === 0);
 
+  // 纯本地：没有服务端可发，但错误必须留在本机（「我的 → 诊断信息」能贴出来）
+  const diagMod = require('./utils/diag');
+  diagMod.clear();
+  report.reset();
+  report.crash(new Error('纯本地的错误'));
+  ok('纯本地：错误也留在本机',
+    diagMod.list().length === 1 && diagMod.list()[0].msg.indexOf('纯本地的错误') >= 0,
+    JSON.stringify(diagMod.list()));
+  ok('纯本地：诊断文本里能看到这条错误', diagMod.text([]).indexOf('纯本地的错误') >= 0);
+  diagMod.clear();
+
   CFG.setApiBase('http://fake');
   report.reset();
   posted.length = 0;

@@ -605,6 +605,130 @@ function pendingCount() {
   return Object.keys(dirtyMap()).length;
 }
 
+/* ---------------- 导入（换手机恢复用） ---------------- */
+
+/**
+ * 时间戳比较：ISO 字符串直接按字典序比就够了（同一时区、同一格式）。
+ * 缺时间戳的当成最旧 —— 这样「没有 updatedAt 的脏数据」永远不会盖掉本机真实记录。
+ */
+function cmpTime(a, b) {
+  return String(a || '').localeCompare(String(b || ''));
+}
+
+function blankCount() { return { added: 0, updated: 0, skipped: 0 }; }
+
+function tally(out, o, dirty, id, updatedAt) {
+  if (o.dryRun) return;
+  if (o.track) dirty[id] = updatedAt;
+}
+
+/**
+ * 导入一批组记录。**只加不删**，同 id（同一天同一动作同一组）比 updatedAt，新的赢。
+ * dryRun=true 只算账不落盘 —— 页面先拿它弹确认框（「将恢复 N 组」）。
+ * track=true 时同时排进上传队列：先纯本地用、之后开云端，恢复出来的历史也要能上云。
+ * @returns {{added:number, updated:number, skipped:number}}
+ */
+function importRows(list, opts) {
+  const o = opts || {};
+  const out = blankCount();
+  const touched = {};
+  const dirty = o.dryRun ? null : dirtyMap();
+  (list || []).forEach(function (row) {
+    const r = Object.assign({}, row);
+    r.id = rowId(r);
+    if (r.done === false) { out.skipped++; return; }   // 墓碑不导
+    r.done = true;
+    const prev = get(r.id);
+    if (prev && cmpTime(prev.updatedAt, r.updatedAt) >= 0) { out.skipped++; return; }
+    if (prev) out.updated++; else out.added++;
+    if (o.dryRun) return;
+    touched[upsertInMemory(r)] = true;
+    tally(out, o, dirty, r.id, r.updatedAt);
+  });
+  if (!o.dryRun) {
+    Object.keys(touched).forEach(writeMonth);
+    if (o.track) persist(K_DIRTY, dirty);
+  }
+  return out;
+}
+
+/** 导入一次训练（一天一行），规则同 importRows */
+function importWorkouts(list, opts) {
+  const o = opts || {};
+  const out = blankCount();
+  const touched = {};
+  const dirty = o.dryRun ? null : dirtyMap();
+  (list || []).forEach(function (row) {
+    const r = Object.assign({}, row);
+    if (!r.date) { out.skipped++; return; }
+    if (r.done === false) { out.skipped++; return; }
+    r.done = true;
+    const prev = workout(r.date);
+    if (prev && cmpTime(prev.updatedAt, r.updatedAt) >= 0) { out.skipped++; return; }
+    if (prev) out.updated++; else out.added++;
+    if (o.dryRun) return;
+    touched[wupsert(r)] = true;
+    tally(out, o, dirty, wid(r.date), r.updatedAt);
+  });
+  if (!o.dryRun) {
+    Object.keys(touched).forEach(wwrite);
+    if (o.track) persist(K_DIRTY, dirty);
+  }
+  return out;
+}
+
+/** 导入身体指标（kind + date 一行），规则同上 */
+function importMetrics(list, opts) {
+  const o = opts || {};
+  const out = blankCount();
+  const touched = {};
+  const dirty = o.dryRun ? null : dirtyMap();
+  (list || []).forEach(function (row) {
+    const r = Object.assign({}, row);
+    if (!r.kind || !r.date) { out.skipped++; return; }
+    if (r.done === false) { out.skipped++; return; }
+    r.done = true;
+    const prev = metric(r.kind, r.date);
+    if (prev && cmpTime(prev.updatedAt, r.updatedAt) >= 0) { out.skipped++; return; }
+    if (prev) out.updated++; else out.added++;
+    if (o.dryRun) return;
+    touched[mupsert(r)] = true;
+    tally(out, o, dirty, mid(r), r.updatedAt);
+  });
+  if (!o.dryRun) {
+    Object.keys(touched).forEach(mwrite);
+    if (o.track) persist(K_DIRTY, dirty);
+  }
+  return out;
+}
+
+/** 导入自建动作（只认 u- 前缀，官方动作是内置的，不需要导） */
+function importExercises(list, opts) {
+  const o = opts || {};
+  const out = blankCount();
+  const dirty = o.dryRun ? null : dirtyMap();
+  const PARTS = { chest: 1, shoulders: 1, arms: 1, back: 1, legs: 1, core: 1 };
+  (list || []).forEach(function (e) {
+    if (!e || !e.exId || String(e.exId).indexOf('u-') !== 0) { out.skipped++; return; }
+    // 部位是六大类之一才有意义：部位错了会污染「换动作」候选和部位统计
+    if (!PARTS[e.part]) { out.skipped++; return; }
+    const prev = CAT.rawCustom().filter(function (x) { return x.exId === e.exId; })[0];
+    if (prev && cmpTime(prev.updatedAt, e.updatedAt) >= 0) { out.skipped++; return; }
+    if (prev) out.updated++; else out.added++;
+    if (o.dryRun) return;
+    CAT.putCustom({
+      exId: String(e.exId), cn: String(e.cn || ''), part: String(e.part || ''),
+      place: e.place === 'home' ? 'home' : 'gym',
+      unit: (e.unit === 'bw' || e.unit === 'sec') ? e.unit : 'kg',
+      tips: String(e.tips || ''), done: true,
+      updatedAt: String(e.updatedAt || ''), rev: 0
+    });
+    tally(out, o, dirty, X_PREFIX + e.exId, String(e.updatedAt || ''));
+  });
+  if (!o.dryRun && o.track) persist(K_DIRTY, dirty);
+  return out;
+}
+
 /**
  * 应用服务端下发的自建动作。
  * 「本地有未上传改动就先不动」的判断复用待上传队列，规则和其他三类一致。
@@ -702,6 +826,7 @@ module.exports = {
   metric, metrics, putMetricLocal, putMetrics, removeMetrics, applyRemoteMetrics,
   removeAll,
   dirtyMap, markDirty, markAllDirty, dirtyBatch, ack, applyRemote, applyRemoteWorkouts, applyRemoteExercises,
+  importRows, importWorkouts, importMetrics, importExercises,
   pendingCount, onDirty,
   rejectedIds,
   reset
