@@ -79,6 +79,20 @@ returning id`
 	return id, err
 }
 
+// deleteAccount：删除用户及其全部业务数据（合规要求的「删除个人信息」）。
+//
+// 一条 delete 就够：sets / workouts / metrics / user_config / user_exercises
+// 全是 `references users(id) on delete cascade`（schema.sql），级联带走，不留孤儿行。
+// 返回是否真的删掉了一行 —— 用户已经不在了是正常情况（幂等），调用方照样回 200。
+func (s *store) deleteAccount(ctx context.Context, uid int64) (bool, error) {
+	const q = `delete from users where id = $1`
+	ct, err := s.pool.Exec(ctx, q, uid)
+	if err != nil {
+		return false, fmt.Errorf("删除账号: %w", err)
+	}
+	return ct.RowsAffected() > 0, nil
+}
+
 /* ---------------- 推：写入一批变更 ---------------- */
 
 // 带上已经解析好的客户端时刻，store 层不再碰字符串时间

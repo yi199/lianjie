@@ -46,12 +46,21 @@ func main() {
 
 	a := &app{cfg: cfg, st: s}
 
+	// 限流按谁算：只有反代部署（TRUST_PROXY=true）才采信 X-Real-IP，
+	// 否则直连端口时客户端能伪造这个头，限流等于没开。
+	setTrustProxy(cfg.trustProxy)
+	if cfg.trustProxy {
+		log.Printf("TRUST_PROXY 已开启：限流按 X-Real-IP 计算（前面必须有 Nginx）")
+	}
+
 	// 同步：每用户每秒 2 次、突发 20 次。正常客户端 30 秒一次，碰不到上限
 	userLimit := newLimiter(2, 20)
 	ipLimit := newLimiter(1, 10)
 	// 动作库清单：会被 onShow 频繁触发，单独限流。
 	// 复用人 /login 的 ipLimit(1,10) 会让正常用户撞限流，运营商 NAT 下整片 IP 更糟。
 	catalogLimit := newLimiter(2, 60)
+	// 客户端错误上报：只在上线后出事时才密集，给宽松但仍有上限的桶
+	errLimit := newLimiter(2, 30)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", a.handleHealthz)
@@ -61,6 +70,12 @@ func main() {
 	mux.HandleFunc("POST /api/sync", a.requireAuth(userLimit.byUser(a.handleSync)))
 	mux.HandleFunc("GET /api/history/summary", a.requireAuth(userLimit.byUser(a.handleHistorySummary)))
 	mux.HandleFunc("GET /api/metrics", a.requireAuth(userLimit.byUser(a.handleGetMetrics)))
+
+	// 合规：删除个人信息（客户端「删除账号」）。级联清空该用户全部业务表
+	mux.HandleFunc("DELETE /api/account", a.requireAuth(userLimit.byUser(a.handleDeleteAccount)))
+
+	// 线上错误线索：小程序兜底钩子报上来，只记日志。免登录（登录本身可能出错）
+	mux.HandleFunc("POST /api/client-error", errLimit.byIP(a.handleClientError))
 
 	// 动作库：清单免登录（只给缩略图），详情要登录（大图在登录后面）
 	mux.HandleFunc("GET /api/catalog", catalogLimit.byIP(a.handleCatalog))

@@ -32,7 +32,13 @@ func writeErr(w http.ResponseWriter, status int, code, msg string) {
 }
 
 func readJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	return readJSONMax(w, r, dst, maxBodyBytes)
+}
+
+// readJSONMax：同 readJSON，但可以给单条请求更小的体积上限
+// （错误上报这类接口不需要 2MB，给 8KB 就够，别让它成为上传通道）。
+func readJSONMax(w http.ResponseWriter, r *http.Request, dst any, max int64) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, max)
 	dec := json.NewDecoder(r.Body)
 	if err := dec.Decode(dst); err != nil {
 		if errors.Is(err, io.EOF) {
@@ -342,6 +348,78 @@ func (a *app) handleGetMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"metrics": rows})
+}
+
+/* ---------------- 删除账号（合规：删除个人信息） ---------------- */
+
+// handleDeleteAccount：删掉当前用户的全部数据。
+//
+// 五张业务表（sets / workouts / metrics / user_config / user_exercises）都是
+// `references users(id) on delete cascade`，所以一条 delete 就够，不会留孤儿行。
+// 幂等：用户已经不在了也返回 200（deleted=false），客户端不必区分。
+//
+// 注意：客户端本地数据要自己清（页面在成功后调 db.resetAll()）——
+// 服务端删不到别人手机上的本地存储。
+func (a *app) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
+	uid := uidFrom(r)
+	deleted, err := a.st.deleteAccount(r.Context(), uid)
+	if err != nil {
+		dbFail(w, "删除账号", err)
+		return
+	}
+	log.Printf("账号已删除 uid=%d（级联清空全部业务表）deleted=%v", uid, deleted)
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": deleted})
+}
+
+/* ---------------- 客户端错误上报 ---------------- */
+
+const (
+	maxClientErrBody  = 8 << 10 // 8KB：栈再长也够，别让这个接口变成上传通道
+	maxClientErrMsg   = 500     // 字符数（不是字节，中文按字算）
+	maxClientErrStack = 2000
+	maxClientErrField = 128
+)
+
+// 只认客户端 app.js 真正会报的三种，别的当垃圾挡在门外
+var clientErrKinds = map[string]bool{
+	"onError":              true,
+	"onUnhandledRejection": true,
+	"onPageNotFound":       true,
+}
+
+// oneLine：日志里一条错误必须占一行。栈里全是换行，不压掉的话一条错误会把
+// 日志刷成几十行，出问题时反而看不清是哪几条。
+func oneLine(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", " ⏎ ")
+	return strings.TrimSpace(s)
+}
+
+// handleClientError：小程序的兜底钩子上报的错误，只记日志、不落库。
+//
+// 免登录：登录流程本身就可能出错，要求 token 会让最该上报的那类错误报不上来。
+// 靠 IP 限流 + 8KB 体积上限 + 字段长度上限挡住滥用。
+func (a *app) handleClientError(w http.ResponseWriter, r *http.Request) {
+	var req clientError
+	if !readJSONMax(w, r, &req, maxClientErrBody) {
+		return
+	}
+	if !clientErrKinds[req.Kind] {
+		writeErr(w, http.StatusBadRequest, "KIND_INVALID", "kind 不认识")
+		return
+	}
+	if !shortText(req.Msg, maxClientErrMsg) || !shortText(req.Stack, maxClientErrStack) ||
+		!shortText(req.Page, maxClientErrField) || !shortText(req.Path, maxClientErrField) ||
+		!shortText(req.Sid, maxClientErrField) || !shortText(req.Env, 16) {
+		writeErr(w, http.StatusBadRequest, "FIELD_TOO_LONG", "字段超长")
+		return
+	}
+
+	log.Printf("[客户端错误] env=%s page=%s kind=%s path=%s sid=%s at=%s msg=%s stack=%s",
+		oneLine(req.Env), oneLine(req.Page), req.Kind, oneLine(req.Path),
+		oneLine(req.Sid), oneLine(req.At), oneLine(req.Msg), oneLine(req.Stack))
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 /* ---------------- 健康检查 ---------------- */

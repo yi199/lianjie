@@ -230,3 +230,20 @@ type historySummary struct {
 	Exercises []exerciseSummary `json:"exercises"`
 	AsOf      string            `json:"asOf"`
 }
+
+// ============ 客户端错误上报 ============
+
+// clientError：小程序端兜底钩子（onError / onUnhandledRejection / onPageNotFound）报上来的错误。
+//
+// 服务端**只记日志**、不落库：单实例项目看服务日志就够，落库要先想清楚保留期与隐私边界。
+// 字段全部有长度上限，避免有人拿这个接口往日志里灌垃圾。
+type clientError struct {
+	Kind  string `json:"kind"`  // onError | onUnhandledRejection | onPageNotFound
+	Page  string `json:"page"`  // 出事时的页面路由
+	Path  string `json:"path"`  // onPageNotFound 的目标路径
+	Msg   string `json:"msg"`
+	Stack string `json:"stack"`
+	Sid   string `json:"sid"`   // 一次启动一个 id，用来把一串错误串成会话
+	Env   string `json:"env"`   // develop | trial | release
+	At    string `json:"at"`
+}

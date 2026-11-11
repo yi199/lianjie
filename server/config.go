@@ -17,6 +17,7 @@ type config struct {
 	wechatSecret string
 	jwtSecret    []byte
 	devMode      bool
+	trustProxy   bool
 	tokenTTL     time.Duration
 	loc          *time.Location
 }
@@ -29,7 +30,10 @@ func loadConfig() (config, error) {
 		wechatSecret: os.Getenv("WECHAT_SECRET"),
 		jwtSecret:    []byte(getenv("JWT_SECRET", devJWTSecret)),
 		devMode:      getenv("DEV_MODE", "false") == "true",
-		tokenTTL:     30 * 24 * time.Hour,
+		// 只有确定「端口不对外、前面一定有反向代理」时才打开。
+		// 打开后限流按 X-Real-IP 算，直连端口时这个头客户端可以随便伪造 → 限流失效。
+		trustProxy: getenv("TRUST_PROXY", "false") == "true",
+		tokenTTL:   30 * 24 * time.Hour,
 	}
 
 	if c.databaseURL == "" {

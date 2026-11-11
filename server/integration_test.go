@@ -50,6 +50,8 @@ func newTestEnv(t *testing.T) *testEnv {
 	mux.HandleFunc("POST /api/login", a.handleLogin)
 	mux.HandleFunc("POST /api/sync", a.requireAuth(lim.byUser(a.handleSync)))
 	mux.HandleFunc("GET /api/history/summary", a.requireAuth(a.handleHistorySummary))
+	// 合规：删除账号（和 main.go 的路由一致）
+	mux.HandleFunc("DELETE /api/account", a.requireAuth(a.handleDeleteAccount))
 	// 动作库：清单免登录，详情要登录（和 main.go 的路由一致）
 	mux.HandleFunc("GET /api/catalog", a.handleCatalog)
 	mux.HandleFunc("GET /api/exercises/{id}", a.requireAuth(a.handleExerciseDetail))
@@ -1082,5 +1084,52 @@ on conflict (id) do update set
 	r := e.sync(tok, syncRequest{Cursor: 0})
 	if r.CatalogRev != rev {
 		t.Fatalf("/sync 的 catalogRev 应为 %d，得到 %d", rev, r.CatalogRev)
+	}
+}
+
+/* ---------------- 删除账号（合规：删除个人信息） ---------------- */
+
+// 一次 delete 靠 on delete cascade 清空该用户全部业务表；
+// 重复调用幂等；同一个 openid 再登录是一个新账号，拉不到旧数据。
+func TestIntegrationDeleteAccount(t *testing.T) {
+	e := newTestEnv(t)
+
+	// 用固定 code 登录两次都能命中同一个 openid（env.login 会拼时间戳，这里手动来）
+	var a1 loginResponse
+	e.do("", "POST", "/api/login", loginRequest{Code: "del-fixed"}, &a1, 200)
+	if a1.Token == "" {
+		t.Fatal("没拿到 token")
+	}
+
+	now := rfc3339(time.Now())
+	e.sync(a1.Token, syncRequest{Cursor: 0, Sets: []SetRow{{
+		Date: "2026-11-02", ExID: "g1", SetNo: 1, ExCn: "卧推", Part: "chest", PlanKey: "A",
+		Sig: "lvl|3|gym|auto", Weight: 50, Reps: 10, Unit: "kg", Done: true, UpdatedAt: now,
+	}}})
+
+	if got := len(e.sync(a1.Token, syncRequest{Cursor: 0}).Sets); got == 0 {
+		t.Fatal("推上去的组没读回来，删账号的测试就没意义了")
+	}
+
+	type delResp struct {
+		Deleted bool `json:"deleted"`
+	}
+	var d delResp
+	e.do(a1.Token, "DELETE", "/api/account", nil, &d, 200)
+	if !d.Deleted {
+		t.Fatal("第一次删除应该真的删到一行")
+	}
+
+	// 幂等：再删一次不报错，只是没有行可删
+	e.do(a1.Token, "DELETE", "/api/account", nil, &d, 200)
+	if d.Deleted {
+		t.Fatal("重复删除不该再删到行")
+	}
+
+	// 同一个 openid 重新登录 = 全新账号，旧记录不该回来
+	var a2 loginResponse
+	e.do("", "POST", "/api/login", loginRequest{Code: "del-fixed"}, &a2, 200)
+	if len(e.sync(a2.Token, syncRequest{Cursor: 0}).Sets) != 0 {
+		t.Fatal("删完再登录还能拉到旧记录：级联没生效或 tokens 串了")
 	}
 }
