@@ -266,6 +266,22 @@ Page({
     });
   },
 
+  /**
+   * 「备份与恢复」：两个低频动作收进一个入口，不在页面上各占一行。
+   * 绝大多数人不会关心数据存在哪，把这件事摊在设置页第一屏只会变成噪音。
+   */
+  backupMenu() {
+    const self = this;
+    wx.showActionSheet({
+      itemList: ['备份（复制一段文字）', '从备份恢复（粘贴那段文字）'],
+      success(res) {
+        if (res.tapIndex === 0) self.exportData();
+        else if (res.tapIndex === 1) self.restoreData();
+      },
+      fail() { /* 用户取消 */ }
+    });
+  },
+
   /** 备份：整份数据打成 JSON 复制到剪贴板（纯本地生成，不发网络请求） */
   exportData() {
     let text = '';

@@ -10,6 +10,7 @@ const store = {};
 const calls = [];
 let modalConfirm = true;      // 测试里控制 showModal 点「确定」还是「取消」
 let clipboard = '';           // 导出用：setClipboardData 写进来的内容
+let sheetIndex = 0;           // showActionSheet 选第几项
 
 global.wx = {
   getStorageSync(k) { return store[k] === undefined ? '' : store[k]; },
@@ -42,7 +43,10 @@ global.wx = {
     return q;
   },
   pageScrollTo() { },
-  showActionSheet() { }
+  showActionSheet(o) {
+    calls.push(['sheet']);
+    if (o && o.success) o.success({ tapIndex: sheetIndex });
+  }
 };
 
 global.getApp = function () { return { globalData: { statusBarHeight: 20 } }; };
@@ -581,12 +585,8 @@ function fakeDetail(out) {
   const myPage = loadPage('./pages/my/index');
   myPage.onLoad();
   myPage.onShow();
-  ok('纯本地 → 只说「数据保存在这台手机上」', myPage.data.syncState === 'local' &&
-    myPage.data.syncTitle === '数据保存在这台手机上', myPage.data.syncState + ' / ' + myPage.data.syncTitle);
-  ok('纯本地的副标题指向「备份 / 恢复」，不出现技术词',
-    ['后端', '云端', '服务端', '同步'].every(function (w) { return myPage.data.syncSub.indexOf(w) < 0; }) &&
-    myPage.data.syncSub.indexOf('备份') >= 0 && myPage.data.syncSub.indexOf('恢复') >= 0,
-    myPage.data.syncSub);
+  ok('纯本地 → 状态是 local（页面不会把它渲染出来）', myPage.data.syncState === 'local',
+    myPage.data.syncState + ' / ' + myPage.data.syncTitle);
   ok('本地模式不起轮询（没有会变的状态，别空转）', !myPage.syncTimer);
 
   CFG.setApiBase('http://fake.local/api');
@@ -652,9 +652,13 @@ function fakeDetail(out) {
       JSON.stringify(calls));
   }
 
-  /* ================= 备份 / 恢复 / 诊断（无登录换手机） ================= */
+  /* ================= 备份 / 恢复 / 页脚（低频动作收起来） ================= */
   console.log('\n=== 备份与恢复 ===');
   {
+    const fs = require('fs');
+    const pathm = require('path');
+    const wMy = fs.readFileSync(pathm.join(__dirname, 'pages/my/index.wxml'), 'utf8');
+
     CFG.setApiBase(null);
     db.resetAll();
     db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
@@ -662,37 +666,53 @@ function fakeDetail(out) {
 
     const p = loadPage('./pages/my/index');
     p.onLoad();
+    p.refresh();
 
+    // 这一版的核心口径：纯本地时「数据」区不摆状态行、不摆两个备份入口
+    ok('纯本地：状态行 wx:if 为假，不渲染',
+      p.data.syncState === 'local' && wMy.indexOf("wx:if=\"{{syncState !== 'local'}}\"") >= 0,
+      p.data.syncState);
+    ok('数据区只留一行「备份与恢复」', wMy.indexOf('备份与恢复') >= 0 &&
+      wMy.indexOf('从备份恢复') < 0 && wMy.indexOf('备份我的数据') < 0);
+    ok('诊断信息收进页脚「反馈问题」', wMy.indexOf('反馈问题') >= 0 && wMy.indexOf('诊断信息') < 0);
+
+    // 备份（菜单第一项）
     clipboard = '';
-    ok('备份：写进了剪贴板', p.exportData() === true && clipboard.length > 100, clipboard.length + ' 字节');
+    calls.length = 0;
+    sheetIndex = 0;
+    p.backupMenu();
+    ok('备份与恢复 → 选「备份」会复制到剪贴板',
+      clipboard.length > 100 && calls.some(function (c) { return c[0] === 'clipboard'; }),
+      clipboard.length + ' 字节');
     const backup = clipboard;
 
+    // 换手机：清空后再用菜单第二项恢复
     db.resetAll();
     ok('换手机：本机清空', db.allSets().length === 0, db.allSets().length + ' 组');
 
     clipboard = backup;
     modalConfirm = true;
     calls.length = 0;
-    p.restoreData();
-    ok('恢复前先弹确认框（标题「恢复备份」）',
+    sheetIndex = 1;
+    p.backupMenu();
+    ok('选「从备份恢复」会先弹确认框',
       calls.some(function (c) { return c[0] === 'modal' && c[1] === '恢复备份'; }), JSON.stringify(calls));
     ok('确认后记录回来了', db.allSets().length === 1, db.allSets().length + ' 组');
-    ok('恢复成功有 toast', calls.some(function (c) { return c[0] === 'toast' && /已恢复/.test(c[1]); }),
-      JSON.stringify(calls.map(function (c) { return c[1]; })));
 
     // 取消 → 一个字都不许动
     db.resetAll();
     clipboard = backup;
     modalConfirm = false;
-    p.restoreData();
+    sheetIndex = 1;
+    p.backupMenu();
     ok('取消恢复就不动本地', db.allSets().length === 0, db.allSets().length + ' 组');
 
     // 粘错东西
     clipboard = '随便一段话，不是备份';
     calls.length = 0;
     p.restoreData();
-    ok('粘错内容只提示、不写库', db.allSets().length === 0 && calls.some(function (c) { return c[0] === 'toast'; }),
-      JSON.stringify(calls));
+    ok('粘错内容只提示、不写库',
+      db.allSets().length === 0 && calls.some(function (c) { return c[0] === 'toast'; }), JSON.stringify(calls));
 
     // 剪贴板空着
     clipboard = '';
@@ -700,7 +720,7 @@ function fakeDetail(out) {
     p.restoreData();
     ok('剪贴板空着会提示', calls.some(function (c) { return c[0] === 'toast'; }), JSON.stringify(calls));
 
-    // 诊断信息：本地错误日志 + 本机数据量，一键复制
+    // 页脚「反馈问题」：本地错误日志 + 本机数据量，一键复制
     const diagMod = require('./utils/diag');
     diagMod.clear();
     diagMod.push('onError', '测试报错：Cannot read property', 'pages/today/index');
@@ -709,7 +729,7 @@ function fakeDetail(out) {
     db.saveSet({ date: '2026-08-02', exId: 'g1', setNo: 1, weight: 50, reps: 10, unit: 'kg' });
     clipboard = '';
     p.diagInfo();
-    ok('诊断信息能复制', clipboard.indexOf('练界 · 诊断信息') === 0, clipboard.split('\n')[0]);
+    ok('反馈问题：能复制诊断信息', clipboard.indexOf('练界 · 诊断信息') === 0, clipboard.split('\n')[0]);
     ok('诊断信息带本机数据量', clipboard.indexOf('本机数据') >= 0,
       (clipboard.split('\n').filter(function (l) { return l.indexOf('本机数据') >= 0; })[0] || ''));
     ok('诊断信息带最近错误（纯本地也能查到问题）', clipboard.indexOf('测试报错') >= 0);
