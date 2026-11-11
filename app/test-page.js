@@ -716,6 +716,37 @@ function fakeDetail(out) {
     diagMod.clear();
   }
 
+  /* ================= 隐私政策 / 用户协议（上线必需） ================= */
+  console.log('\n=== 隐私政策页 ===');
+  {
+    const fs = require('fs');
+    const pathm = require('path');
+    const pp = loadPage('./pages/privacy/index');
+    pp.onLoad();
+    ok('拿到状态栏与胶囊占位', pp.data.sbh === 20 && pp.data.cpad === 102,
+      pp.data.sbh + ' / ' + pp.data.cpad);
+
+    calls.length = 0;
+    pp.back();
+    ok('返回按钮能退出去', calls.some(function (c) { return c[0] === 'back'; }), JSON.stringify(calls));
+
+    const wxml = fs.readFileSync(pathm.join(__dirname, 'pages/privacy/index.wxml'), 'utf8');
+    ok('写明「不收集个人信息」', wxml.indexOf('不收集你的个人信息') >= 0);
+    ok('写明训练风险与免责（健康类必须声明）',
+      wxml.indexOf('训练风险由你自己承担') >= 0 && wxml.indexOf('不承担责任') >= 0);
+    ok('写明数据在这台手机、要自己备份',
+      wxml.indexOf('保存在这台手机的微信小程序本地存储') >= 0 && wxml.indexOf('备份我的数据') >= 0);
+    ok('写明删除方式', wxml.indexOf('删除我的全部数据') >= 0);
+    ok('带更新日期（改文案要一起改）', wxml.indexOf('{{updated}}') >= 0);
+
+    // 入口不能丢：引导页同意语 + 我的页页脚
+    const wWelcome = fs.readFileSync(pathm.join(__dirname, 'pages/welcome/index.wxml'), 'utf8');
+    const wMy = fs.readFileSync(pathm.join(__dirname, 'pages/my/index.wxml'), 'utf8');
+    ok('引导页有「继续即表示同意」入口', wWelcome.indexOf('继续即表示同意') >= 0 &&
+      wWelcome.indexOf('gotoPrivacy') >= 0);
+    ok('我的页页脚有隐私政策入口', wMy.indexOf('隐私政策') >= 0 && wMy.indexOf('gotoPrivacy') >= 0);
+  }
+
   CAT.setDetailLoader(null);
   runResult();
 })();

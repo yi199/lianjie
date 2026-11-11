@@ -218,6 +218,10 @@ Page({
     wx.navigateTo({ url: '/pages/my-exercises/index' });
   },
 
+  gotoPrivacy() {
+    wx.navigateTo({ url: '/pages/privacy/index' });
+  },
+
   setDays(e) {
     this.apply({ days: Number(e.currentTarget.dataset.v) });
   },

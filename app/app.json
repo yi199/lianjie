@@ -11,7 +11,8 @@
     "pages/programs/index",
     "pages/builder/index",
     "pages/metrics/index",
-    "pages/my-exercises/index"
+    "pages/my-exercises/index",
+    "pages/privacy/index"
   ],
   "window": {
     "backgroundTextStyle": "dark",

@@ -141,6 +141,9 @@
     </view>
   </view>
 
-  <view class="about">练界 v0.1</view>
+  <view class="about">
+    <text class="aboutv">练界 v0.1</text>
+    <text class="aboutlnk" bindtap="gotoPrivacy" hover-class="aboutlnk-hover" hover-start-time="0" hover-stay-time="120">隐私政策 · 用户协议</text>
+  </view>
 
 </view>

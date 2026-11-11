@@ -1,0 +1,93 @@
+/* 隐私政策 / 用户协议：一页长文，只求读得下去 —— 不搞花哨排版 */
+
+/* ---------- 导航（和动作页/进步页同一套） ---------- */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 16rpx 32rpx 0;
+}
+
+.back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-h1);
+  color: #43473D;
+  line-height: 1;
+}
+
+.back-hover { background: rgba(31, 35, 28, .06); border-radius: 50%; }
+
+.nav .kicker { margin-left: auto; }
+
+/* ---------- 正文 ---------- */
+.sec-note {
+  margin-left: 12rpx;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+  letter-spacing: 0;
+  text-transform: none;      /* 版本号别被 .sec-h 的大写规则改成 V0.1 */
+}
+
+/* 小节标题：比正文高一档、墨绿，靠间距分段，不加分割线（分割线多了像合同） */
+.dh {
+  margin-top: var(--sp3);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--green);
+}
+
+.dh:first-of-type { margin-top: var(--sp2); }
+
+/* 正文：24rpx 行高 1.9 —— 长文只用「读着不累」的档位，不逐段调字号 */
+.dp {
+  margin-top: var(--sp1);
+  font-size: var(--fs-note);
+  line-height: 1.9;
+  color: var(--ink);
+}
+
+/* 只有「训练风险」这一段用底色块：全篇唯一的加粗提醒，才有人注意 */
+.dp.warn {
+  margin-top: var(--sp2);
+  padding: var(--sp2);
+  border-radius: 16rpx;
+  background: var(--soft);
+}
+
+.em {
+  font-weight: 600;
+  color: var(--green);
+}
+
+/* 列表项：圆点头 + 悬挂缩进，别让第二行顶到左边 */
+.dli {
+  display: flex;
+  margin-top: 10rpx;
+  padding-left: 6rpx;
+  font-size: var(--fs-note);
+  line-height: 1.9;
+  color: var(--ink);
+}
+
+.dli .dot {
+  flex: none;
+  width: 24rpx;
+  color: var(--muted2);
+}
+
+.dli .dlt { flex: 1; }
+
+.about {
+  margin-top: var(--sp5);
+  padding-top: var(--sp3);
+  border-top: 1rpx solid var(--line);
+  text-align: center;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+  letter-spacing: 0.04em;
+}
