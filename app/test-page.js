@@ -9,6 +9,7 @@
 const store = {};
 const calls = [];
 let modalConfirm = true;      // 测试里控制 showModal 点「确定」还是「取消」
+let clipboard = '';           // 导出用：setClipboardData 写进来的内容
 
 global.wx = {
   getStorageSync(k) { return store[k] === undefined ? '' : store[k]; },
@@ -19,9 +20,17 @@ global.wx = {
     calls.push(['modal', o.title]);
     if (o.success) o.success({ confirm: modalConfirm, cancel: !modalConfirm });
   },
+  showLoading(o) { calls.push(['loading', o && o.title]); },
+  hideLoading() { calls.push(['hideloading']); },
+  setClipboardData(o) {
+    clipboard = o.data;
+    calls.push(['clipboard', String(o.data || '').length]);
+    if (o.success) o.success({});
+  },
   navigateTo(o) { calls.push(['nav', o.url]); },
   redirectTo(o) { calls.push(['redirect', o.url]); },
   switchTab(o) { calls.push(['tab', o.url]); },
+  reLaunch(o) { calls.push(['relaunch', o.url]); },
   navigateBack() { calls.push(['back']); },
   vibrateShort() { },
   createSelectorQuery() {
@@ -593,6 +602,49 @@ function fakeDetail(out) {
   myPage.onHide();
   ok('离开页面就停掉轮询', !myPage.syncTimer);
   CFG.setApiBase(null);
+
+  /* ================= 导出 / 删除账号（我的页·合规） ================= */
+  console.log('\n=== 导出与删除账号 ===');
+  {
+    // 本地模式：同步关掉，页面走「只清本机」那条路
+    CFG.setApiBase(null);
+
+    const today = D.today();
+    db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+    db.saveSet({ date: today, exId: 'g1', setNo: 1, weight: 40, reps: 10, unit: 'kg' });
+
+    const my = loadPage('./pages/my/index');
+    my.onLoad();
+
+    calls.length = 0;
+    clipboard = '';
+    ok('导出：返回成功', my.exportData() === true);
+    let exp = null;
+    try { exp = JSON.parse(clipboard); } catch (e) { /* 留空，下面断言会红 */ }
+    ok('导出：剪贴板里是合法 JSON', !!exp, exp && exp.app);
+    ok('导出：带上了当天的组记录', !!exp && exp.sets.length > 0, exp && exp.sets.length);
+    ok('导出：带导出时间和计划设置', !!exp && !!exp.exportedAt && !!exp.profile,
+      exp && String(exp.profile.level));
+    ok('导出：指标收成对象（没记录时是空对象）', !!exp && typeof exp.metrics === 'object');
+
+    // 取消 → 一条都不许动
+    modalConfirm = false;
+    calls.length = 0;
+    my.deleteAccount();
+    ok('删除账号要二次确认', calls.some(function (c) { return c[0] === 'modal' && c[1] === '删除账号'; }),
+      JSON.stringify(calls));
+    ok('取消后记录还在', db.allSets().length > 0, db.allSets().length);
+
+    // 确认（本地模式）→ 本机清空 + 回引导页
+    modalConfirm = true;
+    calls.length = 0;
+    my.deleteAccount();
+    ok('本地模式确认后清空本机', db.allSets().length === 0 && !db.hasOnboarded(),
+      'sets=' + db.allSets().length);
+    ok('删完回引导页',
+      calls.some(function (c) { return c[0] === 'relaunch' && c[1] === '/pages/welcome/index'; }),
+      JSON.stringify(calls));
+  }
 
   CAT.setDetailLoader(null);
   runResult();

@@ -8,6 +8,7 @@ const UNIT_CN = { kg: '按重量记', bw: '按次数记', sec: '按秒数记' };
 Page({
   data: {
     sbh: 20,
+    cpad: 102,      // 顶行右侧给胶囊让出的 px（app.js 里按真机几何算）
     id: '',
     ex: {},
     partCn: '',
@@ -20,7 +21,8 @@ Page({
   onLoad(opts) {
     this.backTimer = null;
     const app = getApp();
-    this.setData({ sbh: app.globalData.statusBarHeight });
+    // cpad：英文小标贴右（margin-left:auto），得给右上角胶囊让位（见 app.js capsulePad）
+    this.setData({ sbh: app.globalData.statusBarHeight, cpad: app.globalData.capsulePad || 102 });
 
     const id = (opts && opts.id) ? String(opts.id) : '';
     const ex = CAT.find(id);

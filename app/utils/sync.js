@@ -197,6 +197,23 @@ function request(path, opts) {
 }
 
 /**
+ * 删除账号（合规：删除个人信息）。
+ *
+ * 服务端一条 delete 级联清空 sets / workouts / metrics / 配置 / 自建动作；
+ * 成功后**必须清掉本地 token 与游标**：不清的话下一次请求 401 → 自动重登，
+ * 登录又会建一个新用户，然后把本地残留数据推上去 —— 等于没删干净。
+ * 本地存储由调用方 db.resetAll() 清（服务端碰不到别人手机上的数据）。
+ */
+function deleteAccount() {
+  if (!CFG.syncEnabled()) return Promise.reject(new Error('未连云端'));
+  return request('/account', { method: 'DELETE' }).then(function () {
+    clearAuth();
+    try { wx.removeStorageSync(K_CURSOR); } catch (e) { /* 忽略 */ }
+    return true;
+  });
+}
+
+/**
  * 官方动作清单：整份拉取并写入本地。
  *
  * - 本地 rev 比服务端大 → 服务端被重置/回滚过，按 0 处理强制全量（自愈），
@@ -467,7 +484,7 @@ function status() {
 
 module.exports = {
   init, kick, stop, status, setTransport, ready,
-  request, refreshCatalog,
+  request, refreshCatalog, deleteAccount,
   /* 测试用 */
   __cursor: { get: getCursor, set: setCursor }
 };

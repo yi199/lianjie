@@ -1,6 +1,6 @@
 <view class="sb" style="height:{{sbh}}px"></view>
 
-<view class="nav">
+<view class="nav" style="padding-right:{{cpad}}px">
   <view class="back" bindtap="back" hover-class="back-hover" hover-start-time="0" hover-stay-time="120">
     <text>‹</text>
   </view>

@@ -64,6 +64,34 @@ function syncView() {
   };
 }
 
+/**
+ * 导出用的成品：本机上的全部内容。
+ *
+ * 数据本来就在这台手机上（本地优先），所以**不需要后端接口、也不需要登录态** ——
+ * 「查阅、复制个人信息」在内置浏览器的能力范围内就能给到用户。
+ * sets 是唯一的业务真相，workouts 可以由它推导，所以这里不单独导。
+ */
+function buildExport() {
+  const metrics = {};
+  db.metricKinds().forEach(function (k) {
+    const list = db.metricSeries(k);
+    if (!list.length) return;
+    metrics[k] = list.map(function (r) {
+      return { date: r.date, value: r.value, unit: r.unit };
+    });
+  });
+
+  return {
+    app: '练界',
+    exportedAt: new Date().toISOString(),
+    profile: db.profile() || {},
+    sets: db.allSets(),
+    metrics: metrics,
+    customExercises: db.customExercises(),
+    customPrograms: db.customPrograms()
+  };
+}
+
 Page({
   data: {
     sbh: 20,
@@ -257,6 +285,67 @@ Page({
         db.clearSets();
         wx.showToast({ title: '已清空', icon: 'none' });
         self.refresh();
+      }
+    });
+  },
+
+  /** 导出我的数据：整份 JSON 复制到剪贴板（不发网络请求，纯本地生成） */
+  exportData() {
+    let text = '';
+    try {
+      text = JSON.stringify(buildExport(), null, 2);
+    } catch (e) {
+      wx.showToast({ title: '导出失败了，再试一次', icon: 'none' });
+      return false;
+    }
+    wx.setClipboardData({
+      data: text,
+      success: function () { },     // 系统自带「内容已复制」提示，别再叠一个 toast
+      fail: function () {
+        wx.showToast({ title: '复制失败，再试一次', icon: 'none' });
+      }
+    });
+    return true;
+  },
+
+  /**
+   * 删除账号：云端 + 本机一起清（合规要求的「删除个人信息」）。
+   *
+   * 这是全项目唯一不可撤销的操作，所以文案必须说清「删了就没了」，
+   * 不能写成「清空数据」那种听着还能补回来的说法。
+   */
+  deleteAccount() {
+    const online = sync.status().enabled;
+    wx.showModal({
+      title: '删除账号',
+      content: online
+        ? '本机和云端的训练记录、身体指标、自建动作会被全部删掉，删了就找不回来了。'
+        : '本机的训练记录、身体指标、自建动作会被全部删掉，删了就找不回来了。',
+      confirmText: '删除',
+      confirmColor: '#B4795A',
+      success(res) {
+        if (!res.confirm) return;
+
+        const finish = function () {
+          db.resetAll();
+          wx.reLaunch({ url: '/pages/welcome/index' });
+        };
+
+        // 纯本地模式没有云端可删，本地清空就是完整的「删除个人信息」
+        if (!online) {
+          finish();
+          return;
+        }
+
+        wx.showLoading({ title: '正在删除', mask: true });
+        sync.deleteAccount().then(function () {
+          wx.hideLoading();
+          finish();
+        }).catch(function () {
+          // 云端没删掉就别清本地：否则用户以为删了，下次同步又被拉回来
+          wx.hideLoading();
+          wx.showToast({ title: '没删成功，稍后再试', icon: 'none' });
+        });
       }
     });
   },

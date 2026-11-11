@@ -99,6 +99,18 @@ function makeServer() {
         });
       }
 
+      // 删除账号：真服务端是一条 delete + on delete cascade，这里直接把人整个删掉
+      if (path === '/account') {
+        if ((opt.method || 'GET') !== 'DELETE') {
+          return Promise.resolve({ statusCode: 405, data: {}, header: {} });
+        }
+        const auth = String((opt.header && opt.header.Authorization) || '').replace(/^Bearer\s+/, '');
+        const openid = auth.replace(/^tok-/, '');
+        const had = Object.prototype.hasOwnProperty.call(users, openid);
+        delete users[openid];
+        return Promise.resolve({ statusCode: 200, data: { deleted: had }, header: {} });
+      }
+
       if (path === '/sync') {
         if (server.unauthorizedNext > 0) {
           server.unauthorizedNext--;
@@ -475,6 +487,66 @@ async function main() {
   sync.stop();
   ok('本地 rev 超大时自愈（强制全量拉回来）',
     db.catalogRev() === 9 && db.exercises().length === 1, db.catalogRev());
+
+  /* ---- 14. 删除账号（合规：删除个人信息） ---- */
+  console.log('\n=== 删除账号 ===');
+  CFG.setApiBase('http://fake');
+  anotherDevice();
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  set(T, 'g1', 1, 50);
+  await sync.kick();                                   // 推到「云端」
+
+  ok('删除前云端有数据', db.syncPending() === 0);
+
+  const delOk = await sync.deleteAccount();
+  ok('删除账号返回成功', delOk === true, String(delOk));
+  ok('删完清掉本地 token（否则下次请求会重登建新号）', !mem['lj.auth'],
+    JSON.stringify(mem['lj.auth'] || null));
+  ok('删完清掉游标', !mem['lj.sync.cursor'], String(mem['lj.sync.cursor']));
+
+  // 换设备 = 清本地 + 用同一个 code 重新登录：如果级联没生效，旧记录会被拉回来
+  anotherDevice();
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  await sync.kick();
+  ok('删完换设备拉不回旧记录', db.allSets().length === 0, 'sets=' + db.allSets().length);
+
+  // 纯本地模式没有云端可删，直接拒绝（页面自己走「只清本机」那条路）
+  CFG.setApiBase(null);
+  let rejected = false;
+  try { await sync.deleteAccount(); } catch (e) { rejected = true; }
+  ok('纯本地模式删账号直接拒绝', rejected);
+  CFG.setApiBase('http://fake');
+
+  /* ---- 15. 客户端错误上报（兜底钩子） ---- */
+  console.log('\n=== 客户端错误上报 ===');
+  const report = require('./utils/report');
+  const posted = [];
+  global.wx.request = function (opt) {
+    posted.push(opt);
+    if (opt.success) opt.success({ statusCode: 204 });
+  };
+
+  CFG.setApiBase(null);
+  report.reset();
+  posted.length = 0;
+  ok('本地模式不上报（一行请求都不发）',
+    report.send('onError', { msg: 'x' }) === false && posted.length === 0);
+
+  CFG.setApiBase('http://fake');
+  report.reset();
+  posted.length = 0;
+  ok('连上云端才上报', report.crash(new Error('炸了')) === true && posted.length === 1);
+  const firstErr = posted[0] || { data: {} };
+  ok('打到 /client-error，带 kind 和 sid',
+    /\/client-error$/.test(firstErr.url || '') && firstErr.data.kind === 'onError' && !!firstErr.data.sid,
+    firstErr.url);
+  ok('同一条错误 60 秒内不重复报', report.crash(new Error('炸了')) === false);
+  ok('不同错误照常上报', report.rejection({ reason: new Error('另一个') }) === true);
+
+  report.reset();
+  posted.length = 0;
+  for (let i = 0; i < 30; i++) report.send('onError', { msg: 'e' + i });
+  ok('一次启动最多 20 条（不刷屏）', posted.length === 20, posted.length);
 
   sync.stop();
 }
