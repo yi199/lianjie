@@ -765,6 +765,19 @@ function fakeDetail(out) {
     ok('引导页有「继续即表示同意」入口', wWelcome.indexOf('继续即表示同意') >= 0 &&
       wWelcome.indexOf('gotoPrivacy') >= 0);
     ok('我的页页脚有隐私政策入口', wMy.indexOf('隐私政策') >= 0 && wMy.indexOf('gotoPrivacy') >= 0);
+
+    // 记录页：「换一个」不能在顶行（状态栏那一条）——那条带右侧被微信胶囊占着，
+    // 真机上点不到（2026-11-11 用户实测）。必须放在胶囊下方的内容区。
+    const wRec = fs.readFileSync(pathm.join(__dirname, 'pages/record/index.wxml'), 'utf8');
+    const navEnd = wRec.indexOf('</view>', wRec.indexOf('class="nav"'));
+    ok('顶行里没有「换一个」（会被胶囊吃掉点击）',
+      wRec.indexOf('class="nav"') >= 0 && wRec.slice(0, navEnd).indexOf('changeEx') < 0,
+      wRec.slice(0, navEnd).replace(/\s+/g, ' ').slice(0, 90));
+    ok('「换一个」挪到了胶囊下方（动作名那一块里）',
+      wRec.indexOf('changeEx') > wRec.indexOf('class="exhead"'));
+    ok('「换一个」有自己的容器 subrow（跟英文名同一行）',
+      wRec.indexOf('class="subrow"') >= 0 && wRec.indexOf('class="swap"') > wRec.indexOf('class="subrow"'));
+
   }
 
   CAT.setDetailLoader(null);
