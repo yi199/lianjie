@@ -164,6 +164,12 @@ function initialWeight(exId, level) {
 
 const DEMO_WEEKS = 12;      // 示例数据铺 12 周：进步曲线、周走势、停滞与突破都要够长才看得出来
 
+// 每周实际练了几次（索引 = 周序号，0 是最早，11 是本周）。
+// 只影响「那一周排几次课」，不影响重量递增的节奏——重量仍按周序号走。
+// 为什么不全是 3：地形图的高度就是每周组数，十二周一样高会画成一块砖。
+// 为什么不是「整齐地每三周漏一次」：那样会变成一把等距锯齿，一眼假。
+const DEMO_ATTEND = [3, 3, 3, 2, 3, 3, 3, 1, 3, 3, 2, 3];
+
 /** 示例数据的「故事节奏」：前 5 周涨 → 第 6–9 周卡住 → 第 10 周起突破（§7.4 要能产生这些事件） */
 function demoPace(week) {
   if (week <= 4) return 1 + week * 0.018;               // 稳步加重
@@ -218,12 +224,25 @@ function makeDemoSets(plans, target) {
   for (let w = DEMO_WEEKS - 1; w >= 0; w--) {
     const week = DEMO_WEEKS - 1 - w;        // 0 = 最早的一周，11 = 本周
 
-    offsets.forEach(function (off) {
+    // 每周实际练几次：真实的人会漏课（出差 / 加班），而且漏得不规律。
+    // 这张表是给**地形图**用的——地形画的是「每周完成组数」，如果十二周都是
+    // 同样几节课，画出来就是一块砖；整齐地每三周漏一次，又像假数据。
+    // 不跳本周（最后一项），用户点「示例数据」时本周应该有东西。
+    const attend = Math.min(DEMO_ATTEND[week] || offsets.length, offsets.length);
+
+    offsets.forEach(function (off, oi) {
       const day = D.shift(today, -(off + w * 7));
       if (day > today) return;              // 兜底，正常到不了
 
+      // 这一周实际练了几次（见 DEMO_ATTEND）。不规律的漏课才是真实的，
+      // 漏成每三周一次的话，地形会变成一把整齐的锯齿——一眼就是假数据。
+      if (oi >= attend) return;
+
       const p = plans[k % plans.length];
       k++;
+      // 这一次少做几组（0 / 1 / 2）。表达式是「确定性抖动」，不用随机数，
+      // 保证每次生成的数据一模一样（否则测试和截图都没法对比）。
+      const cut = (week * 7 + oi * 3) % 5 === 0 ? 2 : ((week + oi * 2) % 3 === 0 ? 1 : 0);
 
       // 过去的训练日 18:00 开练，一组约 2.5 分钟（含组间休息），给完成时刻排出先后。
       // 今天的这次不能排到 18:00——用户可能上午就点了「示例数据」，
@@ -251,7 +270,11 @@ function makeDemoSets(plans, target) {
         const extra = Math.round((pace - 1) * speed * (unit === 'sec' ? 45 : 18));
         const reps = Math.max(1, (b.reps || it.reps) + extra);
         const w0 = b.weight || 0;
-        for (let s = 0; s < it.sets; s++) {
+        // 最后一组偶尔少做 1–2 组：谁都不是每次都把计划做满。
+        // 纯为地形好看——十二周每周都精确 47 组的话，峰顶会变成一条条平顶，
+        // 一看就是拼出来的。这里的抖动是确定性的（不随每次生成变），方便测试。
+        const nsets = Math.max(1, it.sets - (slot === p.items.length - 1 ? cut : 0));
+        for (let s = 0; s < nsets; s++) {
           out.push({
             id: day + '-' + exId + '-' + (s + 1),
             date: day,

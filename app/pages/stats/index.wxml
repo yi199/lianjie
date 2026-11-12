@@ -31,7 +31,7 @@
 
     <!-- 山脊线：12 周，每周一个峰，本周是陶土色那个点；左边三档刻度 -->
     <view class="terrain-wrap">
-      <view class="terr-cap">每周容量 · {{terrUnit}}</view>
+      <view class="terr-cap">每周完成 · 组</view>
       <canvas type="2d" id="terrain" class="terrain"></canvas>
       <view class="terr-lab">
         <text>12 周前</text>
@@ -44,7 +44,7 @@
       <view class="cc">
         <text class="t">TOTAL</text>
         <text class="v num">{{totalShown}}</text>
-        <text class="d">{{amountUnit}} · 累计</text>
+        <text class="d">{{hasTon ? '吨 · 负重累计' : '组 · 累计'}}</text>
       </view>
       <view class="cc">
         <text class="t">BEST</text>
