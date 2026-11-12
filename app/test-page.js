@@ -815,13 +815,13 @@ function fakeDetail(out) {
       fc.data.fx === '', String(fc.data.fx));
 
     // 哪些页面接上了、哪些接错了方向
-    const detailPages = ['record', 'exercise', 'report', 'metrics', 'my-exercises', 'privacy'];
+    const detailPages = ['record', 'exercise', 'report', 'metrics', 'my-exercises', 'privacy', 'programs', 'builder'];
     const missing = detailPages.filter(function (n) {
       return fs.readFileSync(pathm.join(__dirname, 'pages/' + n + '/index.wxml'), 'utf8').indexOf('enter-r') < 0;
     });
-    ok('6 个详情页都接了「从右滑入」', missing.length === 0, missing.join(',') || '全部接上');
+    ok('8 个详情页都接了「从右滑入」', missing.length === 0, missing.join(',') || '全部接上');
 
-    const tabPages = ['today', 'stats', 'my', 'programs', 'builder'];
+    const tabPages = ['today', 'stats', 'my'];
     const wrongDir = tabPages.filter(function (n) {
       return fs.readFileSync(pathm.join(__dirname, 'pages/' + n + '/index.wxml'), 'utf8').indexOf('enter-r') >= 0;
     });
@@ -840,6 +840,13 @@ function fakeDetail(out) {
         return hit && (ln.length - ln.replace(/^\s+/, '').length) > 0;
       });
     });
+    // tab 页是常驻实例：切回来重播错峰入场会像「整页重新加载」（用户说切换僵硬），
+    // 所以第一次用错峰入场，之后只用 120ms 淡入
+    const badFx = tabPages.filter(function (n) {
+      const j = fs.readFileSync(pathm.join(__dirname, 'pages/' + n + '/index.js'), 'utf8');
+      return j.indexOf('enter-fade') < 0 || j.indexOf('_entered') < 0;
+    });
+    ok('tab 页：首次错峰入场、切回来只淡入', badFx.length === 0, badFx.join(',') || '三个都对');
     ok('固定底栏/休息面板没被包进动画容器', fixedInside.length === 0, fixedInside.join(',') || '都在容器外');
   }
 

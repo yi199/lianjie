@@ -1,6 +1,7 @@
 const db = require('../../utils/db');
 const EX = require('../../data/exercises');      // PART_CN / 静态名表
 const CAT = require('../../utils/catalog');      // 动作查表统一走它（官方清单 + 自建动作）
+const enterFx = require('../../utils/enter').enterFx;
 
 const PARTS = [
   { key: 'all', name: '全部' },
@@ -43,7 +44,6 @@ function emptyDay(i) {
 Page({
   data: {
     sbh: 20,
-    enter: false,
     id: '',
     name: '我的方案',
     place: 'gym',
@@ -87,9 +87,7 @@ Page({
   },
 
   onReady() {
-    const self = this;
-    this.setData({ enter: false });
-    setTimeout(function () { self.setData({ enter: true }); }, 24);
+    enterFx(this);      // 详情页：内容从右侧推进来（见 utils/enter.js）
   },
 
   onName(e) {

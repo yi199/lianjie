@@ -34,7 +34,6 @@ Page({
     parts: [],
     top: [],
     empty: false,
-    enter: false,
     totalTon: 0,
     bestTon: 0,
     totalDays: 0,
@@ -74,10 +73,20 @@ Page({
     this.playEnter();
   },
 
+  /**
+   * 进场分两种：
+   *   - 第一次进入：内容逐块往上长（.enter，错峰 30ms），有质感
+   *   - 切 tab 回来：只做 120ms 的整体淡入（.enter-fade）
+   *     tab 页是常驻实例，重播错峰入场看起来像「整页重新加载」——用户反馈说切换僵硬
+   */
   playEnter() {
     const self = this;
-    this.setData({ enter: false });
-    setTimeout(function () { self.setData({ enter: true }); }, 24);
+    const first = !this._entered;
+    this._entered = true;
+    this.setData({ fx: '' });
+    setTimeout(function () {
+      self.setData({ fx: first ? 'enter' : 'enter-fade' });
+    }, 24);
   },
 
   refresh() {

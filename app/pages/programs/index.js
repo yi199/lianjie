@@ -1,4 +1,5 @@
 const db = require('../../utils/db');
+const enterFx = require('../../utils/enter').enterFx;
 
 Page({
   data: {
@@ -30,9 +31,7 @@ Page({
   },
 
   playEnter() {
-    const self = this;
-    this.setData({ enter: false });
-    setTimeout(function () { self.setData({ enter: true }); }, 24);
+    enterFx(this);      // 详情页：内容从右侧推进来（见 utils/enter.js）
   },
 
   refresh() {
