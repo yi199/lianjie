@@ -28,16 +28,17 @@
 
 | 位置 | 分支 | 指向 | 状态 |
 |---|---|---|---|
-| **本地 + github** | **`feat/dev`** | 从 `ac1a0f5` 起，现 tip `eb6281e` | **日常工作分支（2026-11-04 起）**。所有修改先提交到这里，稳定后再合 main |
-| github + 本地 | **`main`** | **`ac1a0f5`** | **主线**。只有从 feat/dev 合过去的稳定内容；不直接往上提交 |
+| **本地 + 远端** | **`main`** | **`849aad2`** | **主线。两个远端已同步到同一提交，feat/dev 完全包含在里面**（2026-11-11 合并） |
+| **本地 + 远端** | **`feat/dev`** | **`3547078`** | **日常工作分支**。所有修改先提交到这里，稳定后再合 main |
 | github | `feat/fonts-tabbar` `feat/catalog` `feat/fonts-rebuild` `feat/fonts-rebuild-2` `feat/safe-storage` | `b78a4ee` `17c559a` `f2e72f6` `1bb28cb` `05b291b` | **协作者的分支**（对应 PR #37–#41，内容已进 main）。**不要删**，即使看起来"已经合并了" |
+| gitee | `feat/dev` `feat/backend-sync-design` `feat/onboarding-rewards` | `3547078` `f055522` `452ad47` | gitee 上也有 feat/dev 了（2026-11-11 新建）；后两个是历史残留 |
 | 本地 | `feat/backend-sync-design` `feat/onboarding-rewards` | `f055522` `452ad47` | 历史残留，远端本来就没有这两个 |
-| 本地 | `backup/pre-main-merge` | `0f84b6e` | 合并前的临时备份，确认小程序跑得没问题后可 `git branch -D` |
-| gitee | `main` | `452ad47` | **旧镜像，落后 63 个提交**，要同步得单独 `git push gitee main` |
+| 本地 | `backup/pre-main-merge` `backup/pre-merge-20261111` | `0f84b6e` `3547078` | 合并前的临时备份，确认跑得没问题后可 `git branch -D` |
 
 远端：`gitee`(man-qianyi/lianjie) + `github`(yi199/lianjie，ssh://git@ssh.github.com:443)。
 
 2026-11-04 删过**自己的** `feat/fonts-on-main`（已合并进 main）；同一天新开了 `feat/dev` 作为日常分支。
+2026-11-11 把 `feat/dev`（13 个提交）用 `--no-ff` 合进 main，**在 main 上重跑过七套 751 项 + `check_app.sh` + `go test`**，然后两个远端一起推到 `849aad2`（gitee 的 main 从此不再落后）。
 
 ### ★ squash 合并的坑（2026-11-04 踩到，已处理完）
 
