@@ -1,7 +1,7 @@
 /**
  * 力量地形
  *
- * 按原型的设计：横轴是时间（12 周前 → 本周），纵轴是每周的训练量。
+ * 按原型的设计：横轴是时间（12 周前 → 本周），纵轴是每周「完成了几组」。
  * 每一周是一个点，点连成山脊，山与山之间的谷就是没练或练得少的周。
  * 所以它看起来像一条山脉的轮廓，而不是雷达图。
  *
@@ -11,7 +11,12 @@
  *   3. 本周那个点用陶土色标出来，是「你现在站在哪」。
  *   4. 纵轴只给三档刻度（顶 / 中 / 0）+ 两条极淡的虚线：
  *      山有多高得说得清，但不能让网格抢了山。单位不写在刻度里，
- *      由页面上的「每周容量（吨）」那行小字交代——单位会随数据在吨 / 组之间切。
+ *      由页面上「每周完成 · 组」那行小字交代。
+ *
+ * ⚠️ 纵轴是**组数**，不是吨。原因：动作库 105 个动作里 51 个自重 + 10 个计时，
+ * 都没有「重量 × 次数」。按吨画，练自重的那几周会塌成贴地的深谷（看着像白练），
+ * 混练的人更是完全看不见自重组。组数任何动作都算得出来。
+ * 吨数没有消失——它还留在数据页的 TOTAL / BEST 两张卡里。
  */
 
 const LAB_W = 30;      // 左侧刻度栏：数字右对齐到 LAB_W - 6，轴线画在 LAB_W 处
@@ -48,7 +53,7 @@ function fmtTick(v) {
  * @param ctx    canvas 2d context
  * @param w,h    逻辑尺寸（已按 dpr 缩放）
  * @param values 0~1 的数组，每个元素是一周的高度（已经除过 scale）
- * @param opt    { scale: 纵轴顶端的真实数值（吨 / 组） }
+ * @param opt    { scale: 纵轴顶端的真实数值（组） }
  */
 function drawRidge(ctx, w, h, values, opt) {
   const o = opt || {};
@@ -149,16 +154,26 @@ function drawRidge(ctx, w, h, values, opt) {
 }
 
 /**
- * 把每周吨数换算成 0~1 的高度（相对纵轴上限 scale）。
+ * 从 `db.weeklyVolume()` 的结果里取「画地形用的那一列」：每周完成组数。
+ * 单独抽成函数是为了让它能被测到（写在页面里的话，if 分支在 node 里测不到）。
+ * @param {Array<{sets:number, ton:number}>} weeks
+ * @returns {number[]}
+ */
+function seriesOf(weeks) {
+  return (weeks || []).map(function (w) { return Number(w.sets) || 0; });
+}
+
+/**
+ * 把每周组数换算成 0~1 的高度（相对纵轴上限 scale）。
  * 留一个下限 0.015：完全没练的周是一条贴着基线的谷，
  * 山脊线压在轴线上会看不清，抬一点点让它还看得见。
  */
-function toHeights(tons, scale) {
-  const s = scale > 0 ? scale : niceScale(tons);
-  return (tons || []).map(function (t) {
+function toHeights(values, scale) {
+  const s = scale > 0 ? scale : niceScale(values);
+  return (values || []).map(function (t) {
     const v = Number(t) || 0;
     return Math.max(0.015, Math.min(1, v / s));
   });
 }
 
-module.exports = { drawRidge, toHeights, niceScale };
+module.exports = { drawRidge, toHeights, niceScale, seriesOf };

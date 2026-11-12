@@ -1981,7 +1981,8 @@ function partTerrain(y, m) {
 }
 
 /**
- * 近 n 周的训练量（吨），给柱状图用。
+ * 近 n 周的训练量：每周的组数（sets）和吨数（ton，只算负重组）。
+ * 数据页的地形图取 sets（自重 / 计时动作没有吨）；ton 给数字卡用。
  * 返回从最早到最近：[{ label, ton }]
  */
 function weeklyVolume(n) {

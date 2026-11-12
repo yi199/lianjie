@@ -175,6 +175,17 @@ ok('吨数不为负', wv.every(w => w.ton >= 0));
 
 // 地形刻度：上限定在「好看的数」，高度按上限归一（0 的周贴基线，不虚高）
 const TER = require('./utils/terrain');
+// 地形画的是「每周组数」，不是吨 —— 自重/计时动作没有吨，按吨画会塌成深谷
+const series = TER.seriesOf(wv);
+ok('地形取的是组数（吨只给数字卡用）', series.length === 8 && series.every(v => v >= 0),
+  series.join(' / '));
+ok('seriesOf 只看 sets 列（ton 为 0 也照样给组数）',
+  TER.seriesOf([{ ton: 5, sets: 20 }, { ton: 0, sets: 12 }]).join(',') === '20,12',
+  TER.seriesOf([{ ton: 5, sets: 20 }, { ton: 0, sets: 12 }]).join(','));
+ok('只做自重的那一周（吨=0）也有正常高度，不塌成谷',
+  TER.toHeights(TER.seriesOf([{ ton: 0, sets: 30 }, { ton: 4, sets: 20 }]), 40)[0] > 0.5,
+  String(TER.toHeights(TER.seriesOf([{ ton: 0, sets: 30 }, { ton: 4, sets: 20 }]), 40)[0]));
+
 ok('刻度上限取整档（3.2 → 4）', TER.niceScale([0, 1.2, 3.2]) === 4, String(TER.niceScale([0, 1.2, 3.2])));
 ok('刻度上限跨十位也对（12.4 → 15）', TER.niceScale([12.4, 3]) === 15, String(TER.niceScale([12.4, 3])));
 ok('全 0 不把刻度压成 0', TER.niceScale([0, 0]) === 1, String(TER.niceScale([0, 0])));

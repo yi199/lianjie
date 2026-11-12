@@ -90,11 +90,15 @@ Page({
     const blanks = [];
     for (let i = 0; i < blankN; i++) blanks.push(i);
 
-    // 地形：最近 12 周每周的吨数 → 归一化成 0~1 的高度
-    // 纯自重 / 计时党没有吨数，退回用组数画，别让地形塌成一条平地
+    // 地形：最近 12 周「每周练了多少组」→ 归一化成 0~1 的高度
+    //
+    // 为什么不是吨：自重（俯卧撑/引体/徒手深蹲）和计时（平板支撑）都没有「重量×次数」，
+    // 动作库里 105 个动作有 51 个自重 + 10 个计时。按吨画，只做自重的那几周会塌成
+    // 贴地的深谷（看着像「白练了」），混练的人更是完全看不见自重组。
+    // 组数任何动作都算得出来，不挑类型，也不需要用户填体重。
+    // 吨数没有消失：它还留在下面的 TOTAL / BEST 两张卡里，负重党照样看得见强度。
     const wv = db.weeklyVolume(12);
-    const loaded = wv.some(function (w) { return w.ton > 0; });
-    const raw = wv.map(function (w) { return loaded ? w.ton : w.sets; });
+    const raw = TER.seriesOf(wv);
     // 纵轴上限定在「好看的数」上（5 / 8 / 12 …），刻度才是整数，最高的山也不顶格
     this.scale = TER.niceScale(raw);
     this.heights = TER.toHeights(raw, this.scale);
@@ -120,7 +124,7 @@ Page({
       totalShown: hasTon ? all.totalTon : all.totalSets,
       bestShown: hasTon ? all.best : all.bestSets,
       amountUnit: hasTon ? '吨' : '组',
-      terrUnit: loaded ? '吨' : '组',
+      hasTon: hasTon,
       hasDemo: db.hasDemo(),
       comment: makeComment(s.parts)
     }, function () {
