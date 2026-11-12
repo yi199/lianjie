@@ -29,7 +29,9 @@ App({
     // 自定义导航栏需要自己让出状态栏高度
     statusBarHeight: 20,
     // 顶行右侧要给胶囊让出的像素（见 capsulePad）
-    capsulePad: 102
+    capsulePad: 102,
+    // 上一次选中的 tab（0/1/2）：自定义 tabBar 每个页面都是新实例，靠它决定滑块从哪滑过来
+    tabFrom: undefined
   },
 
   onLaunch() {

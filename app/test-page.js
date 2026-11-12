@@ -843,6 +843,79 @@ function fakeDetail(out) {
     ok('固定底栏/休息面板没被包进动画容器', fixedInside.length === 0, fixedInside.join(',') || '都在容器外');
   }
 
+  /* ---- 底栏滑块：接力逻辑（每个 tab 页都是新实例，不接力就只会闪一下） ---- */
+  {
+    let cfg = null;
+    const prevComponent = global.Component;
+    global.Component = function (c) { cfg = c; };
+    delete require.cache[require.resolve('./custom-tab-bar/index.js')];
+    require('./custom-tab-bar/index.js');
+    global.Component = prevComponent;
+    ok('底栏组件注册成功', !!cfg && !!cfg.methods && typeof cfg.methods.relay === 'function');
+
+    function makeInst(data) {
+      const self = {
+        data: Object.assign({}, cfg.data, data || {}),
+        setData(o, cb) { Object.assign(self.data, o); if (cb) cb(); }
+      };
+      Object.keys(cfg.methods).forEach(function (k) { self[k] = cfg.methods[k].bind(self); });
+      return self;
+    }
+
+    // 测试环境的 getApp 每次都返回新对象（globalData 存不住），这轮换成固定实例
+    const stableApp = { globalData: { statusBarHeight: 20 } };
+    const prevGetApp = global.getApp;
+    global.getApp = function () { return stableApp; };
+    const app = stableApp;
+
+    // ① 冷启动：没有来路，直接摆在当前格，不播滑动
+    delete app.globalData.tabFrom;
+    const a = makeInst({ selected: 0 });
+    a.relay(0);
+    ok('冷启动不播滑动（没有来路）', a.data.pos === 0 && a.data.noFx === false,
+      JSON.stringify({ pos: a.data.pos, noFx: a.data.noFx }));
+
+    // ② 从「训练」切到「数据」：先把滑块瞬移到来路，再滑到目标
+    app.globalData.tabFrom = 0;
+    const b = makeInst({ selected: 1, pos: 0 });
+    b.relay(1);
+    ok('跨 tab 时先把滑块摆到「来时的位置」', b.data.pos === 0 && b.data.noFx === true,
+      JSON.stringify({ pos: b.data.pos, noFx: b.data.noFx }));
+    await new Promise(function (r) { setTimeout(r, 45); });
+    ok('隔一帧再滑到目标格（这一帧才有过渡）', b.data.pos === 1 && b.data.noFx === false,
+      JSON.stringify({ pos: b.data.pos, noFx: b.data.noFx }));
+
+    // ③ 从详情页返回同一个 tab：不许再抖一下
+    app.globalData.tabFrom = 1;
+    const c = makeInst({ selected: 1, pos: 1 });
+    c.relay(1);
+    ok('同一个 tab 不重播滑动', c.data.pos === 1 && c.data.noFx === false,
+      JSON.stringify({ pos: c.data.pos, noFx: c.data.noFx }));
+
+    // ④ 点 tab 时要把「来路」写下来，否则下个页面的实例不知道从哪滑过来
+    const d = makeInst({ selected: 2 });
+    wx.switchTab = function (o) { calls.push(['switchTab', o.url]); };
+    d.switchTab({ currentTarget: { dataset: { i: 0 } } });
+    ok('点 tab 记下「来路」（下一个实例靠它决定起点）', app.globalData.tabFrom === 2,
+      String(app.globalData.tabFrom));
+    ok('点 tab 真的跳走了', calls.some(function (x) { return x[0] === 'switchTab'; }),
+      JSON.stringify(calls.slice(-2)));
+
+    // ⑤ 再点当前 tab：不记录、不跳转
+    const before = app.globalData.tabFrom;
+    const e2 = makeInst({ selected: 1 });
+    e2.switchTab({ currentTarget: { dataset: { i: 1 } } });
+    ok('点当前 tab 不动也不跳', app.globalData.tabFrom === before, String(app.globalData.tabFrom));
+
+    // ⑥ 皮肤开关：存本地 + 立刻换
+    const f = makeInst({});
+    f.setSkin('card');
+    ok('换皮肤之后立刻生效', f.data.skin === 'card', f.data.skin);
+    ok('皮肤选择存到本地（下次进来还是它）', store['lj.tabSkin'] === 'card', String(store['lj.tabSkin']));
+
+    global.getApp = prevGetApp;
+  }
+
   CAT.setDetailLoader(null);
   runResult();
 })();

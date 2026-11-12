@@ -136,7 +136,7 @@
   </view>
 
   <view class="about">
-    <text class="aboutv">练界 v0.1</text>
+    <text class="aboutv" bindtap="tapVersion">练界 v0.1</text>
     <text class="aboutlnk" bindtap="gotoPrivacy" hover-class="aboutlnk-hover" hover-start-time="0" hover-stay-time="120">隐私政策 · 用户协议</text>
     <text class="aboutlnk" bindtap="diagInfo" hover-class="aboutlnk-hover" hover-start-time="0" hover-stay-time="120">反馈问题</text>
   </view>

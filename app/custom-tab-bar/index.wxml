@@ -1,6 +1,10 @@
-<view class="bar">
-  <!-- 选中项上方那道小把手：陶土色，28rpx 宽，贴在栏的上沿 -->
-  <view class="mark {{selected === 0 ? 'at0' : (selected === 1 ? 'at1' : 'at2')}}"></view>
+<view class="bar skin-{{skin}}">
+  <!-- 滑块：外层只负责「对齐到第 N 个三分之一」，内层做视觉。
+       分两层的原因：translateX(N * 100%) 里的 100% 是**自身宽度**，
+       如果外层宽度就是「三分之一减间距」，第二个、第三个 tab 会累积错位。 -->
+  <view class="pill {{noFx ? 'nofx' : ''}}" style="transform: translateX({{pos * 100}}%)">
+    <view class="pill-in"></view>
+  </view>
 
   <view
     class="item {{selected === index ? 'on' : ''}}"
