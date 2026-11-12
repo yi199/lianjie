@@ -775,6 +775,13 @@ function fakeDetail(out) {
       wRec.slice(0, navEnd).replace(/\s+/g, ' ').slice(0, 90));
     ok('「换一个」挪到了胶囊下方（动作名那一块里）',
       wRec.indexOf('changeEx') > wRec.indexOf('class="exhead"'));
+    // 数据页：单位写在纵轴刻度里，不再单独一行小字（10px 灰字用户找不到）
+    const wStats = fs.readFileSync(pathm.join(__dirname, 'pages/stats/index.wxml'), 'utf8');
+    const jStats = fs.readFileSync(pathm.join(__dirname, 'pages/stats/index.js'), 'utf8');
+    ok('数据页不再有单独一行「每周完成 · 组」小字',
+      wStats.indexOf('terr-cap') < 0 && wStats.indexOf('每周完成') < 0);
+    ok('地形传了单位（顶端刻度会显示「50 组」）',
+      jStats.indexOf("unit: '组'") >= 0);
     ok('「换一个」有自己的容器 subrow（跟英文名同一行）',
       wRec.indexOf('class="subrow"') >= 0 && wRec.indexOf('class="swap"') > wRec.indexOf('class="subrow"'));
 
