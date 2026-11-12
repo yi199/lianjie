@@ -1,6 +1,6 @@
 <view class="sb" style="height:{{sbh + 12}}px"></view>
 
-<view class="page">
+<view class="page {{fx ? 'enter-r' : ''}}">
 
   <view class="phead">
     <view class="brandrow">

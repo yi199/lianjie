@@ -1,4 +1,5 @@
 const db = require('../../utils/db');
+const enterFx = require('../../utils/enter').enterFx;
 
 const REST_SECONDS = 90;
 const BREATH_CYCLE = 9;   // 吸 4 秒 + 呼 5 秒
@@ -56,6 +57,7 @@ Page({
   },
 
   onLoad(opts) {
+    enterFx(this);      // 详情页：内容从右侧推进来（见 utils/enter.js）
     const app = getApp();
     this.date = db.trainingDate();     // 跨零点：没练完的训练仍记在开始那天
     this.timer = null;

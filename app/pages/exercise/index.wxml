@@ -7,7 +7,7 @@
   <text class="kicker">Move</text>
 </view>
 
-<view class="page">
+<view class="page {{fx ? 'enter-r' : ''}}">
 
   <!-- 标题：本地字段，断网也在 -->
   <view class="exhead">

@@ -1,6 +1,6 @@
 <view class="sb" style="height:{{sbh + 28}}px"></view>
 
-<view class="wrap">
+<view class="wrap {{fx ? 'enter-r' : ''}}">
 
   <view class="head rise d1">
     <view class="kicker">{{dateText}}</view>

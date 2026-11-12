@@ -787,6 +787,62 @@ function fakeDetail(out) {
 
   }
 
+  /* ---- 转场：详情页从右滑入，tab 页逐块上移 ---- */
+  {
+    const fs = require('fs');
+    const pathm = require('path');
+    const EN = require('./utils/enter');
+    function fakePage() {
+      return { data: {}, setData(o) { Object.assign(this.data, o); } };
+    }
+
+    const fa = fakePage();
+    EN.enterFx(fa, 'detail');
+    ok('进详情页先把动画类清空（不清空 CSS 动画不会重播）', fa.data.fx === '', String(fa.data.fx));
+    await new Promise(function (r) { setTimeout(r, EN.REPLAY_MS + 30); });
+    ok('一帧后挂上「从右滑入」的类', fa.data.fx === 'enter-r', String(fa.data.fx));
+
+    const fb = fakePage();
+    EN.enterFx(fb, 'up');
+    await new Promise(function (r) { setTimeout(r, EN.REPLAY_MS + 30); });
+    ok('tab 方向挂的是上移的类', fb.data.fx === 'enter', String(fb.data.fx));
+
+    const fc = fakePage();
+    EN.enterFx(fc);
+    EN.clearFx(fc);
+    await new Promise(function (r) { setTimeout(r, EN.REPLAY_MS + 30); });
+    ok('clearFx 之后不再 setData（页面已经卸载还会写数据是最常见的告警来源）',
+      fc.data.fx === '', String(fc.data.fx));
+
+    // 哪些页面接上了、哪些接错了方向
+    const detailPages = ['record', 'exercise', 'report', 'metrics', 'my-exercises', 'privacy'];
+    const missing = detailPages.filter(function (n) {
+      return fs.readFileSync(pathm.join(__dirname, 'pages/' + n + '/index.wxml'), 'utf8').indexOf('enter-r') < 0;
+    });
+    ok('6 个详情页都接了「从右滑入」', missing.length === 0, missing.join(',') || '全部接上');
+
+    const tabPages = ['today', 'stats', 'my', 'programs', 'builder'];
+    const wrongDir = tabPages.filter(function (n) {
+      return fs.readFileSync(pathm.join(__dirname, 'pages/' + n + '/index.wxml'), 'utf8').indexOf('enter-r') >= 0;
+    });
+    ok('tab 页不许用详情页的右滑入（会和系统的左右切页打架）',
+      wrongDir.length === 0, wrongDir.join(',') || '方向都对');
+
+    // 被动画的容器里不能有 position: fixed 的东西：transform 会把 fixed 变成相对它定位
+    // 固定元素必须在缩进 0 的层级（与动画容器同级）。注意 class 名要按页看，
+    // record 里也有个 .bar（进度条），它不是 fixed 的。
+    const FIXED_EL = { record: ['rest', 'footbar'], report: ['footbar'], metrics: ['bar'] };
+    const fixedInside = Object.keys(FIXED_EL).filter(function (n) {
+      const lines = fs.readFileSync(pathm.join(__dirname, 'pages/' + n + '/index.wxml'), 'utf8').split('\n');
+      return lines.some(function (ln) {
+        const t = ln.trim();
+        const hit = FIXED_EL[n].some(function (c) { return t.indexOf('<view class="' + c + '"') === 0; });
+        return hit && (ln.length - ln.replace(/^\s+/, '').length) > 0;
+      });
+    });
+    ok('固定底栏/休息面板没被包进动画容器', fixedInside.length === 0, fixedInside.join(',') || '都在容器外');
+  }
+
   CAT.setDetailLoader(null);
   runResult();
 })();

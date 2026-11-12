@@ -1,3 +1,4 @@
+const enterFx = require('../../utils/enter').enterFx;
 /**
  * 隐私政策 / 用户协议
  *
@@ -15,6 +16,7 @@ Page({
   },
 
   onLoad() {
+    enterFx(this);      // 详情页：内容从右侧推进来（见 utils/enter.js）
     const app = getApp();
     this.setData({
       sbh: app.globalData.statusBarHeight,

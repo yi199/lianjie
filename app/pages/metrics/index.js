@@ -1,6 +1,7 @@
 const db = require('../../utils/db');
 const D = require('../../utils/date');
 const CHART = require('../../utils/metricChart');
+const enterFx = require('../../utils/enter').enterFx;
 
 const SHOW_POINTS = 30;   // 图上最多画最近 30 次记录
 
@@ -31,6 +32,7 @@ Page({
   },
 
   onLoad() {
+    enterFx(this);      // 详情页：内容从右侧推进来（见 utils/enter.js）
     const app = getApp();
     const today = D.today();
     this.setData({

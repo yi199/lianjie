@@ -1,5 +1,6 @@
 const db = require('../../utils/db');
 const D = require('../../utils/date');
+const enterFx = require('../../utils/enter').enterFx;
 
 /** 当天「练了多少」的主数字：负重看吨，自重看次数，计时看秒数 */
 function amountText(r) {
@@ -24,6 +25,7 @@ Page({
   },
 
   onLoad(query) {
+    enterFx(this);      // 详情页：内容从右侧推进来（见 utils/enter.js）
     const app = getApp();
     const date = (query && query.date) || D.today();
 

@@ -227,8 +227,15 @@ view, text, scroll-view { box-sizing: border-box; }
 }
 
 /* ================= 页面转场 =================
-   switchTab 切换本身没有动画，所以内容层自己淡入一下；
-   navigateTo 的淡入由 animationType 控制（见各页 js）。
+   微信在 WebView 渲染下，页面级转场是系统写死的「右进左出」，改不了
+   （要自定义得切 Skyline 渲染引擎）。所以只在**内容层**做动画：
+
+   - tab 页（今天/数据/我的/计划列表/建方案）：内容**逐块**往上长出来，错峰 45ms。
+     注意容器本身不位移 —— 容器和子元素都动的话位移会叠成两遍。
+   - 详情页（记录/动作/战报/身体指标/我的动作/隐私）：内容**从右侧推进来** 28rpx，
+     和系统滑动同向，看起来是「接着滑进去的」。class 由 utils/enter.js 挂上。
+
+   退场不做：返回上一页是系统接管的，我们插动画会和系统动画打架。
 */
 
 @keyframes pageIn {
@@ -236,23 +243,30 @@ view, text, scroll-view { box-sizing: border-box; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes pageOut {
-  from { opacity: 1; transform: translateY(0); }
-  to   { opacity: 0; transform: translateY(-10rpx); }
+@keyframes pageR {
+  from { opacity: 0; transform: translateX(28rpx); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-.page.enter {
+/* tab 页：子元素依次出现 */
+.page.enter > view {
   animation: pageIn .26s cubic-bezier(.23, .9, .3, 1) both;
 }
+.page.enter > view:nth-child(2) { animation-delay: .045s; }
+.page.enter > view:nth-child(3) { animation-delay: .09s; }
+.page.enter > view:nth-child(4) { animation-delay: .135s; }
 
-.page.leaving {
-  animation: pageOut .2s ease forwards;
+/* 详情页：整块从右滑入 */
+.page.enter-r,
+.wrap.enter-r {
+  animation: pageR .28s cubic-bezier(.23, .9, .3, 1) both;
 }
 
 /* 尊重系统的「减弱动态效果」开关 */
 @media (prefers-reduced-motion: reduce) {
-  .page.enter,
-  .page.leaving {
+  .page.enter > view,
+  .page.enter-r,
+  .wrap.enter-r {
     animation: none;
   }
 }
