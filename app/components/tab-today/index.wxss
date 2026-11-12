@@ -1,0 +1,8 @@
+/* 样式复用页面那份，不复制代码 */
+@import "../../pages/today/index.wxss";
+
+/* 组件自己负责：占满 swiper-item，并在内部滚动（swiper-item 里没有页面级滚动） */
+.tabsv {
+  height: 100%;
+  box-sizing: border-box;
+}

@@ -1,0 +1,4 @@
+<!-- 结构复用 pages/my/index.wxml（include 等于把内容拷进来，单一来源） -->
+<scroll-view class="tabsv" scroll-y refresher-enabled refresher-triggered="{{false}}" bindrefresherrefresh="onPull">
+  <include src="../../pages/my/index.wxml"/>
+</scroll-view>

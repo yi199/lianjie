@@ -1,4 +1,5 @@
 const db = require('../../utils/db');
+const kit = require('../../utils/tabkit');
 const D = require('../../utils/date');
 const enterFx = require('../../utils/enter').enterFx;
 
@@ -68,11 +69,11 @@ Page({
   done() {
     // 今天 → 回今天的训练页；翻过去某天 → 退回数据页，别把人扔到「今天」去
     if (this.data.isToday) {
-      wx.switchTab({ url: '/pages/today/index' });
+      kit.backToShell(0);
       return;
     }
     wx.navigateBack({
-      fail: function () { wx.switchTab({ url: '/pages/stats/index' }); }
+      fail: function () { kit.backToShell(1); }
     });
   },
 

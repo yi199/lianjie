@@ -1,4 +1,5 @@
 const db = require('../../utils/db');
+const kit = require('../../utils/tabkit');
 const enterFx = require('../../utils/enter').enterFx;
 
 Page({
@@ -135,7 +136,7 @@ Page({
   },
 
   gotoToday() {
-    wx.switchTab({ url: '/pages/today/index' });
+    kit.backToShell(0);
   },
 
   onPullDownRefresh() {

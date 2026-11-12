@@ -1,0 +1,14 @@
+<!-- 三个 tab 的容器：横滑由系统 swiper 完成，跟手、有惯性、可以左右拖 -->
+<swiper
+  class="pager"
+  current="{{cur}}"
+  duration="300"
+  easing-function="easeOutCubic"
+  bindchange="onSwipe"
+>
+  <swiper-item><tab-today id="tab0" active="{{cur === 0}}" /></swiper-item>
+  <swiper-item><tab-stats id="tab1" active="{{cur === 1}}" /></swiper-item>
+  <swiper-item><tab-my id="tab2" active="{{cur === 2}}" /></swiper-item>
+</swiper>
+
+<tab-bar id="bar" selected="{{cur}}" bindchange="onBar" />
