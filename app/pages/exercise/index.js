@@ -1,6 +1,7 @@
 const CAT = require('../../utils/catalog');
 const EX = require('../../data/exercises');
 const META = require('../../data/exercise-meta');
+const enterFx = require('../../utils/enter').enterFx;
 
 const PLACE_CN = { gym: '健身房', home: '家里' };
 const UNIT_CN = { kg: '按重量记', bw: '按次数记', sec: '按秒数记' };
@@ -19,6 +20,7 @@ Page({
   },
 
   onLoad(opts) {
+    enterFx(this);      // 详情页：内容从右侧推进来（见 utils/enter.js）
     this.backTimer = null;
     const app = getApp();
     // cpad：英文小标贴右（margin-left:auto），得给右上角胶囊让位（见 app.js capsulePad）

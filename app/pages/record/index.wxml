@@ -10,7 +10,7 @@
   </view>
 </view>
 
-<view class="wrap">
+<view class="wrap {{fx ? 'enter-r' : ''}}">
   <!-- 动作名 -->
   <view class="exhead">
     <view class="namerow">

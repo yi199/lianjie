@@ -10,7 +10,7 @@
   </view>
 </view>
 
-<view class="wrap">
+<view class="wrap {{fx ? 'enter-r' : ''}}">
 
   <!-- 大数字：最新值 -->
   <view class="hero">

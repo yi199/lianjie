@@ -1,4 +1,5 @@
 const db = require('../../utils/db');
+const enterFx = require('../../utils/enter').enterFx;
 
 const PARTS = [
   { key: 'chest', name: '胸' },
@@ -26,6 +27,7 @@ Page({
   },
 
   onLoad() {
+    enterFx(this);      // 详情页：内容从右侧推进来（见 utils/enter.js）
     const app = getApp();
     this.setData({ sbh: app.globalData.statusBarHeight });
     const partCn = {};
