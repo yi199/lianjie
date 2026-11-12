@@ -31,7 +31,10 @@
 
 .swap {
   flex-shrink: 0;
-  padding: 10rpx 22rpx;
+  display: flex;
+  align-items: center;
+  min-height: 64rpx;          /* 触摸目标别只有一行字那么高 */
+  padding: 0 26rpx;
   border: 1rpx solid var(--line, #DFDCCE);
   border-radius: 30rpx;
   font-size: var(--fs-label);
@@ -76,6 +79,14 @@
   font-size: var(--fs-label);
   letter-spacing: 1rpx;
   color: var(--muted2);
+}
+/* 英文名 + 「换一个」同一行：英文名贴左，按钮贴右。
+   这一行在胶囊下方，所以按钮能被点到（顶行放不得，见 wxml 里的注释） */
+.subrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
 }
 .swapped {
   margin-top: 12rpx;

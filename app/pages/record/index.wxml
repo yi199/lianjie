@@ -8,7 +8,6 @@
     <text>{{planName}}</text>
     <text class="en">第 {{pnum}} / {{total}} 个动作</text>
   </view>
-  <view class="swap" bindtap="changeEx" hover-class="swap-hover">换一个</view>
 </view>
 
 <view class="wrap">
@@ -18,7 +17,12 @@
       <view class="nm">{{ex.cn}}</view>
       <view class="detail" bindtap="gotoDetail" hover-class="detail-hover" hover-start-time="0" hover-stay-time="120">看讲解 ›</view>
     </view>
-    <view class="en">{{ex.en}}</view>
+    <!-- 「换一个」放在这里而不是顶行：顶行（状态栏那一条）右侧被微信胶囊占着，
+         放过去真机上点不到（2026-11-11 真机实测）。这一行在胶囊下方，安全 -->
+    <view class="subrow">
+      <view class="en">{{ex.en}}</view>
+      <view class="swap" bindtap="changeEx" hover-class="swap-hover" hover-start-time="0" hover-stay-time="120">换一个</view>
+    </view>
     <view class="swapped" wx:if="{{ex.swapped}}">已换成 {{ex.cn}} · 原动作 {{ex.originCn}}</view>
   </view>
 
