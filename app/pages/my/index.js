@@ -424,6 +424,26 @@ Page({
     });
   },
 
+  /**
+   * 页脚版本号连点 5 次：在两种底栏皮肤之间切换（pill / card）。
+   * 为什么做成隐藏手势：两个皮肤都只在真机上才看得出差别，加个正式入口纯属给用户添麻烦。
+   * 皮肤存在本地（custom-tab-bar 里读写），切换后立刻生效，不用重开。
+   */
+  tapVersion() {
+    const self = this;
+    this._vTaps = (this._vTaps || 0) + 1;
+    clearTimeout(this._vTimer);
+    this._vTimer = setTimeout(function () { self._vTaps = 0; }, 900);
+    if (this._vTaps < 5) return;
+    this._vTaps = 0;
+
+    const tb = (typeof this.getTabBar === 'function') ? this.getTabBar() : null;
+    if (!tb || typeof tb.setSkin !== 'function') return;
+    const next = tb.data.skin === 'pill' ? 'card' : 'pill';
+    tb.setSkin(next);
+    wx.showToast({ title: next === 'pill' ? '底栏：胶囊' : '底栏：浮卡', icon: 'none' });
+  },
+
   onPullDownRefresh() {
     this.refresh();
     wx.stopPullDownRefresh();
