@@ -1,5 +1,6 @@
 const db = require('../../utils/db');
 const sync = require('../../utils/sync');
+const diag = require('../../utils/diag');
 
 /** 「上次同步」说人话：刚刚 / 12 分钟前 / 3 小时前 / 2 天前 */
 function agoText(iso) {
@@ -14,12 +15,11 @@ function agoText(iso) {
 }
 
 /**
- * 同步这一栏要回答三个问题：开没开、传完没有、上次什么时候。
- * 以前这些只在 console 里，用户看不出记录到底上云了没有。
+ * 同步 / 存储状态这一行要回答三个问题：开着没有、传完没有、上次什么时候。
  *
- * 同步本来就是全自动的（改完 2 秒防抖上传 + 失败指数退避 + 空闲轮询），
- * 所以这一栏默认只是「显示」：点它没有任何用，也不要暗示「不点就不传」。
- * 只有失败态才给一个「重试」——那才是真的需要人来催一脚的场合。
+ * 产品定位是「轻量 · 无需登录」，所以纯本地时这里**只说事实、不给动作**：
+ * 「数据保存在这台手机上」+ 一句去哪儿备份。绝不说「云端 / 服务端 / 队列」，
+ * 也不做「点一下同步」的按钮 —— 同步本来就是全自动的，按钮只会让人以为不点就不传。
  */
 function syncView() {
   const st = sync.status();
@@ -27,8 +27,8 @@ function syncView() {
   if (!st.enabled) {
     return {
       state: 'local',
-      title: '本地模式',
-      sub: '还没连上云端，数据只在这台手机上，换手机会丢'
+      title: '数据保存在这台手机上',
+      sub: '换手机前用下面的「备份」带走，再用「恢复」放回来'
     };
   }
 
@@ -154,7 +154,7 @@ Page({
   tapSync() {
     const st = sync.status();
     if (!st.enabled) {
-      wx.showToast({ title: '本地模式：还没连上云端', icon: 'none' });
+      wx.showToast({ title: '数据就在这台手机上，不用重试', icon: 'none' });
       return false;
     }
     if (!st.lastError) return false;
@@ -218,6 +218,10 @@ Page({
     wx.navigateTo({ url: '/pages/my-exercises/index' });
   },
 
+  gotoPrivacy() {
+    wx.navigateTo({ url: '/pages/privacy/index' });
+  },
+
   setDays(e) {
     this.apply({ days: Number(e.currentTarget.dataset.v) });
   },
@@ -247,9 +251,10 @@ Page({
 
   clearData() {
     const self = this;
+    const online = sync.status().enabled;
     wx.showModal({
       title: '清空训练记录',
-      content: '所有练过的组都会被删掉，计划设置保留。接后端时，其他设备上的记录也会一起清掉。',
+      content: '所有练过的组都会被删掉，计划设置保留。' + (online ? '其它设备上的记录也会一起清掉。' : ''),
       confirmText: '清空',
       confirmColor: '#B4795A',
       success(res) {
@@ -261,17 +266,160 @@ Page({
     });
   },
 
-  restart() {
+  /**
+   * 「备份与恢复」：两个低频动作收进一个入口，不在页面上各占一行。
+   * 绝大多数人不会关心数据存在哪，把这件事摊在设置页第一屏只会变成噪音。
+   */
+  backupMenu() {
     const self = this;
+    wx.showActionSheet({
+      itemList: ['备份（复制一段文字）', '从备份恢复（粘贴那段文字）'],
+      success(res) {
+        if (res.tapIndex === 0) self.exportData();
+        else if (res.tapIndex === 1) self.restoreData();
+      },
+      fail() { /* 用户取消 */ }
+    });
+  },
+
+  /** 备份：整份数据打成 JSON 复制到剪贴板（纯本地生成，不发网络请求） */
+  exportData() {
+    let text = '';
+    try {
+      text = JSON.stringify(db.exportData(), null, 2);
+    } catch (e) {
+      wx.showToast({ title: '导出失败了，再试一次', icon: 'none' });
+      return false;
+    }
+    wx.setClipboardData({
+      data: text,
+      success: function () { },     // 系统自带「内容已复制」提示，别再叠一个 toast
+      fail: function () {
+        wx.showToast({ title: '复制失败，再试一次', icon: 'none' });
+      }
+    });
+    return true;
+  },
+
+  /**
+   * 恢复：把剪贴板里的备份放回来。
+   *
+   * 这是「无需登录」路线换手机的唯一出路 —— 没有账号，数据就只能靠用户自己带走。
+   * 先算账、再确认、后落地，而且**只加不删**：最坏情况是什么都没变，
+   * 绝不会因为粘错一段 JSON 把本机记录搞丢。
+   */
+  restoreData() {
+    const self = this;
+    wx.getClipboardData({
+      success(res) {
+        const raw = (res && res.data) || '';
+        if (!String(raw).trim()) {
+          wx.showToast({ title: '剪贴板是空的', icon: 'none' });
+          return;
+        }
+
+        const look = db.inspectImport(raw);
+        if (!look.ok) {
+          wx.showToast({ title: look.reason, icon: 'none', duration: 3000 });
+          return;
+        }
+        if (!look.total) {
+          wx.showToast({ title: '这段备份里没有新记录', icon: 'none' });
+          return;
+        }
+
+        const parts = [];
+        if (look.sets.added + look.sets.updated) {
+          parts.push('训练记录 ' + (look.sets.added + look.sets.updated) + ' 组');
+        }
+        if (look.metrics.added + look.metrics.updated) {
+          parts.push('身体指标 ' + (look.metrics.added + look.metrics.updated) + ' 条');
+        }
+        if (look.exercises.added + look.exercises.updated) {
+          parts.push('自建动作 ' + (look.exercises.added + look.exercises.updated) + ' 个');
+        }
+        const skip = look.badRows ? '，另有 ' + look.badRows + ' 行看不懂会跳过' : '';
+
+        wx.showModal({
+          title: '恢复备份',
+          content: '将恢复 ' + parts.join(' · ') + skip + '。手机上已有的记录不会丢，同一条以较新的为准。',
+          confirmText: '恢复',
+          success(r) {
+            if (!r.confirm) return;
+            const out = db.applyImport(raw);
+            if (!out.ok) {
+              wx.showToast({ title: out.reason || '恢复失败了', icon: 'none' });
+              return;
+            }
+            wx.showToast({
+              title: '已恢复 ' + (out.sets.added + out.sets.updated) + ' 组',
+              icon: 'none'
+            });
+            self.refresh();
+          }
+        });
+      },
+      fail() {
+        wx.showToast({ title: '读不到剪贴板', icon: 'none' });
+      }
+    });
+  },
+
+  /** 诊断信息：本地错误日志 + 数据量，一键复制（纯本地模式也能报障） */
+  diagInfo() {
+    let extra = [];
+    try {
+      const t = db.allTimeStats();
+      extra = ['本机数据：' + (t.days || 0) + ' 天 · ' + (t.totalSets || 0) + ' 组 · 自建动作 ' +
+        (db.customExercises() || []).length + ' 个'];
+    } catch (e) { /* 数据读不出来也要能复制 */ }
+
+    wx.setClipboardData({
+      data: diag.text(extra),
+      success: function () { },
+      fail: function () { wx.showToast({ title: '复制失败，再试一次', icon: 'none' }); }
+    });
+  },
+
+  /**
+   * 删除我的全部数据（合规要求的「删除个人信息」）。
+   *
+   * 这是全项目唯一不可撤销的操作，所以文案必须说清「删了就没了」，
+   * 不能写成「清空数据」那种听着还能补回来的说法。
+   * 用户可见文案里不出现「账号 / 云端 / 服务端」这些词 —— 这是轻量工具的定位。
+   */
+  deleteAccount() {
+    const online = sync.status().enabled;
     wx.showModal({
-      title: '重新引导',
-      content: '只清本机的计划设置和训练记录。若已接后端，重新登录后服务端的历史记录会自动拉回。',
-      confirmText: '重新开始',
+      title: '删除我的全部数据',
+      content: online
+        ? '这台手机和你其它设备上的训练记录、身体指标、自建动作会被全部删掉，删了就找不回来了。'
+        : '这台手机上的训练记录、身体指标、自建动作会被全部删掉，删了就找不回来了。',
+      confirmText: '删除',
       confirmColor: '#B4795A',
       success(res) {
         if (!res.confirm) return;
-        db.resetAll();
-        wx.reLaunch({ url: '/pages/welcome/index' });
+
+        const finish = function () {
+          db.resetAll();
+          wx.reLaunch({ url: '/pages/welcome/index' });
+        };
+
+        // 没连云端：本地清空就是完整的「删除个人信息」，不需要任何账号动作
+        if (!online) {
+          finish();
+          return;
+        }
+
+        wx.showLoading({ title: '正在删除', mask: true });
+        sync.deleteAccount().then(function () {
+          wx.hideLoading();
+          finish();
+        }).catch(function () {
+          // 线上没删掉就别清本地：否则用户以为删了，下次同步又被拉回来
+          wx.hideLoading();
+          wx.showToast({ title: '没删成功，稍后再试', icon: 'none' });
+        });
       }
     });
   },

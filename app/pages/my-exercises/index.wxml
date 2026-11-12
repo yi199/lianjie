@@ -25,7 +25,7 @@
             <text class="dot">·</text>
             <text>{{unitCn[item.unit] || item.unit}}</text>
           </view>
-          <view class="exerr" wx:if="{{item.syncError}}">没同步上：{{item.syncError}}</view>
+          <view class="exerr" wx:if="{{item.syncError}}">这条没保存上：{{item.syncError}}</view>
         </view>
         <view class="exdel" data-id="{{item.id}}" bindtap="remove" hover-class="exdel-hover" hover-start-time="0" hover-stay-time="120">删除</view>
       </view>
@@ -91,6 +91,6 @@
         hover-class="btn-hover" hover-start-time="0" hover-stay-time="120">＋ 新建动作</view>
   <view class="hint" wx:if="{{!editing && !canAdd}}">已经 30 个了，删掉一些再建。</view>
 
-  <view class="about">自己加的动作会同步到你的其它设备</view>
+  <view class="about">自己加的动作，换动作时能选到</view>
 
 </view>

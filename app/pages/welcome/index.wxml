@@ -15,7 +15,10 @@
         <text>开始</text>
         <text class="arw">→</text>
       </view>
-      <view class="hint">{{checking ? '正在同步你之前的记录…' : '先花 30 秒，告诉我们你的情况'}}</view>
+      <view class="hint">{{checking ? '正在检查你之前的记录…' : '先花 30 秒，告诉我们你的情况'}}</view>
+      <view class="legal" bindtap="gotoPrivacy" hover-class="legal-hover" hover-start-time="0" hover-stay-time="120">
+        继续即表示同意《隐私政策与用户协议》
+      </view>
     </view>
   </block>
 

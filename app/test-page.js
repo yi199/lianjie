@@ -9,6 +9,8 @@
 const store = {};
 const calls = [];
 let modalConfirm = true;      // 测试里控制 showModal 点「确定」还是「取消」
+let clipboard = '';           // 导出用：setClipboardData 写进来的内容
+let sheetIndex = 0;           // showActionSheet 选第几项
 
 global.wx = {
   getStorageSync(k) { return store[k] === undefined ? '' : store[k]; },
@@ -19,9 +21,21 @@ global.wx = {
     calls.push(['modal', o.title]);
     if (o.success) o.success({ confirm: modalConfirm, cancel: !modalConfirm });
   },
+  showLoading(o) { calls.push(['loading', o && o.title]); },
+  hideLoading() { calls.push(['hideloading']); },
+  setClipboardData(o) {
+    clipboard = o.data;
+    calls.push(['clipboard', String(o.data || '').length]);
+    if (o.success) o.success({});
+  },
+  getClipboardData(o) {
+    calls.push(['paste', String(clipboard || '').length]);
+    if (o.success) o.success({ data: clipboard });
+  },
   navigateTo(o) { calls.push(['nav', o.url]); },
   redirectTo(o) { calls.push(['redirect', o.url]); },
   switchTab(o) { calls.push(['tab', o.url]); },
+  reLaunch(o) { calls.push(['relaunch', o.url]); },
   navigateBack() { calls.push(['back']); },
   vibrateShort() { },
   createSelectorQuery() {
@@ -29,7 +43,10 @@ global.wx = {
     return q;
   },
   pageScrollTo() { },
-  showActionSheet() { }
+  showActionSheet(o) {
+    calls.push(['sheet']);
+    if (o && o.success) o.success({ tapIndex: sheetIndex });
+  }
 };
 
 global.getApp = function () { return { globalData: { statusBarHeight: 20 } }; };
@@ -568,10 +585,8 @@ function fakeDetail(out) {
   const myPage = loadPage('./pages/my/index');
   myPage.onLoad();
   myPage.onShow();
-  ok('本地模式 → 标题是「本地模式」', myPage.data.syncState === 'local' && myPage.data.syncTitle === '本地模式',
+  ok('纯本地 → 状态是 local（页面不会把它渲染出来）', myPage.data.syncState === 'local',
     myPage.data.syncState + ' / ' + myPage.data.syncTitle);
-  ok('本地模式的副标题说人话（没有「后端」）',
-    myPage.data.syncSub.indexOf('后端') < 0 && myPage.data.syncSub.indexOf('云端') >= 0, myPage.data.syncSub);
   ok('本地模式不起轮询（没有会变的状态，别空转）', !myPage.syncTimer);
 
   CFG.setApiBase('http://fake.local/api');
@@ -593,6 +608,164 @@ function fakeDetail(out) {
   myPage.onHide();
   ok('离开页面就停掉轮询', !myPage.syncTimer);
   CFG.setApiBase(null);
+
+  /* ================= 导出 / 删除账号（我的页·合规） ================= */
+  console.log('\n=== 导出与删除账号 ===');
+  {
+    // 本地模式：同步关掉，页面走「只清本机」那条路
+    CFG.setApiBase(null);
+
+    const today = D.today();
+    db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+    db.saveSet({ date: today, exId: 'g1', setNo: 1, weight: 40, reps: 10, unit: 'kg' });
+
+    const my = loadPage('./pages/my/index');
+    my.onLoad();
+
+    calls.length = 0;
+    clipboard = '';
+    ok('导出：返回成功', my.exportData() === true);
+    let exp = null;
+    try { exp = JSON.parse(clipboard); } catch (e) { /* 留空，下面断言会红 */ }
+    ok('导出：剪贴板里是合法 JSON', !!exp, exp && exp.app);
+    ok('导出：带上了当天的组记录', !!exp && exp.sets.length > 0, exp && exp.sets.length);
+    ok('导出：带导出时间和计划设置', !!exp && !!exp.exportedAt && !!exp.profile,
+      exp && String(exp.profile.level));
+    ok('导出：指标收成对象（没记录时是空对象）', !!exp && typeof exp.metrics === 'object');
+
+    // 取消 → 一条都不许动
+    modalConfirm = false;
+    calls.length = 0;
+    my.deleteAccount();
+    ok('删除要二次确认，且标题是「删除我的全部数据」',
+      calls.some(function (c) { return c[0] === 'modal' && c[1] === '删除我的全部数据'; }), JSON.stringify(calls));
+    ok('取消后记录还在', db.allSets().length > 0, db.allSets().length);
+
+    // 确认（本地模式）→ 本机清空 + 回引导页
+    modalConfirm = true;
+    calls.length = 0;
+    my.deleteAccount();
+    ok('本地模式确认后清空本机', db.allSets().length === 0 && !db.hasOnboarded(),
+      'sets=' + db.allSets().length);
+    ok('删完回引导页',
+      calls.some(function (c) { return c[0] === 'relaunch' && c[1] === '/pages/welcome/index'; }),
+      JSON.stringify(calls));
+  }
+
+  /* ================= 备份 / 恢复 / 页脚（低频动作收起来） ================= */
+  console.log('\n=== 备份与恢复 ===');
+  {
+    const fs = require('fs');
+    const pathm = require('path');
+    const wMy = fs.readFileSync(pathm.join(__dirname, 'pages/my/index.wxml'), 'utf8');
+
+    CFG.setApiBase(null);
+    db.resetAll();
+    db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+    db.saveSet({ date: '2026-08-01', exId: 'g1', setNo: 1, weight: 45, reps: 10, unit: 'kg' });
+
+    const p = loadPage('./pages/my/index');
+    p.onLoad();
+    p.refresh();
+
+    // 这一版的核心口径：纯本地时「数据」区不摆状态行、不摆两个备份入口
+    ok('纯本地：状态行 wx:if 为假，不渲染',
+      p.data.syncState === 'local' && wMy.indexOf("wx:if=\"{{syncState !== 'local'}}\"") >= 0,
+      p.data.syncState);
+    ok('数据区只留一行「备份与恢复」', wMy.indexOf('备份与恢复') >= 0 &&
+      wMy.indexOf('从备份恢复') < 0 && wMy.indexOf('备份我的数据') < 0);
+    ok('诊断信息收进页脚「反馈问题」', wMy.indexOf('反馈问题') >= 0 && wMy.indexOf('诊断信息') < 0);
+
+    // 备份（菜单第一项）
+    clipboard = '';
+    calls.length = 0;
+    sheetIndex = 0;
+    p.backupMenu();
+    ok('备份与恢复 → 选「备份」会复制到剪贴板',
+      clipboard.length > 100 && calls.some(function (c) { return c[0] === 'clipboard'; }),
+      clipboard.length + ' 字节');
+    const backup = clipboard;
+
+    // 换手机：清空后再用菜单第二项恢复
+    db.resetAll();
+    ok('换手机：本机清空', db.allSets().length === 0, db.allSets().length + ' 组');
+
+    clipboard = backup;
+    modalConfirm = true;
+    calls.length = 0;
+    sheetIndex = 1;
+    p.backupMenu();
+    ok('选「从备份恢复」会先弹确认框',
+      calls.some(function (c) { return c[0] === 'modal' && c[1] === '恢复备份'; }), JSON.stringify(calls));
+    ok('确认后记录回来了', db.allSets().length === 1, db.allSets().length + ' 组');
+
+    // 取消 → 一个字都不许动
+    db.resetAll();
+    clipboard = backup;
+    modalConfirm = false;
+    sheetIndex = 1;
+    p.backupMenu();
+    ok('取消恢复就不动本地', db.allSets().length === 0, db.allSets().length + ' 组');
+
+    // 粘错东西
+    clipboard = '随便一段话，不是备份';
+    calls.length = 0;
+    p.restoreData();
+    ok('粘错内容只提示、不写库',
+      db.allSets().length === 0 && calls.some(function (c) { return c[0] === 'toast'; }), JSON.stringify(calls));
+
+    // 剪贴板空着
+    clipboard = '';
+    calls.length = 0;
+    p.restoreData();
+    ok('剪贴板空着会提示', calls.some(function (c) { return c[0] === 'toast'; }), JSON.stringify(calls));
+
+    // 页脚「反馈问题」：本地错误日志 + 本机数据量，一键复制
+    const diagMod = require('./utils/diag');
+    diagMod.clear();
+    diagMod.push('onError', '测试报错：Cannot read property', 'pages/today/index');
+
+    db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+    db.saveSet({ date: '2026-08-02', exId: 'g1', setNo: 1, weight: 50, reps: 10, unit: 'kg' });
+    clipboard = '';
+    p.diagInfo();
+    ok('反馈问题：能复制诊断信息', clipboard.indexOf('练界 · 诊断信息') === 0, clipboard.split('\n')[0]);
+    ok('诊断信息带本机数据量', clipboard.indexOf('本机数据') >= 0,
+      (clipboard.split('\n').filter(function (l) { return l.indexOf('本机数据') >= 0; })[0] || ''));
+    ok('诊断信息带最近错误（纯本地也能查到问题）', clipboard.indexOf('测试报错') >= 0);
+    diagMod.clear();
+  }
+
+  /* ================= 隐私政策 / 用户协议（上线必需） ================= */
+  console.log('\n=== 隐私政策页 ===');
+  {
+    const fs = require('fs');
+    const pathm = require('path');
+    const pp = loadPage('./pages/privacy/index');
+    pp.onLoad();
+    ok('拿到状态栏与胶囊占位', pp.data.sbh === 20 && pp.data.cpad === 102,
+      pp.data.sbh + ' / ' + pp.data.cpad);
+
+    calls.length = 0;
+    pp.back();
+    ok('返回按钮能退出去', calls.some(function (c) { return c[0] === 'back'; }), JSON.stringify(calls));
+
+    const wxml = fs.readFileSync(pathm.join(__dirname, 'pages/privacy/index.wxml'), 'utf8');
+    ok('写明「不收集个人信息」', wxml.indexOf('不收集你的个人信息') >= 0);
+    ok('写明训练风险与免责（健康类必须声明）',
+      wxml.indexOf('训练风险由你自己承担') >= 0 && wxml.indexOf('不承担责任') >= 0);
+    ok('写明数据在这台手机、要自己备份',
+      wxml.indexOf('保存在这台手机的微信小程序本地存储') >= 0 && wxml.indexOf('备份我的数据') >= 0);
+    ok('写明删除方式', wxml.indexOf('删除我的全部数据') >= 0);
+    ok('带更新日期（改文案要一起改）', wxml.indexOf('{{updated}}') >= 0);
+
+    // 入口不能丢：引导页同意语 + 我的页页脚
+    const wWelcome = fs.readFileSync(pathm.join(__dirname, 'pages/welcome/index.wxml'), 'utf8');
+    const wMy = fs.readFileSync(pathm.join(__dirname, 'pages/my/index.wxml'), 'utf8');
+    ok('引导页有「继续即表示同意」入口', wWelcome.indexOf('继续即表示同意') >= 0 &&
+      wWelcome.indexOf('gotoPrivacy') >= 0);
+    ok('我的页页脚有隐私政策入口', wMy.indexOf('隐私政策') >= 0 && wMy.indexOf('gotoPrivacy') >= 0);
+  }
 
   CAT.setDetailLoader(null);
   runResult();

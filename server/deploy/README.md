@@ -28,6 +28,7 @@ openssl rand -base64 48                  # 把结果填进 JWT_SECRET
 #   JWT_SECRET=<上面那串>
 #   WECHAT_APPID / WECHAT_SECRET=<小程序后台 → 开发设置>
 #   DEV_MODE=false
+#   TRUST_PROXY=true            # ← 关键：前面有 Nginx 才打开，否则 IP 限流按「nginx 的地址」算，所有人共用一个桶
 #   POSTGRES_USER=lianjie
 #   POSTGRES_DB=lianjie
 

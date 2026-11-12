@@ -99,6 +99,18 @@ function makeServer() {
         });
       }
 
+      // 删除账号：真服务端是一条 delete + on delete cascade，这里直接把人整个删掉
+      if (path === '/account') {
+        if ((opt.method || 'GET') !== 'DELETE') {
+          return Promise.resolve({ statusCode: 405, data: {}, header: {} });
+        }
+        const auth = String((opt.header && opt.header.Authorization) || '').replace(/^Bearer\s+/, '');
+        const openid = auth.replace(/^tok-/, '');
+        const had = Object.prototype.hasOwnProperty.call(users, openid);
+        delete users[openid];
+        return Promise.resolve({ statusCode: 200, data: { deleted: had }, header: {} });
+      }
+
       if (path === '/sync') {
         if (server.unauthorizedNext > 0) {
           server.unauthorizedNext--;
@@ -475,6 +487,112 @@ async function main() {
   sync.stop();
   ok('本地 rev 超大时自愈（强制全量拉回来）',
     db.catalogRev() === 9 && db.exercises().length === 1, db.catalogRev());
+
+  /* ---- 14. 删除账号（合规：删除个人信息） ---- */
+  console.log('\n=== 删除账号 ===');
+  CFG.setApiBase('http://fake');
+  anotherDevice();
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  set(T, 'g1', 1, 50);
+  await sync.kick();                                   // 推到「云端」
+
+  ok('删除前云端有数据', db.syncPending() === 0);
+
+  const delOk = await sync.deleteAccount();
+  ok('删除账号返回成功', delOk === true, String(delOk));
+  ok('删完清掉本地 token（否则下次请求会重登建新号）', !mem['lj.auth'],
+    JSON.stringify(mem['lj.auth'] || null));
+  ok('删完清掉游标', !mem['lj.sync.cursor'], String(mem['lj.sync.cursor']));
+
+  // 换设备 = 清本地 + 用同一个 code 重新登录：如果级联没生效，旧记录会被拉回来
+  anotherDevice();
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  await sync.kick();
+  ok('删完换设备拉不回旧记录', db.allSets().length === 0, 'sets=' + db.allSets().length);
+
+  // 纯本地模式没有云端可删，直接拒绝（页面自己走「只清本机」那条路）
+  CFG.setApiBase(null);
+  let rejected = false;
+  try { await sync.deleteAccount(); } catch (e) { rejected = true; }
+  ok('纯本地模式删账号直接拒绝', rejected);
+  CFG.setApiBase('http://fake');
+
+  /* ---- 15. 客户端错误上报（兜底钩子） ---- */
+  console.log('\n=== 客户端错误上报 ===');
+  const report = require('./utils/report');
+  const posted = [];
+  global.wx.request = function (opt) {
+    posted.push(opt);
+    if (opt.success) opt.success({ statusCode: 204 });
+  };
+
+  CFG.setApiBase(null);
+  report.reset();
+  posted.length = 0;
+  ok('本地模式不上报（一行请求都不发）',
+    report.send('onError', { msg: 'x' }) === false && posted.length === 0);
+
+  // 纯本地：没有服务端可发，但错误必须留在本机（「我的 → 诊断信息」能贴出来）
+  const diagMod = require('./utils/diag');
+  diagMod.clear();
+  report.reset();
+  report.crash(new Error('纯本地的错误'));
+  ok('纯本地：错误也留在本机',
+    diagMod.list().length === 1 && diagMod.list()[0].msg.indexOf('纯本地的错误') >= 0,
+    JSON.stringify(diagMod.list()));
+  ok('纯本地：诊断文本里能看到这条错误', diagMod.text([]).indexOf('纯本地的错误') >= 0);
+  diagMod.clear();
+
+  CFG.setApiBase('http://fake');
+  report.reset();
+  posted.length = 0;
+  ok('连上云端才上报', report.crash(new Error('炸了')) === true && posted.length === 1);
+  const firstErr = posted[0] || { data: {} };
+  ok('打到 /client-error，带 kind 和 sid',
+    /\/client-error$/.test(firstErr.url || '') && firstErr.data.kind === 'onError' && !!firstErr.data.sid,
+    firstErr.url);
+  ok('同一条错误 60 秒内不重复报', report.crash(new Error('炸了')) === false);
+  ok('不同错误照常上报', report.rejection({ reason: new Error('另一个') }) === true);
+
+  report.reset();
+  posted.length = 0;
+  for (let i = 0; i < 30; i++) report.send('onError', { msg: 'e' + i });
+  ok('一次启动最多 20 条（不刷屏）', posted.length === 20, posted.length);
+
+  /* ---- 16. 纯本地 → 开云端：本机历史要自动全量上云（可扩展性） ---- */
+  console.log('\n=== 纯本地转云端（历史不能丢） ===');
+  CFG.setApiBase(null);
+  anotherDevice();
+  delete mem['lj.sync.backfilled'];          // 模拟「这个版本之前一直在纯本地用」
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  set(T, 'g1', 1, 50);
+  set(T, 'g1', 2, 50);
+  set(T, 'g2', 1, 40);
+  ok('纯本地时行不进上传队列（所以必须有 backfill）', db.syncPending() === 0, db.syncPending());
+
+  CFG.setApiBase('http://fake');
+  await sync.kick();
+  ok('接上云端后历史全传上去', db.syncPending() === 0, db.syncPending());
+  ok('backfill 标记已写入', !!mem['lj.sync.backfilled'], String(mem['lj.sync.backfilled']).slice(0, 10));
+
+  // 换设备：云端真的有了才拉得回来
+  anotherDevice();
+  db.finishOnboarding({ level: 'some', days: 3, place: 'gym' });
+  await sync.kick();
+  ok('新设备拉回纯本地时期记的 3 组', db.allSets().length === 3, db.allSets().length);
+
+  // 只做一次：之后不能把历史重推一遍
+  const pushSizes = [];
+  const origTransport = srv.transport;
+  sync.setTransport(function (opt) {
+    if (opt.url.indexOf('/sync') >= 0) pushSizes.push(((opt.data || {}).sets || []).length);
+    return origTransport(opt);
+  });
+  set(T, 'g2', 2, 40);
+  await sync.kick();
+  ok('第二次同步只推新改的那 1 行，不重推历史',
+    pushSizes.length > 0 && pushSizes.every(function (n) { return n <= 1; }), JSON.stringify(pushSizes));
+  sync.setTransport(origTransport);
 
   sync.stop();
 }

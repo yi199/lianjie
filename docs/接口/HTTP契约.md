@@ -1,4 +1,4 @@
-# 练界 · HTTP 接口契约 v3.3
+# 练界 · HTTP 接口契约 v3.4
 
 > 前端与后端的**唯一约定**：字段名、同步语义、校验规则、错误码都以这里为准。
 > 设计依据见 [`技术方案.md`](../技术方案.md)，排期见 [`开发计划.md`](../开发计划.md)。
@@ -340,6 +340,8 @@ create index user_exercises_rev_idx on user_exercises (user_id, rev);
 | GET | `/metrics?kind=&from=&to=` | ✓ | 按用户 | 指标时间序列（图表用，可选） |
 | **GET** | **`/catalog?since=<rev>`** | — | **按 IP（独立限流器）** | **官方动作整份清单（v3.3）** |
 | GET | `/exercises/{id}` | ✓ | 按用户 | 动作详情：`steps` + 大图（v3.3） |
+| **DELETE** | **`/account`** | ✓ | 按用户 | **删除账号：级联清空该用户全部数据（v3.4）** |
+| POST | `/client-error` | — | 按 IP（独立限流器） | 客户端兜底错误上报，**只记日志**（v3.4） |
 
 **v1 里有、v2 删掉的端点**：`GET/PUT /me`、`GET /plans`、`GET /sets`、`GET /programs`、`PUT/DELETE /programs/custom`、`PUT /swaps`。全部被 `/sync` + 配置文档取代——**一条写路径，重试逻辑只有一处**。
 
@@ -577,6 +579,47 @@ where w.user_id = $uid and w.date = $date;
 - 大图放在这里而不是清单里：匿名面只给缩略图，`curl` 批量抓内容至少要有账号。
 - `id` 为空或 >16 字节 → `400 ID_INVALID`；动作不存在 → `404 EXERCISE_NOT_FOUND`。
 
+### 4.8 `DELETE /api/account`（v3.4，要登录）——删除账号
+
+```jsonc
+// 200
+{ "deleted": true }     // false = 用户已经不在了（重复调用，幂等）
+```
+
+- 合规要求（「删除个人信息」）的落点：一次 `delete from users where id = $1`，
+  五张业务表（`sets` / `workouts` / `metrics` / `user_config` / `user_exercises`）
+  都带 `on delete cascade`，级联带走，**不留孤儿行**。
+- **幂等**：重复调用返回 `deleted:false` + 200，客户端不必区分。
+- 服务端删不到「别人手机上」的本地存储 —— 客户端在成功后必须自己 `db.resetAll()`，
+  并清掉 `lj.auth` / `lj.sync.cursor`（`sync.deleteAccount()` 已经做了后两件事）。
+  **不清 token 就会自动重登、建一个新用户，再把本地残留推上去，等于没删。**
+- 用户被删后，旧 token 仍然能通过 JWT 校验（鉴权不查库），但任何写操作会返回
+  `401 AUTH_EXPIRED`（`store.push` 找不到用户行）→ 客户端静默重登成空账号。
+
+### 4.9 `POST /api/client-error`（v3.4，免登录）——客户端兜底错误
+
+```jsonc
+// 请求
+{
+  "kind": "onError",                 // onError | onUnhandledRejection | onPageNotFound
+  "page": "pages/today/index",       // 出事时的页面路由
+  "path": "",                        // onPageNotFound 的目标路径
+  "msg": "Cannot read property …",
+  "stack": "at …",                   // 换行会被压成一行再记
+  "sid": "m3k2-9f1a",                // 一次启动一个 id，把一串错误串成会话
+  "env": "release",                  // develop | trial | release
+  "at": "2026-11-11T08:00:00.000Z"
+}
+```
+
+- 返回 **204 No Content**（不带 body）。
+- **只记日志、不落库**：单实例项目看服务日志就够；落库要先想清楚保留期与隐私边界。
+- **免登录**：登录流程本身就可能出错，要求 token 会让最该上报的那类错误报不上来。
+- 限制：请求体 ≤ 8KB、`msg` ≤ 500 字、`stack` ≤ 2000 字、其余字段 ≤ 128 字；
+  超了 `400 FIELD_TOO_LONG`；`kind` 不在白名单里 `400 KIND_INVALID`。按 IP 独立限流 `(2, 30)`。
+- 客户端侧（`utils/report.js`）：**同一条错误 60 秒内只报一次、一次启动最多 20 条**，
+  且 `config.js` 地址留空（纯本地模式）时**一行请求都不发**。
+
 ---
 
 ## 5. 客户端同步行为（`utils/sync.js` 的职责）
@@ -612,6 +655,7 @@ where w.user_id = $uid and w.date = $date;
 | 400 | `CODE_INVALID` | 登录 code 为空或过长 | 重新 `wx.login` |
 | 400 | `SINCE_INVALID` | `/catalog` 的 `since` 不是非负整数 | bug，按 0 重试（强制全量） |
 | 400 | `ID_INVALID` | 动作 id 为空或 >16 字节 | bug，记日志 |
+| 400 | `KIND_INVALID` / `FIELD_TOO_LONG` | 错误上报的 kind 不在白名单 / 字段超长（v3.4） | bug，记日志（客户端本来就不再重试） |
 | 404 | `EXERCISE_NOT_FOUND` | 详情接口的动作不存在 | 不重试，页面只显示列表字段 |
 | 400 | `TOO_MANY_ROWS` | 单次超过 500 行 | bug，分批 |
 | 400 | `DATE_INVALID` | 查询参数日期格式错 | bug |
@@ -633,6 +677,7 @@ where w.user_id = $uid and w.date = $date;
 | `JWT_SECRET` | 开发用默认值 | **生产必须 ≥ 32 字节随机值**，否则拒绝启动 |
 | `WECHAT_APPID` / `WECHAT_SECRET` | — | 生产必填 |
 | `DEV_MODE` | `false` | `true` 时登录不调微信。**只在本地 `.env` 打开** |
+| `TRUST_PROXY` | `false` | 限流是否采信 `X-Real-IP`。**只在 Nginx 反代后面才设 `true`**（v3.4）：直连端口时这个头客户端能伪造，按它限流等于没开 |
 | `TZ_NAME` | `Asia/Shanghai` | 服务端「今天」的时区（仅影响 `/history/summary` 的 streak） |
 
 ---
@@ -655,6 +700,8 @@ where w.user_id = $uid and w.date = $date;
 14. **`startedAt` / `finishedAt` 这类 timestamptz 参数不要传 Go 的 `time.Time` 到声明为 `::text` 的参数位**——pgx 会用 Go 默认格式编码，Postgres 报 `SQLSTATE 22007`。传客户端的 RFC3339 字符串。
 15. **workouts 不能去回声**——按字段合并的行，「上传方赢了」不代表服务端存的和上传的一样，必须把合并结果回传给上传方（v3.1 修复的 bug）。
 16. **`blockId` / `trackVer` 服务端只存不算**——「`null` 视为 `main`」「版本号变了旧记录不参与轮转」都是**客户端规则**，服务端不做任何解释，只保证字段能存能取、`coalesce` 不被旧客户端清空。
+17. **`X-Real-IP` 只在 `TRUST_PROXY=true` 时才采信**——否则直连端口的人换个头就绕过所有 IP 限流（v3.4）。
+18. **删除账号走一条 `delete from users`**，依赖外键级联；新增业务表时必须写 `references users(id) on delete cascade`，否则会留下孤儿行，等于「说得删、实际没删干净」。
 
 ---
 
@@ -667,3 +714,4 @@ where w.user_id = $uid and w.date = $date;
 | **v3.2** | 2026-10-31 | 合入训练日程的前置字段：`sets` 新增可空 `blockId` / `trackVer`（`coalesce` 合并，服务端只存不算）；`pagePull` 重构成「统一行引用 + 类型标签」的 N 路归并（行为不变，为后续加 `cardio` / `agendas` 表铺路） |
 | **v3.1** | 2026-10-31 | 修复：workouts 合并结果不回传给上传方，两端会不一致；`sets` 新增可空 `warmup`（热身组，`coalesce` 合并） |
 | **v3** | 2026-10-31 | 合入训练记录模块（[`设计文档/训练记录.md`](../设计文档/训练记录.md)）：新增 `workouts` 表与 `WorkoutRow`；`sets` 新增 7 个可空字段（`null` 不覆盖已有值）；`/sync` 载荷扩展 `workouts`；拉取分页由两表扩到三表；`workouts` 按字段合并、`done` 由 sets 派生 |
+| **v3.4** | 2026-11-11 | 上线加固：新增 `DELETE /api/account`（删除账号，级联清空该用户全部业务表，幂等）与 `POST /api/client-error`（客户端兜底错误上报，只记日志、免登录、8KB 体积上限）；限流改为**默认不采信 `X-Real-IP`**，只有 `TRUST_PROXY=true` 才按它算，避免直连端口时伪造头绕过限流 |

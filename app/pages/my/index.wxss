@@ -197,6 +197,7 @@
 .syncrow {
   display: flex;
   align-items: center;
+  margin-bottom: var(--sp2);      /* 下面紧跟备份/恢复列表，留一点呼吸 */
   padding: 22rpx 26rpx;
   border-radius: 20rpx;
   background: var(--card);
@@ -252,6 +253,18 @@
   letter-spacing: .08em;
   color: var(--muted2);
 }
+
+.aboutv { display: block; }
+
+.aboutlnk {
+  display: inline-block;
+  margin: 14rpx 12rpx 0;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 6rpx;
+}
+
+.aboutlnk-hover { color: var(--green); }
 
 /* 自定义 tabBar 是固定定位的：页面自己让出它的高度（108rpx + 安全区），否则最后一行被盖住 */
 .page { padding-bottom: calc(var(--sp5) + 104rpx + env(safe-area-inset-bottom)); }

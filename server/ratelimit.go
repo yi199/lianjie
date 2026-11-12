@@ -91,10 +91,22 @@ func (l *limiter) byIP(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// clientIP：在 Nginx 后面时取 X-Real-IP（由 Nginx 覆盖写入，客户端伪造不了）
+// trustProxy：是否信任反向代理写进来的 X-Real-IP。
+//
+// 默认 **false** —— 直连端口（或容器端口被直接暴露）时这个头客户端能随便伪造，
+// 按它限流等于没限流（换个假 IP 就绕过）。
+// Nginx 反代部署时用 TRUST_PROXY=true 打开：deploy/proxy_common.conf 里
+// `proxy_set_header X-Real-IP $remote_addr` 会用真实来源**覆盖**这个头。
+var trustProxy bool
+
+func setTrustProxy(v bool) { trustProxy = v }
+
+// clientIP：限流用的来源 IP。
 func clientIP(r *http.Request) string {
-	if ip := strings.TrimSpace(r.Header.Get("X-Real-IP")); ip != "" {
-		return ip
+	if trustProxy {
+		if ip := strings.TrimSpace(r.Header.Get("X-Real-IP")); ip != "" {
+			return ip
+		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {

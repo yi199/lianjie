@@ -24,6 +24,7 @@ function plateCountOf(weight, unit) {
 Page({
   data: {
     sbh: 20,
+    cpad: 102,      // 顶行右侧给胶囊让出的 px（app.js 里按真机几何算）
     planName: '',
     planKey: '',
     idx: 0,
@@ -62,7 +63,8 @@ Page({
     this.restLeft = REST_SECONDS;
     this.maxBefore = 0;
 
-    this.setData({ sbh: app.globalData.statusBarHeight });
+    // cpad：这一行右侧有「换一个」，必须给右上角胶囊让出位置（见 app.js capsulePad）
+    this.setData({ sbh: app.globalData.statusBarHeight, cpad: app.globalData.capsulePad || 102 });
 
     const s = db.todaySession();
     if (!s.plan || !s.plan.items.length) {

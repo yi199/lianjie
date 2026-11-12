@@ -1,0 +1,87 @@
+<view class="sb" style="height:{{sbh}}px"></view>
+
+<view class="nav" style="padding-right:{{cpad}}px">
+  <view class="back" bindtap="back" hover-class="back-hover" hover-start-time="0" hover-stay-time="120">
+    <text>‹</text>
+  </view>
+  <text class="kicker">Legal</text>
+</view>
+
+<view class="page">
+
+  <view class="phead">
+    <view class="brandrow">
+      <text class="brand">练界</text>
+      <text class="kicker">Privacy</text>
+    </view>
+    <view class="h1en">Plain Words</view>
+    <view class="h1">我们把话说清楚。</view>
+    <view class="sub">你的数据存在哪、我们碰不到什么、练的时候要注意什么 —— 都在这一页。</view>
+  </view>
+
+  <!-- ============ 隐私政策 ============ -->
+  <view class="sec">
+    <view class="sec-h">隐私政策<text class="sec-note">{{version}}</text></view>
+
+    <view class="dh">一、这一版不收集你的个人信息</view>
+    <view class="dp">练界 {{version}} 不注册账号、不要求登录，也不收集你的姓名、手机号、微信头像昵称、位置、通讯录、相册或麦克风。你不需要提供任何身份信息，就能完整使用所有功能。</view>
+
+    <view class="dh">二、你的数据存在哪</view>
+    <view class="dp">训练计划设置、每一组训练记录、身体指标（体重 / 体脂率 / 腰围 / 静息心率）、你自己加的动作和自己搭的方案，全部保存在这台手机的微信小程序本地存储里（上限约 10MB）。我们没有服务器保存这些内容，也看不到它们。</view>
+
+    <view class="dh">三、什么情况下数据会离开这台手机</view>
+    <view class="dp">只有你自己主动点的时候，而且都只是复制到系统剪贴板：</view>
+    <view class="dli"><text class="dot">·</text><text class="dlt">「备份我的数据」：把整份数据打成一段文字放进剪贴板，你粘到哪里由你决定（备忘录、文件传输助手等）。</text></view>
+    <view class="dli"><text class="dot">·</text><text class="dlt">「诊断信息」：把运行环境、存储用量、本机数据量和最近几条错误放进剪贴板，用于你向开发者反馈问题。</text></view>
+    <view class="dp">剪贴板里的内容不会自动发送给任何人。不点这两个按钮，就不会有任何内容离开这台手机。</view>
+
+    <view class="dh">四、换手机与删除</view>
+    <view class="dli"><text class="dot">·</text><text class="dlt">换手机：先点「备份我的数据」带走那段文字，在新手机上走完引导后点「从备份恢复」。</text></view>
+    <view class="dli"><text class="dot">·</text><text class="dlt">删除：「清空训练记录」只删记录、保留计划；「删除我的全部数据」删掉本机全部内容。</text></view>
+    <view class="dli"><text class="dot">·</text><text class="dlt">在微信里删除本小程序或清理小程序缓存，本机数据会一并消失，且无法恢复。</text></view>
+
+    <view class="dh">五、我们不做的事</view>
+    <view class="dp">不做用户画像、不投放广告、不接入第三方统计或广告 SDK，也不申请与本工具无关的系统权限。</view>
+
+    <view class="dh">六、未成年人</view>
+    <view class="dp">本工具面向成年人。未满 14 周岁的未成年人不建议使用；未满 18 周岁的，请在监护人同意并指导下使用。</view>
+
+    <view class="dh">七、这份说明会更新</view>
+    <view class="dp">功能变化（例如以后增加云端备份）会同步更新这一页，并在小程序内提示。最近更新：{{updated}}。</view>
+
+    <view class="dh">八、联系开发者</view>
+    <view class="dp">对这份说明有疑问，可以在小程序右上角「···」→「反馈与投诉」给开发者留言。</view>
+  </view>
+
+  <!-- ============ 用户协议 ============ -->
+  <view class="sec">
+    <view class="sec-h">用户协议<text class="sec-note">{{version}}</text></view>
+
+    <view class="dh">一、这是什么</view>
+    <view class="dp">练界是一个训练记录与数据可视化工具：按你的情况生成训练计划、记录每组的重量与次数、把训练量画成图。它<text class="em">不提供医疗、康复、营养或教练服务</text>。</view>
+
+    <view class="dh">二、训练风险由你自己承担</view>
+    <view class="dp warn">力量训练和器械训练有受伤风险。请根据自身健康状况量力而行，必要时先咨询医生。组数、重量、动作建议都只是参考值，取不取由你判断；使用器械请遵守场馆规定，大重量请找人保护。因训练本身造成的身体损伤，本工具不承担责任。</view>
+
+    <view class="dh">三、数据由你负责备份</view>
+    <view class="dp">数据保存在这台手机上。换手机、清理缓存、删除小程序都会丢，请按「备份我的数据」自行备份。因未备份造成的记录丢失，我们无法帮你恢复。</view>
+
+    <view class="dh">四、使用规则</view>
+    <view class="dp">请勿利用本工具从事违法活动，或试图破解、反编译、批量抓取其中的内容。</view>
+
+    <view class="dh">五、内容的来源</view>
+    <view class="dp">界面、文案、图标与插画均为自行设计或自行绘制；中文字体使用思源黑体、英文字体使用 Space Grotesk，两者均为 SIL Open Font License 1.1 开源授权。未经许可，请勿将本小程序的界面与文案用于商业用途。</view>
+
+    <view class="dh">六、服务的变更与终止</view>
+    <view class="dp">功能可能随版本调整或下线，重大变化会在小程序内提示。</view>
+
+    <view class="dh">七、适用法律</view>
+    <view class="dp">本协议适用中华人民共和国法律。</view>
+
+    <view class="dh">八、生效</view>
+    <view class="dp">你继续使用本小程序，即表示已阅读并同意以上内容。最近更新：{{updated}}。</view>
+  </view>
+
+  <view class="about">练界 {{version}} · 更新于 {{updated}}</view>
+
+</view>

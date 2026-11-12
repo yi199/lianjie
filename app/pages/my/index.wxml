@@ -94,10 +94,13 @@
     <view class="hint">只用来算「力量水平」（估算 1RM ÷ 体重 对照标准表）。不填就不显示评级，别的功能不受影响。</view>
   </view>
 
-  <!-- 同步 -->
+  <!-- 数据：只在真的需要的时候才说话 -->
   <view class="sec">
-    <view class="sec-h">同步</view>
-    <view class="syncrow {{syncState}}">
+    <view class="sec-h">数据</view>
+
+    <!-- 状态行只在「真的连着云端、有东西要传」时才出现。
+         纯本地（首版）永不显示：没有会变的状态，也没有需要用户知道的事理。 -->
+    <view class="syncrow {{syncState}}" wx:if="{{syncState !== 'local'}}">
       <view class="smain">
         <text class="stitle">{{syncTitle}}</text>
         <text class="ssub">{{syncSub}}</text>
@@ -111,11 +114,7 @@
         hover-stay-time="120"
       >重试</text>
     </view>
-  </view>
 
-  <!-- 数据 -->
-  <view class="sec">
-    <view class="sec-h">数据</view>
     <view class="rows">
       <view class="row" wx:if="{{!hasAny}}" bindtap="fillDemo" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
         <text class="rowt">填入示例数据</text>
@@ -125,13 +124,21 @@
         <text class="rowt">清空训练记录</text>
         <text class="rownote">保留计划设置</text>
       </view>
-      <view class="row" bindtap="restart" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
-        <text class="rowt danger">重新引导</text>
-        <text class="rownote">全部重来</text>
+      <view class="row" bindtap="backupMenu" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
+        <text class="rowt">备份与恢复</text>
+        <text class="rownote">复制一段文字</text>
+      </view>
+      <view class="row" bindtap="deleteAccount" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
+        <text class="rowt danger">删除我的全部数据</text>
+        <text class="rownote">删了就找不回来</text>
       </view>
     </view>
   </view>
 
-  <view class="about">练界 v0.1</view>
+  <view class="about">
+    <text class="aboutv">练界 v0.1</text>
+    <text class="aboutlnk" bindtap="gotoPrivacy" hover-class="aboutlnk-hover" hover-start-time="0" hover-stay-time="120">隐私政策 · 用户协议</text>
+    <text class="aboutlnk" bindtap="diagInfo" hover-class="aboutlnk-hover" hover-start-time="0" hover-stay-time="120">反馈问题</text>
+  </view>
 
 </view>

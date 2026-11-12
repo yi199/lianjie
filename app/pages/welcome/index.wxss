@@ -222,6 +222,18 @@
   color: #A9A79A;
 }
 
+/* 「继续即表示同意《隐私政策与用户协议》」——可点，但视觉上压在最后一行 */
+.legal {
+  margin-top: 18rpx;
+  text-align: center;
+  font-size: var(--fs-label);
+  color: var(--muted2);
+  text-decoration: underline;
+  text-underline-offset: 6rpx;
+}
+
+.legal-hover { color: var(--green); }
+
 .back {
   margin-top: 30rpx;
   text-align: center;

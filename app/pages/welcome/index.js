@@ -51,6 +51,11 @@ Page({
     this.setData({ step: Math.max(0, this.data.step - 1) });
   },
 
+  /** 「继续即表示同意…」→ 隐私政策与用户协议（纯本地也必须有这一页，审核会看） */
+  gotoPrivacy() {
+    wx.navigateTo({ url: '/pages/privacy/index' });
+  },
+
   /** 选水平 → 自动进下一步 */
   pickLevel(e) {
     this.setData({ level: e.currentTarget.dataset.v, step: 2 });

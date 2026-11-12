@@ -203,8 +203,10 @@
   bottom: 0;
   z-index: 21;
   height: 78vh;
-  display: flex;
-  flex-direction: column;
+  /* 不用 flex 列：scroll-view 一旦参与 flex 尺寸计算，iOS 就会按内容高度把它算成
+     撑爆整个抽屉（chip 被压、footer 被顶出去）。这里三段全部走块级流 + 显式高度，
+     列表用 calc 精确扣掉头尾 —— 微信里最保守、最不会出偏差的写法。 */
+  overflow: hidden;
   background: var(--bg);
   border-top-left-radius: 32rpx;
   border-top-right-radius: 32rpx;
@@ -217,7 +219,11 @@
 }
 
 .sheeth {
-  padding: var(--sp3) var(--sp3) var(--sp2);
+  /* 定高 120rpx = 上留白 40 + 文字行 56 + 下留白 24，给下面的 calc 一个准确的头高 */
+  height: 120rpx;
+  box-sizing: border-box;
+  padding: var(--sp3) var(--sp3) 0;
+  line-height: 56rpx;
   display: flex;
   align-items: baseline;
 }
@@ -233,6 +239,9 @@
 }
 
 .parttabs {
+  /* 横向 chip 行：死高度 88rpx（chip 64 + 下留白 24），border-box 收进去 */
+  height: 88rpx;
+  box-sizing: border-box;
   white-space: nowrap;
   padding: 0 var(--sp3) var(--sp2);
 }
@@ -257,7 +266,11 @@
 }
 
 .exscroll {
-  flex: 1;
+  /* 高度 = 抽屉高 − 头 120rpx − chip 88rpx − 底 128rpx − 安全区（用 vw 表达 rpx：
+     1rpx = 100/750 vw，所以 336rpx = 44.8vw）。scroll-view 拿到明确的像素高度，
+     既不需要参与任何 flex 计算，也不依赖 absolute 撑高 —— 微信两种内核都认。 */
+  height: calc(78vh - 44.8vw - env(safe-area-inset-bottom));
+  box-sizing: border-box;
   padding: 0 var(--sp3);
 }
 
@@ -312,6 +325,9 @@
 }
 
 .sheetf {
+  /* 定高 = 上留白 24 + 按钮 80 + 下留白 24 + 安全区 = 128rpx + safe */
+  height: calc(128rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   padding: var(--sp2) var(--sp3) calc(var(--sp2) + env(safe-area-inset-bottom));
@@ -320,6 +336,9 @@
 }
 
 .sheetcount {
+  /* 不加 nowrap 的话「已选 0 个」会被挤成两行（数字比中文窄，flex 先压它） */
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: var(--fs-note);
   color: var(--muted);
 }
