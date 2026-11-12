@@ -1,7 +1,7 @@
 /* ================= 力量地形 ================= */
 
 .terrain-wrap {
-  margin-top: var(--sp2);
+  margin-top: var(--sp3);
   width: 100%;
 }
 
@@ -11,13 +11,7 @@
   display: block;
 }
 
-.terr-cap {
-  margin-bottom: 2rpx;
-  font-family: 'LJGrotesk', sans-serif;
-  font-size: var(--fs-label);
-  color: var(--muted2);
-  letter-spacing: .04em;
-}
+/* 单位不再单独占一行小字：它写在纵轴顶端刻度里（「50 组」），见 utils/terrain.js */
 
 .terr-lab {
   display: flex;

@@ -182,6 +182,11 @@ ok('地形取的是组数（吨只给数字卡用）', series.length === 8 && se
 ok('seriesOf 只看 sets 列（ton 为 0 也照样给组数）',
   TER.seriesOf([{ ton: 5, sets: 20 }, { ton: 0, sets: 12 }]).join(',') === '20,12',
   TER.seriesOf([{ ton: 5, sets: 20 }, { ton: 0, sets: 12 }]).join(','));
+ok('顶端刻度带单位（用户找不到单独那行小字，单位必须跟数字长在一起）',
+  TER.tickLabel(50, '组') === '50 组', TER.tickLabel(50, '组'));
+ok('中间刻度与基线不带单位（只有一个轴标签才像轴）',
+  TER.tickLabel(25) === '25' && TER.tickLabel(0) === '0');
+ok('刻度小数不写多余的零', TER.tickLabel(4.5, '组') === '4.5 组', TER.tickLabel(4.5, '组'));
 ok('只做自重的那一周（吨=0）也有正常高度，不塌成谷',
   TER.toHeights(TER.seriesOf([{ ton: 0, sets: 30 }, { ton: 4, sets: 20 }]), 40)[0] > 0.5,
   String(TER.toHeights(TER.seriesOf([{ ton: 0, sets: 30 }, { ton: 4, sets: 20 }]), 40)[0]));

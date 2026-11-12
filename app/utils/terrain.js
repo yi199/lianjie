@@ -10,8 +10,9 @@
  *   2. 填充从山顶往下渐隐，像山体的阴影。
  *   3. 本周那个点用陶土色标出来，是「你现在站在哪」。
  *   4. 纵轴只给三档刻度（顶 / 中 / 0）+ 两条极淡的虚线：
- *      山有多高得说得清，但不能让网格抢了山。单位不写在刻度里，
- *      由页面上「每周完成 · 组」那行小字交代。
+ *      山有多高得说得清，但不能让网格抢了山。
+ *      **单位直接写在顶端刻度上**（「50 组」）——之前靠页面上另起一行 10px 小字交代，
+ *      实测用户根本找不到那行字（2026-11-11），单位必须跟数字长在一起。
  *
  * ⚠️ 纵轴是**组数**，不是吨。原因：动作库 105 个动作里 51 个自重 + 10 个计时，
  * 都没有「重量 × 次数」。按吨画，练自重的那几周会塌成贴地的深谷（看着像白练），
@@ -19,7 +20,8 @@
  * 吨数没有消失——它还留在数据页的 TOTAL / BEST 两张卡里。
  */
 
-const LAB_W = 30;      // 左侧刻度栏：数字右对齐到 LAB_W - 6，轴线画在 LAB_W 处
+const LAB_W = 40;      // 左侧刻度栏：数字右对齐到 LAB_W - 6，轴线画在 LAB_W 处
+                       // 40 而不是 30：顶端刻度要放得下「50 组」这种带单位的标签
 const TOP_PAD = 9;
 const BOT_PAD = 5;
 const X_PAD = 6;       // 右侧留白：本周那个圆点才不会被 canvas 边缘裁掉
@@ -50,10 +52,19 @@ function fmtTick(v) {
 }
 
 /**
+ * 顶端刻度的文字：「50 组」。只给顶部那档带单位，中间和 0 不带 ——
+ * 三档都写单位会像三个标签，只有顶部带一个才像「轴的单位」。
+ */
+function tickLabel(v, unit) {
+  const s = fmtTick(v);
+  return unit ? s + ' ' + unit : s;
+}
+
+/**
  * @param ctx    canvas 2d context
  * @param w,h    逻辑尺寸（已按 dpr 缩放）
  * @param values 0~1 的数组，每个元素是一周的高度（已经除过 scale）
- * @param opt    { scale: 纵轴顶端的真实数值（组） }
+ * @param opt    { scale: 纵轴顶端的真实数值, unit: 顶端刻度后面跟的单位（如 '组'） }
  */
 function drawRidge(ctx, w, h, values, opt) {
   const o = opt || {};
@@ -115,7 +126,8 @@ function drawRidge(ctx, w, h, values, opt) {
       if (ctx.setLineDash) ctx.setLineDash([]);
     }
 
-    ctx.fillText(fmtTick(scale * k), LAB_W - 6, y);
+    // 顶端刻度带单位（「50 组」），中间和 0 只给数字
+    ctx.fillText(k === 1 ? tickLabel(scale * k, o.unit) : fmtTick(scale * k), LAB_W - 6, y);
   }
 
   /* ---- 山体：面积填充，山顶深、山脚淡（山脚收在 0 那条基线上，不留一道悬空） ---- */
@@ -176,4 +188,4 @@ function toHeights(values, scale) {
   });
 }
 
-module.exports = { drawRidge, toHeights, niceScale, seriesOf };
+module.exports = { drawRidge, toHeights, niceScale, seriesOf, tickLabel };

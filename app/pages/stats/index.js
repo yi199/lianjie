@@ -158,7 +158,7 @@ Page({
         canvas.height = h * dpr;
         ctx.scale(dpr, dpr);
 
-        TER.drawRidge(ctx, w, h, self.heights || [], { scale: self.scale });
+        TER.drawRidge(ctx, w, h, self.heights || [], { scale: self.scale, unit: '组' });
       });
   },
 
