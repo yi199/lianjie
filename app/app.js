@@ -73,6 +73,6 @@ App({
   /** 跳到不存在的页面（分享卡片指向已删页面、路径写错）→ 上报 + 回首页，别把用户停在白屏 */
   onPageNotFound(res) {
     report.send('onPageNotFound', { path: (res && res.path) || '', msg: 'page not found' });
-    wx.reLaunch({ url: '/pages/today/index' });
+    wx.reLaunch({ url: '/pages/shell/index' });
   }
 });

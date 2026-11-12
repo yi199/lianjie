@@ -1,8 +1,6 @@
 <view class="bar skin-{{skin}}">
-  <!-- 滑块：外层只负责「对齐到第 N 个三分之一」，内层做视觉。
-       分两层的原因：translateX(N * 100%) 里的 100% 是**自身宽度**，
-       如果外层宽度就是「三分之一减间距」，第二个、第三个 tab 会累积错位。 -->
-  <view class="pill {{noFx ? 'nofx' : ''}}" style="transform: translateX({{pos * 100}}%)">
+  <!-- 滑块：外层对齐三分之一，内层做视觉（见 index.wxss 顶部说明） -->
+  <view class="pill" style="transform: translateX({{pos * 100}}%)">
     <view class="pill-in"></view>
   </view>
 
@@ -11,7 +9,7 @@
     wx:for="{{list}}"
     wx:key="pagePath"
     data-i="{{index}}"
-    bindtap="switchTab"
+    bindtap="tap"
     hover-class="item-hover"
     hover-start-time="0"
     hover-stay-time="120"

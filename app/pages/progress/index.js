@@ -1,6 +1,7 @@
 const db = require('../../utils/db');
 const P = require('../../utils/progress');
 const STR = require('../../utils/strength');
+const kit = require('../../utils/tabkit');
 
 /** 高光 → 一句话（页面只负责讲，判断都在 utils/progress 里） */
 function highlightText(h) {
@@ -179,7 +180,7 @@ Page({
 
   /** 「力量水平」缺资料时 → 去我的页填性别 / 记体重 */
   gotoMy() {
-    wx.switchTab({ url: '/pages/my/index' });
+    kit.backToShell(2);
   },
 
   gotoMetrics() {

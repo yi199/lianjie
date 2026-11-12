@@ -1,6 +1,7 @@
 const db = require('../../utils/db');
 const D = require('../../utils/date');
 const TER = require('../../utils/terrain');
+const kit = require('../../utils/tabkit');
 const store = require('../../store/index');
 
 /** 地形下面那句评语：说清哪座山最高、哪块还平，给一个具体建议 */
@@ -20,7 +21,7 @@ function makeComment(parts) {
     weak.name + '还是一条浅淡的坡。下周加一次' + weak.name + '，地形会更好看。';
 }
 
-Page({
+const cfg = {
   data: {
     sbh: 20,
     monthLabel: '',
@@ -60,11 +61,6 @@ Page({
   },
 
   onShow() {
-    // 自定义 tabBar：页面得主动告诉它当前选中的是第几个
-    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 1 });
-    }
-
     if (!db.hasOnboarded()) {
       wx.reLaunch({ url: '/pages/welcome/index' });
       return;
@@ -195,7 +191,7 @@ Page({
   },
 
   gotoToday() {
-    wx.switchTab({ url: '/pages/today/index' });
+    kit.goTab(0);
   },
 
   /**
@@ -230,4 +226,10 @@ Page({
       path: '/pages/welcome/index'
     };
   }
-});
+};
+
+// 仍然注册成页面：开发者工具里能单独预览，老代码/测试也照旧按页面加载
+if (typeof Page === 'function') Page(cfg);
+
+// swiper 容器里的组件复用同一份配置（见 components/tab-*/index.js）
+module.exports = cfg;

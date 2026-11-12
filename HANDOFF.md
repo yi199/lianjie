@@ -170,6 +170,16 @@ docs/                   文档体系（见下）
 
 ### 已完成
 
+- **★ tab 改成 swiper 容器：真正的横滑（2026-11-11）**：用户要「像 App 一样的横滑切换」。
+  - 前提：微信页面之间不能自定义转场（旧页销毁、新页创建，两者不可能同屏），**唯一能做到跟手横滑的办法是把三个 tab 塞进同一个页面的 `<swiper>`**。
+  - 架构：`pages/shell/index` 是唯一容器（swiper，`duration=300`、`easingOutCubic`）+ 三个组件 `components/tab-{today,stats,my}` + 底栏组件 `components/tab-bar`。`app.json` **删掉了 tabBar**（`tabBar.list` 最少要 2 项，单容器页用不了它），`custom-tab-bar/` 目录已删。
+  - **业务逻辑一行没重写**：三个 tab 的 `pages/*/index.js` 仍然导出同一份配置（末尾 `module.exports = cfg`），组件用 `utils/tabkit.js` 的 `asComponent()` 把 Page 配置转成 Component 配置；wxml 用 `<include>`、wxss 用 `@import` 引页面那份 —— 单一来源，不维护两份。
+  - 组件拿不到 `pageLifetimes.show`（三个 tab 同处一页），所以「成为当前 tab」由 `active` 属性驱动，`observer` 里延迟 24–80ms 再跑一次原来的 `onShow`（数据页要等 canvas 布局完才量得到尺寸）。
+  - 每个 tab 内部是 `scroll-view`（swiper-item 里没有页面级滚动），下拉刷新走 `refresher-enabled`。
+  - 跳 tab 全改成 `utils/tabkit.js` 的 `goTab(i)`（栈里有 shell 就让它滑，没有就 `reLaunch('/pages/shell/index?tab=i')`）和 `backToShell()`；**`wx.switchTab` 全项目已清零**，`test-page.js` 有断言守着。
+  - 底栏不再需要「接力」：同一个实例，`pos` 跟着 `selected` 变，CSS transition 自然滑。
+  - 七套 **796 项**全绿（新增 16 项：架构、组件复用、没有 switchTab/getTabBar 残留）。
+
 - **★ 切 tab 不再「整页重载」（2026-11-11）**：用户反馈「底栏丝滑了，但切页面时新旧页面的切换很僵硬」。
   - 根因不是没动画，而是**动画播错了场合**：tab 页是常驻实例（`switchTab` 不销毁页面），原来每次 `onShow` 都重播「内容逐块错峰入场」，两次切换之间页面明明还在，却像重新加载了一遍。
   - 现在分三种场合：**首次进入** = 错峰入场（220ms，`.enter`）；**切 tab 回来** = 只做 120ms 整体淡入（`.enter-fade`，无位移、无错峰）；**进详情页** = 从右滑入 280ms（`.enter-r`）。
@@ -283,6 +293,9 @@ docs/                   文档体系（见下）
 | 坑 | 表现 | 解法 |
 |---|---|---|
 | **Go 依赖下不来** | `go build` 报 `proxy.golang.org ... connection failed` | `export GOPROXY=https://goproxy.cn,direct`。本机直连不通，不加这条永远编译不了 |
+| **删了 tabBar 之后 `wx.switchTab` 全废** | 点底栏/返回按钮没反应，控制台报 switchTab 失败 | `app.json` 没有 tabBar 时 `wx.switchTab` 直接失败。全部换成 `utils/tabkit.goTab(i)` / `backToShell()`；`test-page.js` 里有一条「全项目不许再出现 `wx.switchTab(`」的断言 |
+| **swiper 里页面不滚动** | 内容被裁在 swiper-item 里，划不动 | swiper-item 没有页面级滚动，每个 tab 必须自己套 `scroll-view`（本项目的 `components/tab-*/index.wxml` 第一层就是它） |
+| **swiper 里 canvas 量不到尺寸** | 数据页地形图空白（`fields({size:true})` 一直是 0） | 非当前 swiper-item 未布局。组件用 `active` 属性驱动，延迟 80ms 再跑 `onShow` → `drawTerrain()`；`drawTerrain` 本身也有 `if (!w || !h) return` 兜底 |
 | **自定义 tabBar 做不出滑动** | 写了 CSS transition，切 tab 时胶囊还是「闪一下」就到目标位 | 每个 tab 页的 tabBar 是**独立实例**，旧实例随页面销毁。必须接力：跳转前把当前序号存 `globalData`，新实例 `attached` 先无过渡摆到旧位置，下一帧再滑到新位置。另外 `translateX(N*100%)` 的百分比是自身宽度，滑块外层要占满三分之一整格 |
 | **深色底上的 png 图标看不见** | 选中项背景变深色，深色图标糊成一片 | png 不能改色，用 `filter: brightness(0) invert(1)` 反相成白色，比再出一套白图标省事 |
 | **给容器加动画后 fixed 元素乱跑** | 底栏/浮层突然跑到页面中间或跟着内容漂 | `transform` 会让后代的 `position: fixed` 变成相对该容器定位。**动画只能加在「不含 fixed 后代」的容器上**（本项目是 `.page`/`.wrap`，fixed 的底栏都在同级）。`test-page.js` 有断言守着 |

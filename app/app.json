@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/welcome/index",
+    "pages/shell/index",
     "pages/today/index",
     "pages/record/index",
     "pages/exercise/index",
@@ -21,33 +22,6 @@
     "navigationBarTextStyle": "black",
     "backgroundColor": "#F2F0E6",
     "navigationStyle": "custom"
-  },
-  "tabBar": {
-    "custom": true,
-    "color": "#A9A79A",
-    "selectedColor": "#3C4A32",
-    "backgroundColor": "#FBF8EF",
-    "borderStyle": "white",
-    "list": [
-      {
-        "pagePath": "pages/today/index",
-        "text": "训练",
-        "iconPath": "images/tabbar/tab-train.png",
-        "selectedIconPath": "images/tabbar/tab-train-on.png"
-      },
-      {
-        "pagePath": "pages/stats/index",
-        "text": "数据",
-        "iconPath": "images/tabbar/tab-data.png",
-        "selectedIconPath": "images/tabbar/tab-data-on.png"
-      },
-      {
-        "pagePath": "pages/my/index",
-        "text": "我的",
-        "iconPath": "images/tabbar/tab-my.png",
-        "selectedIconPath": "images/tabbar/tab-my-on.png"
-      }
-    ]
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",

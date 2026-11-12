@@ -64,7 +64,7 @@ function syncView() {
   };
 }
 
-Page({
+const cfg = {
   data: {
     sbh: 20,
     profile: { days: 3, place: 'gym', level: 'some' },
@@ -85,11 +85,6 @@ Page({
   },
 
   onShow() {
-    // 自定义 tabBar：页面得主动告诉它当前选中的是第几个
-    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 2 });
-    }
-
     if (!db.hasOnboarded()) {
       wx.reLaunch({ url: '/pages/welcome/index' });
       return;
@@ -447,7 +442,10 @@ Page({
     if (this._vTaps < 5) return;
     this._vTaps = 0;
 
-    const tb = (typeof this.getTabBar === 'function') ? this.getTabBar() : null;
+    // 底栏现在是 shell 页面里的组件（页面 API 里没有它）
+    const pages = getCurrentPages ? getCurrentPages() : [];
+    const shell = pages.length ? pages[pages.length - 1] : null;
+    const tb = (shell && typeof shell.selectComponent === 'function') ? shell.selectComponent('#bar') : null;
     if (!tb || typeof tb.setSkin !== 'function') return;
     const next = tb.data.skin === 'pill' ? 'card' : 'pill';
     tb.setSkin(next);
@@ -458,4 +456,10 @@ Page({
     this.refresh();
     wx.stopPullDownRefresh();
   }
-});
+};
+
+// 仍然注册成页面：开发者工具里能单独预览，老代码/测试也照旧按页面加载
+if (typeof Page === 'function') Page(cfg);
+
+// swiper 容器里的组件复用同一份配置（见 components/tab-*/index.js）
+module.exports = cfg;

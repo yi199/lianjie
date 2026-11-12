@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "tab-today": "/components/tab-today/index",
+    "tab-stats": "/components/tab-stats/index",
+    "tab-my": "/components/tab-my/index",
+    "tab-bar": "/components/tab-bar/index"
+  }
+}

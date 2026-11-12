@@ -1,0 +1,5 @@
+/* 容器占满整屏；每个 tab 自己在 scroll-view 里滚动 */
+.pager {
+  width: 100%;
+  height: 100vh;
+}

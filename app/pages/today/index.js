@@ -1,4 +1,5 @@
 const db = require('../../utils/db');
+const kit = require('../../utils/tabkit');
 const D = require('../../utils/date');
 const store = require('../../store/index');
 
@@ -15,7 +16,7 @@ const ART = {
   fullB: 'pull'
 };
 
-Page({
+const cfg = {
   data: {
     sbh: 20,
     weekday: '',
@@ -53,11 +54,6 @@ Page({
   },
 
   onShow() {
-    // 自定义 tabBar：页面得主动告诉它当前选中的是第几个
-    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 0 });
-    }
-
     db.migrate();       // 从旧版本升级上来的，先修好存储格式
     if (!db.hasOnboarded()) {
       wx.reLaunch({ url: '/pages/welcome/index' });
@@ -69,7 +65,7 @@ Page({
 
   /**
    * 切 tab / 从子页返回时，内容淡入一下。
-   * switchTab 本身没有转场动画，只能靠内容层补。
+   * tab 之间现在由 shell 的 swiper 滑动，这一层动画只管「第一次进入」。
    */
   /**
    * 进场分两种：
@@ -203,7 +199,7 @@ Page({
   },
 
   gotoStats() {
-    wx.switchTab({ url: '/pages/stats/index' });
+    kit.goTab(1);
   },
 
   gotoPrograms() {
@@ -215,7 +211,7 @@ Page({
   },
 
   gotoMy() {
-    wx.switchTab({ url: '/pages/my/index' });
+    kit.goTab(2);
   },
 
   onPullDownRefresh() {
@@ -229,4 +225,10 @@ Page({
       path: '/pages/welcome/index'
     };
   }
-});
+};
+
+// 仍然注册成页面：开发者工具里能单独预览，老代码/测试也照旧按页面加载
+if (typeof Page === 'function') Page(cfg);
+
+// swiper 容器里的组件复用同一份配置（见 components/tab-*/index.js）
+module.exports = cfg;

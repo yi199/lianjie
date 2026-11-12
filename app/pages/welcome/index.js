@@ -24,7 +24,7 @@ Page({
 
     // 已经走过引导，直接进首页（不重复打扰）
     if (db.hasOnboarded()) {
-      wx.reLaunch({ url: '/pages/today/index' });
+      wx.reLaunch({ url: '/pages/shell/index' });
       return;
     }
 
@@ -35,7 +35,7 @@ Page({
     this.setData({ checking: true });
     sync.ready().then(function () {
       if (db.hasOnboarded()) {
-        wx.reLaunch({ url: '/pages/today/index' });
+        wx.reLaunch({ url: '/pages/shell/index' });
         return;
       }
       self.setData({ checking: false });
@@ -105,7 +105,7 @@ Page({
     // 先淡出再跳，避免从引导页硬切到首页
     this.setData({ leaving: true });
     setTimeout(function () {
-      wx.reLaunch({ url: '/pages/today/index' });
+      wx.reLaunch({ url: '/pages/shell/index' });
     }, 200);
   }
 });

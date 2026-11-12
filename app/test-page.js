@@ -329,7 +329,9 @@ ok('今天的战报不受影响（今天 + 完成）',
   todayReport.data.isToday === true && todayReport.data.btnText === '完成', todayReport.data.head);
 calls.length = 0;
 todayReport.done();
-ok('今天的战报 → 仍然回今天的训练页', calls.length === 1 && calls[0][0] === 'tab', JSON.stringify(calls));
+ok('今天的战报 → 回到训练 tab（shell 带 tab=0）',
+  calls.length === 1 && calls[0][0] === 'relaunch' && calls[0][1] === '/pages/shell/index?tab=0',
+  JSON.stringify(calls));
 
 /* ================= 9. 动作详情页（E4） ================= */
 console.log('\n=== 9. 动作详情页 ===');
@@ -850,77 +852,117 @@ function fakeDetail(out) {
     ok('固定底栏/休息面板没被包进动画容器', fixedInside.length === 0, fixedInside.join(',') || '都在容器外');
   }
 
-  /* ---- 底栏滑块：接力逻辑（每个 tab 页都是新实例，不接力就只会闪一下） ---- */
+  /* ---- swiper 容器：底栏组件 + shell 页 ---- */
   {
     let cfg = null;
     const prevComponent = global.Component;
     global.Component = function (c) { cfg = c; };
-    delete require.cache[require.resolve('./custom-tab-bar/index.js')];
-    require('./custom-tab-bar/index.js');
+    delete require.cache[require.resolve('./components/tab-bar/index.js')];
+    require('./components/tab-bar/index.js');
     global.Component = prevComponent;
-    ok('底栏组件注册成功', !!cfg && !!cfg.methods && typeof cfg.methods.relay === 'function');
 
-    function makeInst(data) {
+    ok('底栏是普通组件（不再是框架的自定义 tabBar）',
+      !!cfg && !!cfg.properties && !!cfg.properties.selected && typeof cfg.methods.tap === 'function');
+
+    function barInst(props) {
       const self = {
-        data: Object.assign({}, cfg.data, data || {}),
-        setData(o, cb) { Object.assign(self.data, o); if (cb) cb(); }
+        data: Object.assign({}, cfg.data),
+        __events: [],
+        setData(o, cb) { Object.assign(self.data, o); if (cb) cb(); },
+        triggerEvent(name, detail) { self.__events.push([name, detail]); }
       };
+      Object.assign(self.data, props || {});
       Object.keys(cfg.methods).forEach(function (k) { self[k] = cfg.methods[k].bind(self); });
       return self;
     }
 
-    // 测试环境的 getApp 每次都返回新对象（globalData 存不住），这轮换成固定实例
-    const stableApp = { globalData: { statusBarHeight: 20 } };
-    const prevGetApp = global.getApp;
-    global.getApp = function () { return stableApp; };
-    const app = stableApp;
+    // ① selected 变了，滑块跟着走（同实例，天然能滑，不需要接力）
+    const a = barInst({ selected: 0 });
+    cfg.observers.selected.call(a, 2);
+    ok('底栏选中项变了，滑块跟着过去', a.data.pos === 2, String(a.data.pos));
 
-    // ① 冷启动：没有来路，直接摆在当前格，不播滑动
-    delete app.globalData.tabFrom;
-    const a = makeInst({ selected: 0 });
-    a.relay(0);
-    ok('冷启动不播滑动（没有来路）', a.data.pos === 0 && a.data.noFx === false,
-      JSON.stringify({ pos: a.data.pos, noFx: a.data.noFx }));
+    // ② 点别的 tab：抛事件给 shell，自己不跳页面
+    const b = barInst({ selected: 0 });
+    b.tap({ currentTarget: { dataset: { i: 1 } } });
+    ok('点 tab 抛 change 事件（由 shell 去滑 swiper）',
+      b.__events.length === 1 && b.__events[0][0] === 'change' && b.__events[0][1].i === 1,
+      JSON.stringify(b.__events));
 
-    // ② 从「训练」切到「数据」：先把滑块瞬移到来路，再滑到目标
-    app.globalData.tabFrom = 0;
-    const b = makeInst({ selected: 1, pos: 0 });
-    b.relay(1);
-    ok('跨 tab 时先把滑块摆到「来时的位置」', b.data.pos === 0 && b.data.noFx === true,
-      JSON.stringify({ pos: b.data.pos, noFx: b.data.noFx }));
-    await new Promise(function (r) { setTimeout(r, 45); });
-    ok('隔一帧再滑到目标格（这一帧才有过渡）', b.data.pos === 1 && b.data.noFx === false,
-      JSON.stringify({ pos: b.data.pos, noFx: b.data.noFx }));
+    // ③ 点当前 tab：什么都不发生
+    const c = barInst({ selected: 1 });
+    c.tap({ currentTarget: { dataset: { i: 1 } } });
+    ok('点当前 tab 不重复触发', c.__events.length === 0, JSON.stringify(c.__events));
 
-    // ③ 从详情页返回同一个 tab：不许再抖一下
-    app.globalData.tabFrom = 1;
-    const c = makeInst({ selected: 1, pos: 1 });
-    c.relay(1);
-    ok('同一个 tab 不重播滑动', c.data.pos === 1 && c.data.noFx === false,
-      JSON.stringify({ pos: c.data.pos, noFx: c.data.noFx }));
+    // ④ 皮肤
+    const d = barInst({});
+    d.setSkin('card');
+    ok('换皮肤立刻生效', d.data.skin === 'card', d.data.skin);
+    ok('皮肤存本地（下次进来还是它）', store['lj.tabSkin'] === 'card', String(store['lj.tabSkin']));
+    d.setSkin('pill');
 
-    // ④ 点 tab 时要把「来路」写下来，否则下个页面的实例不知道从哪滑过来
-    const d = makeInst({ selected: 2 });
-    wx.switchTab = function (o) { calls.push(['switchTab', o.url]); };
-    d.switchTab({ currentTarget: { dataset: { i: 0 } } });
-    ok('点 tab 记下「来路」（下一个实例靠它决定起点）', app.globalData.tabFrom === 2,
-      String(app.globalData.tabFrom));
-    ok('点 tab 真的跳走了', calls.some(function (x) { return x[0] === 'switchTab'; }),
-      JSON.stringify(calls.slice(-2)));
+    // ⑤ shell 页：越界不跳、滑动同步底栏
+    let shellCfg = null;
+    const prevPage = global.Page;
+    global.Page = function (c) { shellCfg = c; };
+    delete require.cache[require.resolve('./pages/shell/index.js')];
+    require('./pages/shell/index.js');
+    global.Page = prevPage;
+    ok('shell 页注册成功（swiper 容器）', !!shellCfg && typeof shellCfg.swipeTo === 'function');
 
-    // ⑤ 再点当前 tab：不记录、不跳转
-    const before = app.globalData.tabFrom;
-    const e2 = makeInst({ selected: 1 });
-    e2.switchTab({ currentTarget: { dataset: { i: 1 } } });
-    ok('点当前 tab 不动也不跳', app.globalData.tabFrom === before, String(app.globalData.tabFrom));
+    const sh = {
+      data: { cur: 0 },
+      setData(o) { Object.assign(this.data, o); },
+      selectComponent() { return null; }
+    };
+    Object.keys(shellCfg).forEach(function (k) {
+      if (typeof shellCfg[k] === 'function') sh[k] = shellCfg[k].bind(sh);
+    });
+    sh.swipeTo(1);
+    ok('shell 能切到第 2 个 tab', sh.data.cur === 1, String(sh.data.cur));
+    sh.swipeTo(9);
+    ok('越界的 tab 号不理会', sh.data.cur === 1, String(sh.data.cur));
+    sh.onSwipe({ detail: { current: 2 } });
+    ok('手指滑到第 3 个，底栏跟着变', sh.data.cur === 2, String(sh.data.cur));
+  }
 
-    // ⑥ 皮肤开关：存本地 + 立刻换
-    const f = makeInst({});
-    f.setSkin('card');
-    ok('换皮肤之后立刻生效', f.data.skin === 'card', f.data.skin);
-    ok('皮肤选择存到本地（下次进来还是它）', store['lj.tabSkin'] === 'card', String(store['lj.tabSkin']));
 
-    global.getApp = prevGetApp;
+  /* ---- 架构：三个 tab 装在同一个页面的 swiper 里 ---- */
+  {
+    const fs = require('fs');
+    const pathm = require('path');
+    const cfg = JSON.parse(fs.readFileSync(pathm.join(__dirname, 'app.json'), 'utf8'));
+    ok('app.json 里没有 tabBar 了（它不是 tab 页了）', !cfg.tabBar);
+    ok('shell 页注册在 app.json 里', cfg.pages.indexOf('pages/shell/index') >= 0);
+
+    const shellW = fs.readFileSync(pathm.join(__dirname, 'pages/shell/index.wxml'), 'utf8');
+    ok('shell 用 swiper 做横滑容器', shellW.indexOf('<swiper') >= 0);
+    ok('三个 tab 都在 swiper 里', ['tab-today', 'tab-stats', 'tab-my'].every(function (t) {
+      return shellW.indexOf('<' + t) >= 0;
+    }), shellW.replace(/\s+/g, ' ').slice(0, 60));
+    ok('底栏挂在 shell 上（不再由框架渲染）', shellW.indexOf('<tab-bar') >= 0);
+
+    // 三个 tab 组件必须复用页面配置和页面结构，不能各写一份
+    ['today', 'stats', 'my'].forEach(function (name) {
+      const comp = fs.readFileSync(pathm.join(__dirname, 'components/tab-' + name + '/index.js'), 'utf8');
+      const compWxml = fs.readFileSync(pathm.join(__dirname, 'components/tab-' + name + '/index.wxml'), 'utf8');
+      ok(name + ' 组件复用页面配置（单一来源）', comp.indexOf("require('../../pages/" + name + "/index')") >= 0);
+      ok(name + ' 组件用 include 引页面结构', compWxml.indexOf('include src="../../pages/' + name + '/index.wxml"') >= 0);
+      ok(name + ' 组件里有 scroll-view（swiper-item 内要自己滚）', compWxml.indexOf('scroll-view') >= 0);
+    });
+
+    // 组件里不能再依赖 getTabBar（那是页面 API）
+    const stillTabBar = ['today', 'stats', 'my'].filter(function (name) {
+      return fs.readFileSync(pathm.join(__dirname, 'pages/' + name + '/index.js'), 'utf8').indexOf('getTabBar(') >= 0;
+    });
+    ok('三个 tab 里不再有 getTabBar 调用', stillTabBar.length === 0, stillTabBar.join(',') || '都清干净了');
+
+    // 所有跳 tab 的地方都不能再用 wx.switchTab（没有 tabBar 了，这 API 会直接失败）
+    const users = ['pages/today/index.js', 'pages/stats/index.js', 'pages/report/index.js',
+      'pages/progress/index.js', 'pages/programs/index.js', 'pages/welcome/index.js'];
+    const bad = users.filter(function (rel) {
+      return fs.readFileSync(pathm.join(__dirname, rel), 'utf8').indexOf('wx.switchTab(') >= 0;
+    });
+    ok('没有地方还在用 wx.switchTab', bad.length === 0, bad.join(',') || '全换成 tabkit 了');
   }
 
   CAT.setDetailLoader(null);
