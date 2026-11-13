@@ -10,7 +10,7 @@
   width: 36rpx;
   flex-shrink: 0;
   font-family: 'LJGrotesk', sans-serif;
-  font-size: 24rpx;
+  font-size: var(--fs-label);
   color: var(--muted2, #A9A79A);
 }
 
@@ -23,7 +23,7 @@
 
 .num {
   font-family: 'LJGrotesk', sans-serif;
-  font-size: 30rpx;
+  font-size: var(--fs-body);
   color: var(--ink, #1F231C);
   background: transparent;
   border: none;
@@ -43,7 +43,7 @@
 
 .ph {
   color: #C6C3B4;
-  font-size: 30rpx;
+  font-size: var(--fs-body);
 }
 
 .unit {
@@ -55,12 +55,12 @@
 
 .x {
   color: var(--muted2, #A9A79A);
-  font-size: 24rpx;
+  font-size: var(--fs-note);
   flex-shrink: 0;
 }
 
 .tag {
-  font-size: 16rpx;
+  font-size: var(--fs-label);
   background: #F2E6C9;
   color: #7A6021;
   border-radius: 12rpx;
@@ -86,7 +86,7 @@
 }
 .ck {
   color: #F6F4EA;
-  font-size: 24rpx;
+  font-size: var(--fs-note);
   line-height: 1;
 }
 

@@ -30,7 +30,7 @@
   <!-- 身体指标 -->
   <view class="card sec">
     <view class="cardlabel">身体指标</view>
-    <view class="cname">体重 · 体脂 · 腰围 · 静息心率</view>
+    <view class="cname">体重 · 体脂 · 腰围 · 心率</view>
     <view class="changebtn" hover-class="changebtn-hover" hover-start-time="0" hover-stay-time="140" bindtap="gotoMetrics">
       <text>记录今天 / 看趋势</text>
       <text class="changearrow">→</text>
@@ -40,7 +40,7 @@
   <!-- 我的动作 -->
   <view class="card sec">
     <view class="cardlabel">我的动作</view>
-    <view class="cname">自己加的动作 · 换动作时能选到</view>
+    <view class="cname">自己加的，能换也能删</view>
     <view class="changebtn" hover-class="changebtn-hover" hover-start-time="0" hover-stay-time="140" bindtap="gotoMyExercises">
       <text>管理我的动作</text>
       <text class="changearrow">→</text>

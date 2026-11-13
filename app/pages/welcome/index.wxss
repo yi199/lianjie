@@ -80,7 +80,7 @@
 
 .qt {
   font-family: 'LJGrotesk', sans-serif;
-  font-size: 38rpx;
+  font-size: var(--fs-h2);
   color: #1F231C;
 }
 
