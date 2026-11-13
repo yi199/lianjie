@@ -3,7 +3,7 @@
   box-sizing: border-box;
   padding-left: 56rpx;
   padding-right: 56rpx;
-  padding-bottom: 56rpx;
+  padding-bottom: 240rpx;   /* 给固定底栏让位 */
   background: #F2F0E6;
   display: flex;
   flex-direction: column;
@@ -33,7 +33,7 @@
 /* ---------------- 品牌 ---------------- */
 
 .hero {
-  margin-top: 26rpx;
+  margin-top: 14rpx;
 }
 
 .mark {
@@ -45,7 +45,7 @@
 }
 
 .slogan {
-  margin-top: 14rpx;
+  margin-top: 10rpx;
   font-size: var(--fs-note);
   letter-spacing: 1rpx;
   color: #8B8878;
@@ -54,11 +54,12 @@
 /* ---------------- 三个问题（一屏） ---------------- */
 
 .qs {
-  margin-top: 60rpx;
+  margin-top: 44rpx;
+  margin-bottom: 34rpx;
 }
 
 .q + .q {
-  margin-top: 44rpx;
+  margin-top: 34rpx;
 }
 
 .qh {
@@ -80,7 +81,7 @@
 }
 
 .chips {
-  margin-top: 22rpx;
+  margin-top: 18rpx;
   display: flex;
 }
 
@@ -112,8 +113,9 @@
 
 /* ---------------- 计划摘要 ---------------- */
 
+/* 摘要在高屏上推到贴底栏的位置，低屏自然跟随内容流 */
 .preview {
-  margin-top: 48rpx;
+  margin-top: auto;
   padding: 28rpx 32rpx;
   background: #ECEEE3;
   border-radius: 24rpx;
@@ -142,8 +144,12 @@
 /* ---------------- 底部 ---------------- */
 
 .foot {
-  margin-top: auto;
-  padding-top: 48rpx;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 20rpx 56rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(242, 240, 230, 0) 0%, #F2F0E6 26%, #F2F0E6 100%);
 }
 
 .btn.main {
