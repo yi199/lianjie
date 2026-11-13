@@ -220,6 +220,47 @@ ok('杠铃全亮', rv.data.leftPlates.every(function (x) { return x.on; }));
 ok('按钮推进到下一个动作', rv.data.btnText === '下一个动作 →', rv.data.btnText);
 ok('本次容量 = 50×10×4', rv.data.volumeText === '2000 kg', rv.data.volumeText);
 
+/* ================= 5b. 一键完成剩下的组 ================= */
+console.log('\n=== 5b. 一键完成 ===');
+db.resetAll();
+db.finishOnboarding({ days: 3, place: 'gym', level: 'some' });
+
+const wRec2 = require('fs').readFileSync(require('path').join(__dirname, 'pages/record/index.wxml'), 'utf8');
+ok('一键完成按钮只在「做了但没做完」时出现',
+  wRec2.indexOf('completeAll') >= 0 && wRec2.indexOf('doneCount > 0 && doneCount < sets.length') >= 0);
+
+const ca = loadPage('./pages/record/index');
+ca.onLoad({});
+ok('一组都没做时 doneCount=0（按钮不出现）', ca.data.doneCount === 0, ca.data.doneCount + '');
+
+ca.mainAction();
+ca.stopRest();
+ok('先手动完成第 1 组', ca.data.doneCount === 1, ca.data.doneCount + ' 组');
+
+ca.completeAll();
+ok('一键完成把剩下 3 组一次记下', ca.data.doneCount === 4, ca.data.doneCount + ' 组');
+ok('一键完成不进入组间休息（多组一起完成没有「组间」）', ca.data.resting === false);
+
+const caRows = db.todaySets(ca.date).filter(function (x) { return x.exId === ca.data.ex.exId; });
+ok('库里真的落了 4 条组记录', caRows.length === 4, caRows.length + ' 条');
+ok('落库的数字就是界面上的数字', caRows[3] && caRows[3].weight === ca.data.sets[3].weight,
+  caRows[3] && caRows[3].weight + 'kg');
+
+// 数字不合法时不许一键（否则一次往库里塞 3 条 0kg）
+const ca2 = loadPage('./pages/record/index');
+ca2.onLoad({});
+ca2.mainAction();
+ca2.stopRest();
+const badSets = ca2.data.sets.map(function (s) { return s.no === 4 ? Object.assign({}, s, { reps: 0 }) : s; });
+ca2.setData({ sets: badSets });
+const ca2Rows = function () {
+  return db.todaySets(ca2.date).filter(function (x) { return x.exId === ca2.data.ex.exId; });
+};
+ca2.completeAll();
+ok('有一组数字不合法 → 一键被拦下，不会写脏数据',
+  ca2.data.doneCount === 1 && ca2Rows().length === 1,
+  ca2.data.doneCount + ' 组 / 这个动作库里 ' + ca2Rows().length + ' 条');
+
 /* ================= 6. PR 组亮陶土色 ================= */
 console.log('\n=== 6. PR 片 ===');
 db.resetAll();

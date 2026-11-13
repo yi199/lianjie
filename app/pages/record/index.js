@@ -493,6 +493,42 @@ Page({
     this.refreshView();
   },
 
+  /**
+   * 一键完成剩下的组（照第一组/计划原样）。
+   *
+   * 为什么要有：重量和次数本来就从上次预填好了，照计划做完的人不该点 4 下勾。
+   * 为什么不做成「自动」：每组的数字仍然可以单组点开改，改完立刻落库 ——
+   * 一键只是把「照着做」的动作合并，不牺牲记录的准确度。
+   */
+  completeAll() {
+    const pend = (this.data.sets || []).filter(function (s) { return !s.done; });
+    if (!pend.length) return;
+
+    // 和逐组勾选同一条校验：哪一组数字不合法就停下来，别把 0kg 写进库
+    for (let i = 0; i < pend.length; i++) {
+      const bad = this.validateSet(pend[i]);
+      if (bad) {
+        wx.showToast({ title: '第 ' + pend[i].no + ' 组：' + bad, icon: 'none' });
+        return;
+      }
+    }
+
+    const sets = this.data.sets.map(function (s) {
+      return s.done ? s : Object.assign({}, s, { done: true });
+    });
+    this.setData({ sets: sets });
+
+    const self = this;
+    pend.forEach(function (p) { self.persist(Object.assign({}, p, { done: true })); });
+
+    // 一次完成多组不存在「组间休息」，正在跑的休息也停掉
+    this.stopRest();
+    try { wx.vibrateShort({ type: 'light' }); } catch (err) { /* 忽略 */ }
+    this.refreshView();
+
+    wx.showToast({ title: '已记下 ' + pend.length + ' 组，可单组修改', icon: 'none' });
+  },
+
   /** 加一组：照最后一组的重量次数复制一份 */
   addSet() {
     const sets = this.data.sets.slice();
