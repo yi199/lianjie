@@ -33,12 +33,12 @@
 /* ---------------- 品牌 ---------------- */
 
 .hero {
-  margin-top: 14rpx;
+  margin-top: 6rpx;
 }
 
 .mark {
   font-family: 'LJGrotesk', sans-serif;
-  font-size: 68rpx;
+  font-size: 62rpx;
   letter-spacing: 8rpx;
   color: #1F231C;
   line-height: 1.2;
@@ -53,13 +53,17 @@
 
 /* ---------------- 三个问题（一屏） ---------------- */
 
+/* 三问吃掉中间的全部剩余高度：高屏自然铺开、低屏自动收紧，不再挤在顶部 */
 .qs {
-  margin-top: 44rpx;
-  margin-bottom: 34rpx;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  margin-top: 18rpx;
 }
 
-.q + .q {
-  margin-top: 34rpx;
+.q {
+  margin: 10rpx 0;
 }
 
 .qh {
@@ -76,20 +80,20 @@
 
 .qt {
   font-family: 'LJGrotesk', sans-serif;
-  font-size: 34rpx;
+  font-size: 38rpx;
   color: #1F231C;
 }
 
 .chips {
-  margin-top: 18rpx;
+  margin-top: 22rpx;
   display: flex;
 }
 
 .chip {
   flex: 1;
-  height: 88rpx;
+  height: 96rpx;
   margin-right: 18rpx;
-  border-radius: 44rpx;
+  border-radius: 48rpx;
   border: 1rpx solid #DFDCCE;
   background: #FFFFFF;
   display: flex;
@@ -113,10 +117,9 @@
 
 /* ---------------- 计划摘要 ---------------- */
 
-/* 摘要在高屏上推到贴底栏的位置，低屏自然跟随内容流 */
 .preview {
-  margin-top: auto;
-  padding: 28rpx 32rpx;
+  margin-bottom: 8rpx;
+  padding: 26rpx 30rpx;
   background: #ECEEE3;
   border-radius: 24rpx;
 }
