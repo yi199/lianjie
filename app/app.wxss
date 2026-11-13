@@ -30,14 +30,14 @@ page {
   --clay: #B4795A;
 
   /* 字号 */
-  --fs-label: 19rpx;
-  --fs-note: 24rpx;
-  --fs-body: 30rpx;
-  --fs-h2: 38rpx;
-  --fs-h1: 46rpx;
-  --fs-title: 60rpx;
+  --fs-label: 22rpx;
+  --fs-note: 27rpx;
+  --fs-body: 32rpx;
+  --fs-h2: 40rpx;
+  --fs-h1: 49rpx;
+  --fs-title: 63rpx;
   --fs-display: 96rpx;
-  --fs-num: 76rpx;
+  --fs-num: 78rpx;
 
   /* 动效：按压统一 120ms，ease-out，按下要"立刻"有反应 */
   --ease-press: cubic-bezier(.2, .8, .2, 1);

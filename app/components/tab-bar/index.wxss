@@ -97,8 +97,8 @@
 
 .lb {
   margin-top: 4rpx;
-  font-size: 17rpx;
-  letter-spacing: .1em;
+  font-size: var(--fs-label);
+  letter-spacing: .06em;
   /* 栏底比页面深，未选中文字不能再这么浅，否则糊成一片 */
   color: var(--muted2, #97948A);
   transition: color .18s ease;

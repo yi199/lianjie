@@ -84,7 +84,7 @@
 
 .cc .v {
   margin-top: 10rpx;
-  font-size: 38rpx;
+  font-size: var(--fs-h2);
   line-height: 1.1;
   color: var(--ink);
 }
