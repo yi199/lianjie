@@ -65,6 +65,53 @@ Page({
     if (r.prs.length) {
       try { wx.vibrateShort({ type: 'medium' }); } catch (e) { /* 忽略 */ }
     }
+
+    // 分享：提前把 5:4 的卡片缩略图画好（onShareAppMessage 只能同步返回，来不及现画）
+    this.prepShare();
+
+    // 让右上角「···」里出现「分享到朋友圈」（小程序在朋友圈里是半屏卡片，不是一张图）
+    try {
+      wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
+    } catch (e) { /* 老版本没有 shareTimeline，不影响分享给朋友 */ }
+  },
+
+  /**
+   * 生成分享卡片用的 5:4 缩略图。
+   * 失败就静默放弃：没有 imageUrl 时微信会用页面截图，分享照样能用。
+   */
+  prepShare() {
+    const self = this;
+    let canvas = null;
+    try {
+      canvas = wx.createOffscreenCanvas({ type: '2d', width: poster.SW, height: poster.SH });
+    } catch (e) { return; }
+
+    let series = [];
+    try {
+      series = db.weeklyVolume(12).map(function (w) { return w.sets; });
+    } catch (e) { /* 没山就不画山 */ }
+
+    try {
+      poster.drawShare(canvas.getContext('2d'), {
+        r: this.data.r,
+        dateText: this.data.dateText,
+        head: this.data.head,
+        comment: this.data.comment,
+        series: series
+      });
+    } catch (e) { return; }
+
+    try {
+      wx.canvasToTempFilePath({
+        canvas: canvas,
+        x: 0, y: 0,
+        width: poster.SW, height: poster.SH,
+        destWidth: poster.SW, destHeight: poster.SH,
+        fileType: 'jpg',
+        success: function (res) { self.shareImg = res.tempFilePath; },
+        fail: function () { /* 用页面截图兜底 */ }
+      });
+    } catch (e) { /* 同上 */ }
   },
 
   done() {
@@ -156,13 +203,30 @@ Page({
     });
   },
 
+  /** 分享给朋友 / 群：小程序卡片，缩略图用 5:4 的战报图 */
   onShareAppMessage() {
     const r = this.data.r;
-    return {
+    const msg = {
       title: r.sets
         ? '今天练了 ' + r.sets + ' 组 · ' + amountText(r)
         : '练界 · 把每一次训练留在身体上',
+      // 别人点开时没有「那天的数据」，所以落在首页而不是战报页
       path: '/pages/welcome/index'
     };
+    if (this.shareImg) msg.imageUrl = this.shareImg;
+    return msg;
+  },
+
+  /** 分享到朋友圈：微信只支持「半屏小程序卡片」，不支持直接发一张图 */
+  onShareTimeline() {
+    const r = this.data.r;
+    const msg = {
+      title: r.sets
+        ? '今天练了 ' + r.sets + ' 组 · ' + amountText(r) + ' · 练界'
+        : '练界 · 把每一次训练留在身体上',
+      query: ''
+    };
+    if (this.shareImg) msg.imageUrl = this.shareImg;
+    return msg;
   }
 });
