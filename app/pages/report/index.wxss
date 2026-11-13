@@ -194,6 +194,20 @@ page {
   bottom: 0;
   padding: 24rpx 48rpx 48rpx;
   background: #2A3226;
+  display: flex;
+  gap: 20rpx;
+}
+
+/* 「存成图片」是次要动作：描边、不抢主按钮 */
+.btn.ghost {
+  flex: 0 0 40%;
+  background: transparent;
+  border: 1rpx solid rgba(242, 240, 230, .38);
+  color: #F2F0E6;
+}
+
+.btn:not(.ghost) {
+  flex: 1;
 }
 
 .btn {

@@ -995,6 +995,64 @@ function fakeDetail(out) {
       wPrivacy.indexOf('意见反馈') >= 0 && wPrivacy.indexOf('长按') >= 0);
   }
 
+  /* ---- 战报海报：文案口径 + 页面接线 ---- */
+  {
+    const fs = require('fs');
+    const pathm = require('path');
+    const poster = require('./utils/poster');
+
+    const t1 = poster.posterTexts({
+      dateText: '11月11日 · 周二', head: '今天练完了。',
+      r: { planName: '推日', sets: 16, exercises: 4, ton: 3.9, unit: 'kg', reps: 0, seconds: 0,
+           prs: [{ cn: '卧推', text: '62.5 kg × 8' }] }
+    });
+    ok('海报尺寸 1080×1440（3:4，发朋友圈正好）', poster.W === 1080 && poster.H === 1440,
+      poster.W + '×' + poster.H);
+    ok('海报三个数字和战报页同一口径', t1.nums[0].v === '16' && t1.nums[0].k === '组' &&
+      t1.nums[1].v === '3.9' && t1.nums[1].k === '吨' && t1.nums[2].k === '个动作',
+      JSON.stringify(t1.nums));
+    ok('PR 会带到海报上', t1.prs.length === 1 && t1.prs[0].indexOf('卧推') === 0, t1.prs.join(' / '));
+
+    const t2 = poster.posterTexts({ r: { sets: 3, unit: 'bw', reps: 12 } });
+    ok('自重动作海报上显示「次」不是「吨」', t2.nums[1].k === '次' && t2.nums[1].v === '12',
+      JSON.stringify(t2.nums[1]));
+    const t3 = poster.posterTexts({ r: { sets: 2, unit: 'sec', seconds: 60 } });
+    ok('计时动作海报上显示「秒」', t3.nums[1].k === '秒' && t3.nums[1].v === '60', JSON.stringify(t3.nums[1]));
+
+    const jReport = fs.readFileSync(pathm.join(__dirname, 'pages/report/index.js'), 'utf8');
+    const wReport = fs.readFileSync(pathm.join(__dirname, 'pages/report/index.wxml'), 'utf8');
+    ok('战报页有「存成图片」按钮', wReport.indexOf('存成图片') >= 0 && wReport.indexOf('savePoster') >= 0);
+    ok('用的是离屏 canvas（不占页面布局）', jReport.indexOf('createOffscreenCanvas') >= 0);
+    ok('相册权限被拒会引导去设置，不是只弹失败', jReport.indexOf('openSetting') >= 0);
+
+    // 相册是「写」不是「读」——隐私政策必须说清楚
+    const wPrivacy = fs.readFileSync(pathm.join(__dirname, 'pages/privacy/index.wxml'), 'utf8');
+    ok('隐私政策写明了「存成图片」只写入不读取', wPrivacy.indexOf('只写入，不读取') >= 0);
+
+    // 真画一遍：用假的 ctx 跑 draw()，确认各种边界数据都不抛错（真机上抛错就是白屏）
+    function fakeCtx() {
+      const noop = function () {};
+      return {
+        fillStyle: '', strokeStyle: '', lineWidth: 0, font: '', textAlign: '', textBaseline: '',
+        lineJoin: '', fillRect: noop, fillText: noop, beginPath: noop, moveTo: noop, lineTo: noop,
+        arc: noop, arcTo: noop, closePath: noop, fill: noop, stroke: noop,
+        measureText: function (t) { return { width: String(t).length * 20 }; },
+        createLinearGradient: function () { return { addColorStop: noop }; }
+      };
+    }
+    let drew = 0;
+    [
+      { r: { sets: 0, exercises: 0, ton: 0, unit: 'kg', prs: [] }, series: [] },              // 全空
+      { r: { sets: 2, unit: 'sec', seconds: 60, prs: [] }, series: [0, 0, 0] },               // 计时 + 全 0 山脊
+      { r: { sets: 3, unit: 'bw', reps: 12, prs: [{ cn: '引体', text: '12 次' }] }, series: [] },
+      { head: '那天练完了。', comment: '很长的评语'.repeat(4), r: { sets: 1, unit: 'kg', ton: 1 }, series: [1, 2, 3] }
+    ].forEach(function (d) {
+      poster.draw(fakeCtx(), d);
+      drew++;
+    });
+    ok('各种边界数据都能画完不抛错（空数据 / 计时 / 自重 / 长评语）', drew === 4, drew + '/4');
+  }
+
   CAT.setDetailLoader(null);
   runResult();
 })();

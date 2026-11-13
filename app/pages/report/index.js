@@ -2,6 +2,7 @@ const db = require('../../utils/db');
 const kit = require('../../utils/tabkit');
 const D = require('../../utils/date');
 const enterFx = require('../../utils/enter').enterFx;
+const poster = require('../../utils/poster');
 
 /** 当天「练了多少」的主数字：负重看吨，自重看次数，计时看秒数 */
 function amountText(r) {
@@ -74,6 +75,84 @@ Page({
     }
     wx.navigateBack({
       fail: function () { kit.backToShell(1); }
+    });
+  },
+
+  /**
+   * 存成图片：在离屏 canvas 上画一张 1080×1440 的海报，存进相册。
+   * 为什么用离屏 canvas：不占页面布局，也不会在战报页里闪一块白。
+   */
+  savePoster() {
+    const self = this;
+    wx.showLoading({ title: '生成中…', mask: true });
+
+    let canvas = null;
+    try {
+      canvas = wx.createOffscreenCanvas({ type: '2d', width: poster.W, height: poster.H });
+    } catch (e) {
+      wx.hideLoading();
+      wx.showToast({ title: '当前微信版本不支持，升级后再试', icon: 'none' });
+      return;
+    }
+
+    // 最近 12 周的组数：海报底部那条山脊
+    let series = [];
+    try {
+      series = db.weeklyVolume(12).map(function (w) { return w.sets; });
+    } catch (e) { /* 画不出来就不画山，别的照旧 */ }
+
+    try {
+      const ctx = canvas.getContext('2d');
+      poster.draw(ctx, {
+        r: this.data.r,
+        dateText: this.data.dateText,
+        head: this.data.head,
+        comment: this.data.comment,
+        series: series
+      });
+    } catch (e) {
+      wx.hideLoading();
+      wx.showToast({ title: '生成失败，再试一次', icon: 'none' });
+      return;
+    }
+
+    wx.canvasToTempFilePath({
+      canvas: canvas,
+      x: 0, y: 0,
+      width: poster.W, height: poster.H,
+      destWidth: poster.W, destHeight: poster.H,
+      fileType: 'png',
+      success: function (res) { self.saveToAlbum(res.tempFilePath); },
+      fail: function () {
+        wx.hideLoading();
+        wx.showToast({ title: '生成失败，再试一次', icon: 'none' });
+      }
+    });
+  },
+
+  /** 存相册：被拒过就引导去设置里打开，别只弹一句「失败」 */
+  saveToAlbum(filePath) {
+    wx.saveImageToPhotosAlbum({
+      filePath: filePath,
+      success: function () {
+        wx.hideLoading();
+        wx.showToast({ title: '已存到相册', icon: 'success' });
+      },
+      fail: function (err) {
+        wx.hideLoading();
+        const msg = (err && err.errMsg) || '';
+        if (msg.indexOf('auth') >= 0 || msg.indexOf('deny') >= 0 || msg.indexOf('denied') >= 0) {
+          wx.showModal({
+            title: '需要相册权限',
+            content: '保存图片要用到「保存到相册」权限，去设置里打开？',
+            confirmText: '去设置',
+            confirmColor: '#B4795A',
+            success: function (r) { if (r.confirm && wx.openSetting) wx.openSetting(); }
+          });
+          return;
+        }
+        wx.showToast({ title: '保存失败，再试一次', icon: 'none' });
+      }
     });
   },
 
