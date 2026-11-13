@@ -131,7 +131,7 @@ Page({
     const msg = {
       title: r.sets
         ? '今天练了 ' + r.sets + ' 组 · ' + amountText(r)
-        : '练界 · 把每一次训练留在身体上',
+        : '力见 · 把每一次训练留在身体上',
       // 别人点开时没有「那天的数据」，所以落在首页而不是战报页
       path: '/pages/welcome/index'
     };
@@ -144,8 +144,8 @@ Page({
     const r = this.data.r;
     const msg = {
       title: r.sets
-        ? '今天练了 ' + r.sets + ' 组 · ' + amountText(r) + ' · 练界'
-        : '练界 · 把每一次训练留在身体上',
+        ? '今天练了 ' + r.sets + ' 组 · ' + amountText(r) + ' · 力见'
+        : '力见 · 把每一次训练留在身体上',
       query: ''
     };
     if (this.shareImg) msg.imageUrl = this.shareImg;

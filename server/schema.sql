@@ -1,4 +1,4 @@
--- 练界 · 数据库结构
+-- 力见 · 数据库结构
 --
 -- 由服务启动时自动执行（//go:embed schema.sql），所以必须幂等：
 -- 全部用 IF NOT EXISTS / ADD COLUMN IF NOT EXISTS，不要 DROP。

@@ -4,7 +4,7 @@
 
   <view class="phead">
     <view class="brandrow">
-      <text class="brand">练界</text>
+      <text class="brand">力见</text>
       <text class="kicker">Settings</text>
     </view>
     <view class="h1en">Your Plan</view>
@@ -131,7 +131,7 @@
   </view>
 
   <view class="about">
-    <text class="aboutv" bindtap="tapVersion">练界 v0.1</text>
+    <text class="aboutv" bindtap="tapVersion">力见 v0.1</text>
     <text class="aboutlnk" bindtap="gotoPrivacy" hover-class="aboutlnk-hover" hover-start-time="0" hover-stay-time="120">隐私政策 · 用户协议</text>
     <!-- 点一下 = 打开微信官方的「意见反馈」页（后台「反馈管理」能收到）；
          长按 = 复制本机信息（环境、存储用量、最近几条错误），方便你粘进反馈里 -->

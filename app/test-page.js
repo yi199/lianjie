@@ -772,7 +772,7 @@ function fakeDetail(out) {
     db.saveSet({ date: '2026-08-02', exId: 'g1', setNo: 1, weight: 50, reps: 10, unit: 'kg' });
     clipboard = '';
     p.diagInfo();
-    ok('反馈问题：能复制诊断信息', clipboard.indexOf('练界 · 诊断信息') === 0, clipboard.split('\n')[0]);
+    ok('反馈问题：能复制诊断信息', clipboard.indexOf('力见 · 诊断信息') === 0, clipboard.split('\n')[0]);
     ok('诊断信息带本机数据量', clipboard.indexOf('本机数据') >= 0,
       (clipboard.split('\n').filter(function (l) { return l.indexOf('本机数据') >= 0; })[0] || ''));
     ok('诊断信息带最近错误（纯本地也能查到问题）', clipboard.indexOf('测试报错') >= 0);

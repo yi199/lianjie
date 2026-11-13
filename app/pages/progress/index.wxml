@@ -11,7 +11,7 @@
 
   <view class="phead">
     <view class="brandrow">
-      <text class="brand">练界</text>
+      <text class="brand">力见</text>
       <text class="kicker">{{empty ? 'Not Yet' : spanText}}</text>
     </view>
     <view class="h1en">Stronger</view>

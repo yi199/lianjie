@@ -1,7 +1,7 @@
 <view class="page {{leaving ? 'leaving' : ''}}" style="padding-top:{{sbh + 20}}px">
 
   <view class="hero">
-    <view class="mark">练界</view>
+    <view class="mark">力见</view>
     <view class="slogan">把每一次训练留在身体上</view>
   </view>
 

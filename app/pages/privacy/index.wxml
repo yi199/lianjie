@@ -11,7 +11,7 @@
 
   <view class="phead">
     <view class="brandrow">
-      <text class="brand">练界</text>
+      <text class="brand">力见</text>
       <text class="kicker">Privacy</text>
     </view>
     <view class="h1en">Plain Words</view>
@@ -24,7 +24,7 @@
     <view class="sec-h">隐私政策<text class="sec-note">{{version}}</text></view>
 
     <view class="dh">一、这一版不收集你的个人信息</view>
-    <view class="dp">练界 {{version}} 不注册账号、不要求登录，也不收集你的姓名、手机号、微信头像昵称、位置、通讯录、相册或麦克风。你不需要提供任何身份信息，就能完整使用所有功能。</view>
+    <view class="dp">力见 {{version}} 不注册账号、不要求登录，也不收集你的姓名、手机号、微信头像昵称、位置、通讯录、相册或麦克风。你不需要提供任何身份信息，就能完整使用所有功能。</view>
 
     <view class="dh">二、你的数据存在哪</view>
     <view class="dp">训练计划设置、每一组训练记录、身体指标（体重 / 体脂率 / 腰围 / 静息心率）、你自己加的动作和自己搭的方案，全部保存在这台手机的微信小程序本地存储里（上限约 10MB）。我们没有服务器保存这些内容，也看不到它们。</view>
@@ -58,7 +58,7 @@
     <view class="sec-h">用户协议<text class="sec-note">{{version}}</text></view>
 
     <view class="dh">一、这是什么</view>
-    <view class="dp">练界是一个训练记录与数据可视化工具：按你的情况生成训练计划、记录每组的重量与次数、把训练量画成图。它<text class="em">不提供医疗、康复、营养或教练服务</text>。</view>
+    <view class="dp">力见是一个训练记录与数据可视化工具：按你的情况生成训练计划、记录每组的重量与次数、把训练量画成图。它<text class="em">不提供医疗、康复、营养或教练服务</text>。</view>
 
     <view class="dh">二、训练风险由你自己承担</view>
     <view class="dp warn">力量训练和器械训练有受伤风险。请根据自身健康状况量力而行，必要时先咨询医生。组数、重量、动作建议都只是参考值，取不取由你判断；使用器械请遵守场馆规定，大重量请找人保护。因训练本身造成的身体损伤，本工具不承担责任。</view>
@@ -82,6 +82,6 @@
     <view class="dp">你继续使用本小程序，即表示已阅读并同意以上内容。最近更新：{{updated}}。</view>
   </view>
 
-  <view class="about">练界 {{version}} · 更新于 {{updated}}</view>
+  <view class="about">力见 {{version}} · 更新于 {{updated}}</view>
 
 </view>
