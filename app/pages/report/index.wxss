@@ -201,6 +201,7 @@ page {
 .sharerow {
   display: flex;
   gap: 20rpx;
+  padding-top: 4rpx;
 }
 
 /* 分享按钮是 <button open-type="share">：先削掉它自带的底色/边框/内边距 */

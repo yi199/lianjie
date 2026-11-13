@@ -1132,8 +1132,12 @@ function fakeDetail(out) {
     ok('分享给朋友带自定义缩略图', jReport2.indexOf('msg.imageUrl = this.shareImg') >= 0);
     ok('分享落点是首页，不是战报页（别人打开没有那天的数据）',
       /path: '\/pages\/welcome\/index'/.test(jReport2) && jReport2.indexOf("path: '/pages/report") < 0);
-    ok('界面上说清楚朋友圈怎么发（小程序不能直接发图）',
-      wReport2.indexOf('朋友圈') >= 0 && wReport2.indexOf('···') >= 0);
+    // 微信只允许「右上角 ··· → 分享到朋友圈」，没有能让按钮直接发朋友圈的接口。
+    // 所以按钮文案必须是「分享」，不能写「分享到朋友圈」（写了就是谎报行为）。
+    ok('分享按钮文案是「分享」，不谎称能直接发朋友圈',
+      /<button[^>]*open-type="share"[^>]*>分享<\/button>/.test(wReport2) &&
+      wReport2.indexOf('分享到朋友圈') < 0);
+    ok('底栏不再写「右上角 ···」这类操作提示', wReport2.indexOf('···') < 0);
   }
 
   CAT.setDetailLoader(null);
