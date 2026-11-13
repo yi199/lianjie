@@ -1082,7 +1082,9 @@ function fakeDetail(out) {
 
     const jReport = fs.readFileSync(pathm.join(__dirname, 'pages/report/index.js'), 'utf8');
     const wReport = fs.readFileSync(pathm.join(__dirname, 'pages/report/index.wxml'), 'utf8');
-    ok('战报页有「存成图片」按钮', wReport.indexOf('存成图片') >= 0 && wReport.indexOf('savePoster') >= 0);
+    // 现在「存成图片」降级成一行小字（分享才是主路径），但能力必须还在
+    ok('战报页仍能存到相册（发朋友圈图片版要靠它）',
+      wReport.indexOf('存到相册') >= 0 && wReport.indexOf('savePoster') >= 0);
     ok('用的是离屏 canvas（不占页面布局）', jReport.indexOf('createOffscreenCanvas') >= 0);
     ok('相册权限被拒会引导去设置，不是只弹失败', jReport.indexOf('openSetting') >= 0);
 
@@ -1112,6 +1114,34 @@ function fakeDetail(out) {
       drew++;
     });
     ok('各种边界数据都能画完不抛错（空数据 / 计时 / 自重 / 长评语）', drew === 4, drew + '/4');
+
+    // ---------- 分享（不是「存图」）：微信的能力边界必须体现在代码里 ----------
+    ok('分享卡片的缩略图是 5:4（微信分享卡片只认这个比例）',
+      poster.SW === 1080 && poster.SH === 864, poster.SW + '×' + poster.SH);
+
+    let drewShare = 0;
+    [
+      { r: { sets: 0, exercises: 0, ton: 0, unit: 'kg', prs: [] }, series: [] },
+      { r: { sets: 2, unit: 'sec', seconds: 60, prs: [] }, series: [0, 0, 0] },
+      { head: '那天练完了。', r: { sets: 4, unit: 'kg', ton: 3.9, prs: [] }, series: [1, 5, 3] }
+    ].forEach(function (d) {
+      poster.drawShare(fakeCtx(), d);
+      drewShare++;
+    });
+    ok('分享图也能画完不抛错（空 / 计时 / 有山脊）', drewShare === 3, drewShare + '/3');
+
+    const wReport2 = fs.readFileSync(pathm.join(__dirname, 'pages/report/index.wxml'), 'utf8');
+    const jReport2 = fs.readFileSync(pathm.join(__dirname, 'pages/report/index.js'), 'utf8');
+    ok('战报页的分享是原生 open-type="share"（点一下直接弹微信分享面板）',
+      wReport2.indexOf('open-type="share"') >= 0 && wReport2.indexOf('savePoster') >= 0);
+    ok('配了 onShareTimeline（右上角菜单才有「分享到朋友圈」）',
+      jReport2.indexOf('onShareTimeline') >= 0 &&
+      /showShareMenu[\s\S]{0,120}shareTimeline/.test(jReport2));
+    ok('分享给朋友带自定义缩略图', jReport2.indexOf('msg.imageUrl = this.shareImg') >= 0);
+    ok('分享落点是首页，不是战报页（别人打开没有那天的数据）',
+      /path: '\/pages\/welcome\/index'/.test(jReport2) && jReport2.indexOf("path: '/pages/report") < 0);
+    ok('界面上说清楚朋友圈怎么发（小程序不能直接发图）',
+      wReport2.indexOf('朋友圈') >= 0 && wReport2.indexOf('存到相册') >= 0);
   }
 
   CAT.setDetailLoader(null);

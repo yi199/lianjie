@@ -195,10 +195,38 @@ page {
   padding: 24rpx 48rpx 48rpx;
   background: #2A3226;
   display: flex;
+  flex-direction: column;
+}
+
+.sharerow {
+  display: flex;
   gap: 20rpx;
 }
 
-/* 「存成图片」是次要动作：描边、不抢主按钮 */
+/* 分享按钮是 <button open-type="share">：先削掉它自带的底色/边框/内边距 */
+.sharebtn {
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+  font-weight: normal;
+}
+.sharebtn::after { border: none; }
+
+/* 朋友圈说明：贴在底栏里，跟着按钮一起常驻（放内容里会被固定底栏盖住） */
+.sharehint {
+  padding: 0 8rpx 18rpx;
+  text-align: center;
+  font-size: var(--fs-label);
+  line-height: 1.6;
+  color: rgba(242, 240, 230, .46);
+}
+.sharehint .lnk {
+  color: rgba(242, 240, 230, .82);
+  text-decoration: underline;
+  text-underline-offset: 5rpx;
+}
+
+/* 分享是次要动作：描边、不抢主按钮 */
 .btn.ghost {
   flex: 0 0 40%;
   background: transparent;
