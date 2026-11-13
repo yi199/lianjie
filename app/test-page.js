@@ -965,6 +965,28 @@ function fakeDetail(out) {
     ok('没有地方还在用 wx.switchTab', bad.length === 0, bad.join(',') || '全换成 tabkit 了');
   }
 
+  /* ---- 没有「示例数据」这类开发入口 ---- */
+  {
+    const fs = require('fs');
+    const pathm = require('path');
+    const wStats = fs.readFileSync(pathm.join(__dirname, 'pages/stats/index.wxml'), 'utf8');
+    const wMy = fs.readFileSync(pathm.join(__dirname, 'pages/my/index.wxml'), 'utf8');
+    const jStats = fs.readFileSync(pathm.join(__dirname, 'pages/stats/index.js'), 'utf8');
+    const jMy = fs.readFileSync(pathm.join(__dirname, 'pages/my/index.js'), 'utf8');
+
+    ok('数据页空态不再有「先看看示例数据」按钮', wStats.indexOf('loadDemo') < 0 && wStats.indexOf('先看看示例数据') < 0);
+    ok('我的页不再有「填入示例数据」行', wMy.indexOf('fillDemo') < 0 && wMy.indexOf('填入示例数据') < 0);
+    ok('页面里的 loadDemo/fillDemo 方法都删干净了', jStats.indexOf('loadDemo()') < 0 && jMy.indexOf('fillDemo()') < 0);
+
+    // 数据层要留着：示例数据是测试夹具，db.loadDemo 还在用
+    ok('db.loadDemo 保留（测试用它造数据）', typeof db.loadDemo === 'function');
+
+    // 隐私政策里提到的按钮名必须和界面上一致
+    const wPrivacy = fs.readFileSync(pathm.join(__dirname, 'pages/privacy/index.wxml'), 'utf8');
+    ok('隐私政策提到的是「反馈问题」（和页脚按钮同名）', wPrivacy.indexOf('「反馈问题」') >= 0);
+    ok('隐私政策不再写界面里没有的「诊断信息」按钮', wPrivacy.indexOf('「诊断信息」') < 0);
+  }
+
   CAT.setDetailLoader(null);
   runResult();
 })();

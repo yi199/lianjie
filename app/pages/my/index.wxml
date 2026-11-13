@@ -115,12 +115,7 @@
       >重试</text>
     </view>
 
-    <view class="rows">
-      <view class="row" wx:if="{{!hasAny}}" bindtap="fillDemo" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
-        <text class="rowt">填入示例数据</text>
-        <text class="rownote">用来看图表效果</text>
-      </view>
-      <view class="row" bindtap="clearData" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
+    <view class="rows">      <view class="row" bindtap="clearData" hover-class="row-hover" hover-start-time="0" hover-stay-time="140">
         <text class="rowt">清空训练记录</text>
         <text class="rownote">保留计划设置</text>
       </view>
