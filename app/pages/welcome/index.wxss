@@ -3,21 +3,23 @@
   box-sizing: border-box;
   padding-left: 56rpx;
   padding-right: 56rpx;
-  padding-bottom: 60rpx;
+  padding-bottom: 56rpx;
   background: #F2F0E6;
   display: flex;
   flex-direction: column;
 }
 
-/* 三屏之间切换时内容淡入，不要硬切 */
+/* 进页面时内容依次淡入，不要整屏硬闪 */
 .hero,
-.qhead,
-.opts,
-.chips,
+.qs,
 .preview,
 .foot {
-  animation: stepIn .3s cubic-bezier(.23, .9, .3, 1) both;
+  animation: stepIn .32s cubic-bezier(.23, .9, .3, 1) both;
 }
+
+.qs { animation-delay: .04s; }
+.preview { animation-delay: .08s; }
+.foot { animation-delay: .12s; }
 
 @keyframes stepIn {
   from { opacity: 0; transform: translateY(16rpx); }
@@ -25,117 +27,68 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero, .qhead, .opts, .chips, .preview, .foot {
-    animation: none;
-  }
+  .hero, .qs, .preview, .foot { animation: none; }
 }
 
-/* ---------------- ① 品牌 ---------------- */
+/* ---------------- 品牌 ---------------- */
 
 .hero {
-  margin-top: 110rpx;
+  margin-top: 26rpx;
 }
 
 .mark {
   font-family: 'LJGrotesk', sans-serif;
-  font-size: 100rpx;
-  letter-spacing: 10rpx;
+  font-size: 68rpx;
+  letter-spacing: 8rpx;
   color: #1F231C;
   line-height: 1.2;
 }
 
-.rule {
-  width: 64rpx;
-  height: 3rpx;
-  background: #3C4A32;
-  margin: 40rpx 0 48rpx;
-}
-
 .slogan {
-  font-family: 'LJGrotesk', sans-serif;
-  font-size: var(--fs-h2);
-  line-height: 1.7;
-  color: #3C4A32;
+  margin-top: 14rpx;
+  font-size: var(--fs-note);
+  letter-spacing: 1rpx;
+  color: #8B8878;
 }
 
-.en {
-  margin-top: 64rpx;
-  font-size: var(--fs-label);
-  letter-spacing: 3rpx;
-  color: #A9A79A;
+/* ---------------- 三个问题（一屏） ---------------- */
+
+.qs {
+  margin-top: 60rpx;
 }
 
-/* ---------------- ②③ 提问 ---------------- */
-
-.qhead {
-  margin-top: 48rpx;
+.q + .q {
+  margin-top: 44rpx;
 }
 
-.qhead.mt {
-  margin-top: 72rpx;
+.qh {
+  display: flex;
+  align-items: baseline;
 }
 
 .qno {
   font-size: var(--fs-label);
   letter-spacing: 3rpx;
   color: #B4795A;
+  margin-right: 12rpx;
 }
 
-.qtitle {
-  margin-top: 18rpx;
+.qt {
   font-family: 'LJGrotesk', sans-serif;
-  font-size: var(--fs-h1);
+  font-size: 34rpx;
   color: #1F231C;
-}
-
-.qsub {
-  margin-top: 14rpx;
-  font-size: var(--fs-note);
-  color: #8B8878;
-}
-
-.opts {
-  margin-top: 56rpx;
-  display: flex;
-  flex-direction: column;
-}
-
-.opt {
-  margin-bottom: 24rpx;
-  padding: 34rpx 32rpx;
-  border: 1rpx solid #DFDCCE;
-  border-radius: 26rpx;
-  background: #FFFFFF;
-  transition: background .15s, border-color .15s;
-}
-
-.opt.on {
-  background: #ECEEE3;
-  border-color: #3C4A32;
-}
-
-.ot {
-  font-size: var(--fs-body);
-  color: #1F231C;
-}
-
-.od {
-  margin-top: 10rpx;
-  font-size: var(--fs-note);
-  color: #8B8878;
-  line-height: 1.5;
 }
 
 .chips {
-  margin-top: 32rpx;
+  margin-top: 22rpx;
   display: flex;
 }
 
 .chip {
   flex: 1;
-  height: 92rpx;
-  margin-right: 20rpx;
-  border-radius: 46rpx;
+  height: 88rpx;
+  margin-right: 18rpx;
+  border-radius: 44rpx;
   border: 1rpx solid #DFDCCE;
   background: #FFFFFF;
   display: flex;
@@ -143,7 +96,7 @@
   justify-content: center;
   font-size: var(--fs-body);
   color: #4A4A3E;
-  transition: background .15s, color .15s;
+  transition: background .18s, color .18s, border-color .18s, transform .12s;
 }
 
 .chip:last-child {
@@ -154,11 +107,14 @@
   background: #3C4A32;
   border-color: #3C4A32;
   color: #F6F4EA;
+  transform: translateY(-2rpx);
 }
 
+/* ---------------- 计划摘要 ---------------- */
+
 .preview {
-  margin-top: 56rpx;
-  padding: 32rpx;
+  margin-top: 48rpx;
+  padding: 28rpx 32rpx;
   background: #ECEEE3;
   border-radius: 24rpx;
 }
@@ -169,24 +125,25 @@
   color: #7C8A70;
 }
 
+.pv-meta {
+  margin-top: 14rpx;
+  font-size: var(--fs-label);
+  color: #7C8A70;
+  letter-spacing: 1rpx;
+}
+
 .pv-text {
-  margin-top: 16rpx;
+  margin-top: 10rpx;
   font-size: var(--fs-body);
   color: #3C4A32;
   line-height: 1.5;
-}
-
-.pv-note {
-  margin-top: 14rpx;
-  font-size: var(--fs-label);
-  color: #A9A79A;
 }
 
 /* ---------------- 底部 ---------------- */
 
 .foot {
   margin-top: auto;
-  padding-top: 60rpx;
+  padding-top: 48rpx;
 }
 
 .btn.main {
@@ -215,16 +172,9 @@
   border-color: #EFEDE2;
 }
 
-.hint {
-  margin-top: 22rpx;
-  text-align: center;
-  font-size: var(--fs-note);
-  color: #A9A79A;
-}
-
 /* 「继续即表示同意《隐私政策与用户协议》」——可点，但视觉上压在最后一行 */
 .legal {
-  margin-top: 18rpx;
+  margin-top: 20rpx;
   text-align: center;
   font-size: var(--fs-label);
   color: var(--muted2);
@@ -233,29 +183,3 @@
 }
 
 .legal-hover { color: var(--green); }
-
-.back {
-  margin-top: 30rpx;
-  text-align: center;
-  font-size: var(--fs-note);
-  color: #8B8878;
-}
-
-.dots {
-  margin-top: 36rpx;
-  display: flex;
-  justify-content: center;
-}
-
-.dot {
-  width: 10rpx;
-  height: 10rpx;
-  border-radius: 50%;
-  background: #D5D2C4;
-  margin: 0 6rpx;
-  transition: background .2s;
-}
-
-.dot.on {
-  background: #3C4A32;
-}
