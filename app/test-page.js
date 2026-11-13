@@ -1067,8 +1067,9 @@ function fakeDetail(out) {
       r: { planName: '推日', sets: 16, exercises: 4, ton: 3.9, unit: 'kg', reps: 0, seconds: 0,
            prs: [{ cn: '卧推', text: '62.5 kg × 8' }] }
     });
-    ok('海报尺寸 1080×1440（3:4，发朋友圈正好）', poster.W === 1080 && poster.H === 1440,
-      poster.W + '×' + poster.H);
+    ok('只画分享图：1080×864（5:4，微信卡片比例），不再有 3:4 海报',
+      poster.SW === 1080 && poster.SH === 864 && poster.W === undefined && poster.H === undefined,
+      poster.SW + '×' + poster.SH);
     ok('海报三个数字和战报页同一口径', t1.nums[0].v === '16' && t1.nums[0].k === '组' &&
       t1.nums[1].v === '3.9' && t1.nums[1].k === '吨' && t1.nums[2].k === '个动作',
       JSON.stringify(t1.nums));
@@ -1082,15 +1083,18 @@ function fakeDetail(out) {
 
     const jReport = fs.readFileSync(pathm.join(__dirname, 'pages/report/index.js'), 'utf8');
     const wReport = fs.readFileSync(pathm.join(__dirname, 'pages/report/index.wxml'), 'utf8');
-    // 现在「存成图片」降级成一行小字（分享才是主路径），但能力必须还在
-    ok('战报页仍能存到相册（发朋友圈图片版要靠它）',
-      wReport.indexOf('存到相册') >= 0 && wReport.indexOf('savePoster') >= 0);
-    ok('用的是离屏 canvas（不占页面布局）', jReport.indexOf('createOffscreenCanvas') >= 0);
-    ok('相册权限被拒会引导去设置，不是只弹失败', jReport.indexOf('openSetting') >= 0);
+    // 产品决定：不做「存成图片」（用户要图自己截图）——所以相册权限整条链都要消失，
+    // 否则就是「声明了用不到的能力」，提审会被问。
+    ok('战报页没有「存成图片 / 存到相册」入口',
+      wReport.indexOf('存成图片') < 0 && wReport.indexOf('存到相册') < 0 &&
+      jReport.indexOf('savePoster') < 0 && jReport.indexOf('saveToAlbum') < 0);
+    ok('不再调用相册接口（无 saveImageToPhotosAlbum / writePhotosAlbum）',
+      jReport.indexOf('saveImageToPhotosAlbum') < 0 && jReport.indexOf('writePhotosAlbum') < 0);
+    ok('分享图仍用离屏 canvas（不占页面布局）', jReport.indexOf('createOffscreenCanvas') >= 0);
 
-    // 相册是「写」不是「读」——隐私政策必须说清楚
     const wPrivacy = fs.readFileSync(pathm.join(__dirname, 'pages/privacy/index.wxml'), 'utf8');
-    ok('隐私政策写明了「存成图片」只写入不读取', wPrivacy.indexOf('只写入，不读取') >= 0);
+    ok('隐私政策不再声明相册能力（声明了不用 = 虚假陈述）',
+      wPrivacy.indexOf('存成图片') < 0 && wPrivacy.indexOf('只写入') < 0 && wPrivacy.indexOf('saveImage') < 0);
 
     // 真画一遍：用假的 ctx 跑 draw()，确认各种边界数据都不抛错（真机上抛错就是白屏）
     function fakeCtx() {
@@ -1103,18 +1107,6 @@ function fakeDetail(out) {
         createLinearGradient: function () { return { addColorStop: noop }; }
       };
     }
-    let drew = 0;
-    [
-      { r: { sets: 0, exercises: 0, ton: 0, unit: 'kg', prs: [] }, series: [] },              // 全空
-      { r: { sets: 2, unit: 'sec', seconds: 60, prs: [] }, series: [0, 0, 0] },               // 计时 + 全 0 山脊
-      { r: { sets: 3, unit: 'bw', reps: 12, prs: [{ cn: '引体', text: '12 次' }] }, series: [] },
-      { head: '那天练完了。', comment: '很长的评语'.repeat(4), r: { sets: 1, unit: 'kg', ton: 1 }, series: [1, 2, 3] }
-    ].forEach(function (d) {
-      poster.draw(fakeCtx(), d);
-      drew++;
-    });
-    ok('各种边界数据都能画完不抛错（空数据 / 计时 / 自重 / 长评语）', drew === 4, drew + '/4');
-
     // ---------- 分享（不是「存图」）：微信的能力边界必须体现在代码里 ----------
     ok('分享卡片的缩略图是 5:4（微信分享卡片只认这个比例）',
       poster.SW === 1080 && poster.SH === 864, poster.SW + '×' + poster.SH);
@@ -1133,7 +1125,7 @@ function fakeDetail(out) {
     const wReport2 = fs.readFileSync(pathm.join(__dirname, 'pages/report/index.wxml'), 'utf8');
     const jReport2 = fs.readFileSync(pathm.join(__dirname, 'pages/report/index.js'), 'utf8');
     ok('战报页的分享是原生 open-type="share"（点一下直接弹微信分享面板）',
-      wReport2.indexOf('open-type="share"') >= 0 && wReport2.indexOf('savePoster') >= 0);
+      wReport2.indexOf('open-type="share"') >= 0);
     ok('配了 onShareTimeline（右上角菜单才有「分享到朋友圈」）',
       jReport2.indexOf('onShareTimeline') >= 0 &&
       /showShareMenu[\s\S]{0,120}shareTimeline/.test(jReport2));
@@ -1141,7 +1133,7 @@ function fakeDetail(out) {
     ok('分享落点是首页，不是战报页（别人打开没有那天的数据）',
       /path: '\/pages\/welcome\/index'/.test(jReport2) && jReport2.indexOf("path: '/pages/report") < 0);
     ok('界面上说清楚朋友圈怎么发（小程序不能直接发图）',
-      wReport2.indexOf('朋友圈') >= 0 && wReport2.indexOf('存到相册') >= 0);
+      wReport2.indexOf('朋友圈') >= 0 && wReport2.indexOf('···') >= 0);
   }
 
   CAT.setDetailLoader(null);

@@ -54,9 +54,7 @@
 
 <view class="footbar rise d6">
   <!-- 朋友圈只能靠右上角菜单：小程序在朋友圈里是半屏卡片，微信不允许直接发一张图 -->
-  <view class="sharehint">
-    朋友圈 右上角 ··· 分享　·　图片版 <text class="lnk" bindtap="savePoster">存到相册</text>
-  </view>
+  <view class="sharehint">朋友圈 右上角 ··· 分享</view>
   <view class="sharerow">
     <button class="btn ghost sharebtn" open-type="share" hover-class="btn-hover">分享给朋友</button>
     <view class="btn" hover-class="btn-hover" bindtap="done">{{btnText}}</view>

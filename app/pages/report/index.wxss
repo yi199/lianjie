@@ -220,12 +220,6 @@ page {
   line-height: 1.6;
   color: rgba(242, 240, 230, .46);
 }
-.sharehint .lnk {
-  color: rgba(242, 240, 230, .82);
-  text-decoration: underline;
-  text-underline-offset: 5rpx;
-}
-
 /* 分享是次要动作：描边、不抢主按钮 */
 .btn.ghost {
   flex: 0 0 40%;
