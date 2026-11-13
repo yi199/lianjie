@@ -68,7 +68,7 @@ function hhmm(iso) {
  * @param {string[]} extra 调用方补的行（比如「本机 3120 组 / 练过 96 天」）
  */
 function text(extra) {
-  const lines = ['练界 · 诊断信息'];
+  const lines = ['力见 · 诊断信息'];
 
   try {
     const env = wx.getAccountInfoSync().miniProgram.envVersion || 'unknown';

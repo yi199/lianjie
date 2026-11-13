@@ -29,6 +29,6 @@ Page({
   },
 
   onShareAppMessage() {
-    return { title: '练界的隐私政策与用户协议', path: '/pages/welcome/index' };
+    return { title: '力见的隐私政策与用户协议', path: '/pages/welcome/index' };
   }
 });

@@ -20,7 +20,7 @@ func timeNow() time.Time { return time.Now() }
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
-	log.SetPrefix("[练界] ")
+	log.SetPrefix("[力见] ")
 
 	cfg, err := loadConfig()
 	if err != nil {

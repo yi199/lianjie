@@ -584,7 +584,7 @@ db.saveMetric({ kind: 'weight', date: '2026-09-01', value: 74.2 });
 
 const payload = db.exportData();
 const backup = JSON.stringify(payload);
-ok('导出的 JSON 能序列化，并带 app 标记', payload.app === '练界' && backup.length > 100, backup.length + ' 字节');
+ok('导出的 JSON 能序列化，并带 app 标记', payload.app === '力见' && backup.length > 100, backup.length + ' 字节');
 ok('导出里有 2 组记录和 1 条身体指标',
   payload.sets.length === 2 && !!(payload.metrics && payload.metrics.weight && payload.metrics.weight.length === 1),
   'sets=' + payload.sets.length);
@@ -629,8 +629,21 @@ const beforeImport = db.allSets().length;
 db.applyImport(backup);
 ok('导入不会删掉本机独有的记录', db.allSets().length === beforeImport, beforeImport + ' → ' + db.allSets().length);
 
+// 改名（练界 → 力见）之前导出的备份必须还能恢复，否则老用户的数据等于锁死
+const oldBackup = JSON.stringify({
+  app: '练界',
+  version: 1,
+  exportedAt: '2026-11-01T00:00:00.000Z',
+  profile: { days: 3, place: 'gym', level: 'some' },
+  sets: [{ date: '2026-10-20', exId: 'bb_bench', exCn: '卧推', part: 'chest', setNo: 1,
+           weight: 50, reps: 10, unit: 'kg', planKey: 'p', updatedAt: '2026-10-20T10:00:00.000Z' }],
+  metrics: {}, customExercises: [], customPrograms: []
+});
+const oldInsp = db.inspectImport(oldBackup);
+ok('改名前的旧备份（app: 练界）仍认得出来', oldInsp.ok === true, JSON.stringify(oldInsp).slice(0, 80));
+
 // 认出「不是自己的备份」
-ok('不是练界导出的 JSON 会被整份拒绝', db.inspectImport('{"app":"别的","sets":[]}').ok === false);
+ok('不是力见导出的 JSON 会被整份拒绝', db.inspectImport('{"app":"别的","sets":[]}').ok === false);
 ok('不是 JSON 的内容会被拒绝', db.inspectImport('今天练了卧推').ok === false);
 ok('拒绝时不写任何东西', db.allSets().length === beforeImport, db.allSets().length);
 

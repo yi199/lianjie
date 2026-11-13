@@ -763,7 +763,7 @@ function exportData() {
   });
 
   return {
-    app: '练界',
+    app: '力见',
     version: 1,
     exportedAt: new Date().toISOString(),
     profile: profile() || {},
@@ -785,10 +785,12 @@ function badDate(s) {
  */
 function normalizeImport(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return { error: '这段内容不是练界导出的数据。' };
+    return { error: '这段内容不是力见导出的数据。' };
   }
-  if (payload.app !== '练界') {
-    return { error: '这段内容不是练界导出的数据（缺少 app 标记）。' };
+  // 兼容改名（练界 → 力见）之前导出的备份：老包里写的是 app: '练界'。
+  // 用户手里的旧备份必须还能恢复，否则改名等于把人数据锁死。
+  if (payload.app !== '力见' && payload.app !== '练界') {
+    return { error: '这段内容不是力见导出的数据（缺少 app 标记）。' };
   }
 
   let bad = 0;

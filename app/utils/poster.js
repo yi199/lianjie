@@ -48,7 +48,7 @@ function posterTexts(d) {
       return (p.cn || '') + ' ' + (p.text || '');
     }),
     comment: (d && d.comment) || '',
-    foot: '练界 · 把每一次训练留在身体上'
+    foot: '力见 · 把每一次训练留在身体上'
   };
 }
 
