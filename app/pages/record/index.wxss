@@ -236,6 +236,23 @@
   color: var(--muted);
 }
 
+/* 一键完成：只在一组已经完成、还有剩下的时候出现 */
+.allbtn {
+  margin-top: 18rpx;
+  height: 92rpx;
+  border-radius: 46rpx;
+  background: #ECEEE3;
+  color: #3C4A32;
+  font-size: var(--fs-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+}
+.allbtn-hover {
+  background: #E2E6D8;
+}
+
 /* ---------------- 组间休息：呼吸环（盖住整页） ---------------- */
 
 .rest {

@@ -91,6 +91,16 @@
       bind:repschange="onRepsChange"
     />
     <view class="addset" bindtap="addSet">＋ 加一组</view>
+
+    <!-- 一键完成：剩下的组都按这一组记（照计划原样做完的人不该点 4 下） -->
+    <view class="allbtn"
+          wx:if="{{doneCount > 0 && doneCount < sets.length}}"
+          bindtap="completeAll"
+          hover-class="allbtn-hover"
+          hover-start-time="0"
+          hover-stay-time="120">
+      剩下的 {{sets.length - doneCount}} 组按这样完成
+    </view>
   </view>
 </view>
 
