@@ -113,7 +113,6 @@
       <view class="etitle">练一次，地形就长出来一点。</view>
       <view class="etext">每一周是一个峰。练得多的那周，山就高一些；休息的那周，是一条谷。</view>
       <view class="ebtn" bindtap="gotoToday">去训练 →</view>
-      <view class="ebtn ghost" bindtap="loadDemo">先看看示例数据</view>
     </view>
   </block>
 

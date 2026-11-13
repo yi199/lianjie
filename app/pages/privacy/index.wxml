@@ -32,7 +32,7 @@
     <view class="dh">三、什么情况下数据会离开这台手机</view>
     <view class="dp">只有你自己主动点的时候，而且都只是复制到系统剪贴板：</view>
     <view class="dli"><text class="dot">·</text><text class="dlt">「备份我的数据」：把整份数据打成一段文字放进剪贴板，你粘到哪里由你决定（备忘录、文件传输助手等）。</text></view>
-    <view class="dli"><text class="dot">·</text><text class="dlt">「诊断信息」：把运行环境、存储用量、本机数据量和最近几条错误放进剪贴板，用于你向开发者反馈问题。</text></view>
+    <view class="dli"><text class="dot">·</text><text class="dlt">「反馈问题」（在「我的」页脚）：把运行环境、存储用量、本机数据量和最近几条错误放进剪贴板，你再自己发给开发者。</text></view>
     <view class="dp">剪贴板里的内容不会自动发送给任何人。不点这两个按钮，就不会有任何内容离开这台手机。</view>
 
     <view class="dh">四、换手机与删除</view>
