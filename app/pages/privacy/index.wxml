@@ -34,7 +34,6 @@
     <view class="dli"><text class="dot">·</text><text class="dlt">「备份我的数据」：把整份数据打成一段文字放进剪贴板，你粘到哪里由你决定（备忘录、文件传输助手等）。</text></view>
     <view class="dli"><text class="dot">·</text><text class="dlt">「反馈问题」（在「我的」页脚）：点一下会打开微信官方的意见反馈页面；长按则把运行环境、存储用量、本机数据量和最近几条错误复制到剪贴板，你可以自己粘进反馈里。两者都由你主动触发。</text></view>
     <view class="dp">剪贴板里的内容不会自动发送给任何人。不点这两个按钮，就不会有任何内容离开这台手机。</view>
-    <view class="dli"><text class="dot">·</text><text class="dlt">「存成图片」（战报页）：把这次训练画成一张图并保存到你的手机相册。<text class="em">只写入，不读取</text> —— 我们看不到你相册里的任何东西。</text></view>
 
     <view class="dh">四、换手机与删除</view>
     <view class="dli"><text class="dot">·</text><text class="dlt">换手机：先点「备份我的数据」带走那段文字，在新手机上走完引导后点「从备份恢复」。</text></view>
