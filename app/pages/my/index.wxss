@@ -268,3 +268,23 @@
 
 /* 自定义 tabBar 是固定定位的：页面自己让出它的高度（108rpx + 安全区），否则最后一行被盖住 */
 .page { padding-bottom: calc(var(--sp5) + 104rpx + env(safe-area-inset-bottom)); }
+
+/* 页脚的「反馈问题」是个 button（open-type="feedback"），得把微信的默认样式剥掉，
+   看起来才和其它两行小字一致 */
+.aboutbtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+  line-height: inherit;
+  font-size: inherit;
+  font-family: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  display: inline;
+  vertical-align: baseline;
+}
+.aboutbtn::after {
+  border: 0;
+}

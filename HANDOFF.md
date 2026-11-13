@@ -170,6 +170,13 @@ docs/                   文档体系（见下）
 
 ### 已完成
 
+- **★ 「反馈问题」改成真反馈入口（2026-11-11）**：用户问「为什么点了出现复制成功」——因为那个按钮其实只是 `wx.setClipboardData`，「复制成功」是微信自己的提示，**名字和行为对不上**，用户以为能反馈，结果只是复制了一段技术文本。
+  - 现在：页脚「反馈问题」是 `<button open-type="feedback">`，点开是**微信官方的意见反馈页**（后台「反馈管理」能收到，用户可附截图），不需要自己的服务器。
+  - 复制本机信息挪到**长按**（`bindlongpress="diagInfo"`）：点=去反馈，长按=带上环境/存储用量/最近报错，提示改成「本机信息已复制，可粘到反馈里」。不新增入口。
+  - `button` 的默认外观（方块背景、边框、最小高度、居中）在 `.aboutbtn` 里全部剥掉，视觉上和旁边两行小字一致。
+  - 隐私政策同步改写：说明「点」打开官方反馈页、「长按」复制本机信息，两者都由用户主动触发。
+  - 七套 **805 项**全绿（+3 断言：必须是 `open-type="feedback"`、复制只能挂在长按、隐私文案两者都写到）。
+
 - **★ 去掉「示例数据」这类开发入口（2026-11-11）**：用户要求把明显不是给用户用的功能清掉。
   - 删掉两处创建入口：数据页空态的「先看看示例数据」按钮（`loadDemo`）、我的页的「填入示例数据」行（`fillDemo`）。两个方法一起删了。
   - **数据层保留**：`db.loadDemo()` / `db.clearDemo()` / `data/plan.makeDemoSets()` 是七套测试的夹具（造 12 周训练数据），不能删。
@@ -300,6 +307,7 @@ docs/                   文档体系（见下）
 | 坑 | 表现 | 解法 |
 |---|---|---|
 | **Go 依赖下不来** | `go build` 报 `proxy.golang.org ... connection failed` | `export GOPROXY=https://goproxy.cn,direct`。本机直连不通，不加这条永远编译不了 |
+| **按钮写着「反馈」其实只是复制** | 点「反馈问题」弹「复制成功」，用户不知道复制了干什么 | 小程序没有"打开反馈页"的 API，只能用 `<button open-type="feedback">`（微信官方反馈页）。别用剪贴板冒充反馈；要带诊断信息就挂在长按上 |
 | **删了 tabBar 之后 `wx.switchTab` 全废** | 点底栏/返回按钮没反应，控制台报 switchTab 失败 | `app.json` 没有 tabBar 时 `wx.switchTab` 直接失败。全部换成 `utils/tabkit.goTab(i)` / `backToShell()`；`test-page.js` 里有一条「全项目不许再出现 `wx.switchTab(`」的断言 |
 | **swiper 里页面不滚动** | 内容被裁在 swiper-item 里，划不动 | swiper-item 没有页面级滚动，每个 tab 必须自己套 `scroll-view`（本项目的 `components/tab-*/index.wxml` 第一层就是它） |
 | **swiper 里 canvas 量不到尺寸** | 数据页地形图空白（`fields({size:true})` 一直是 0） | 非当前 swiper-item 未布局。组件用 `active` 属性驱动，延迟 80ms 再跑 `onShow` → `drawTerrain()`；`drawTerrain` 本身也有 `if (!w || !h) return` 兜底 |

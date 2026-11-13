@@ -364,9 +364,12 @@ const cfg = {
         (db.customExercises() || []).length + ' 个'];
     } catch (e) { /* 数据读不出来也要能复制 */ }
 
+    // 长按才会走到这里：把本机信息复制好，用户自己粘进反馈页
     wx.setClipboardData({
       data: diag.text(extra),
-      success: function () { },
+      success: function () {
+        wx.showToast({ title: '本机信息已复制，可粘到反馈里', icon: 'none', duration: 2200 });
+      },
       fail: function () { wx.showToast({ title: '复制失败，再试一次', icon: 'none' }); }
     });
   },
