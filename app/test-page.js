@@ -985,6 +985,14 @@ function fakeDetail(out) {
     const wPrivacy = fs.readFileSync(pathm.join(__dirname, 'pages/privacy/index.wxml'), 'utf8');
     ok('隐私政策提到的是「反馈问题」（和页脚按钮同名）', wPrivacy.indexOf('「反馈问题」') >= 0);
     ok('隐私政策不再写界面里没有的「诊断信息」按钮', wPrivacy.indexOf('「诊断信息」') < 0);
+
+    // 「反馈问题」必须是微信官方反馈入口：点一下真的能反馈，而不是把东西塞进剪贴板
+    ok('「反馈问题」是 open-type="feedback" 的按钮（点开是微信官方反馈页）',
+      wMy.indexOf('open-type="feedback"') >= 0);
+    ok('复制本机信息挂在长按上，不占点击', wMy.indexOf('bindlongpress="diagInfo"') >= 0 &&
+      wMy.indexOf('bindtap="diagInfo"') < 0);
+    ok('隐私政策写明了「点」和「长按」两种行为',
+      wPrivacy.indexOf('意见反馈') >= 0 && wPrivacy.indexOf('长按') >= 0);
   }
 
   CAT.setDetailLoader(null);
