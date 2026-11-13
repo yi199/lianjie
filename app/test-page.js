@@ -768,6 +768,26 @@ function fakeDetail(out) {
       wWelcome.indexOf('gotoPrivacy') >= 0);
     ok('我的页页脚有隐私政策入口', wMy.indexOf('隐私政策') >= 0 && wMy.indexOf('gotoPrivacy') >= 0);
 
+    // 引导页必须是一屏：三个问题同时在，全部预选默认值，什么都不点也能开始。
+    // 反面：不许再回去做「下一步 / 分步」——那会让用户连点三次才看到「今天练什么」。
+    const jWelcome = fs.readFileSync(pathm.join(__dirname, 'pages/welcome/index.js'), 'utf8');
+    ok('引导页一屏问完三个问题（三个问题块都在同一屏）',
+      (wWelcome.match(/class="chips"/g) || []).length === 3);
+    ok('三个问题的默认项在界面上真的是选中态',
+      wWelcome.indexOf("level === 'some'") >= 0 && wWelcome.indexOf('days === 3') >= 0 &&
+      wWelcome.indexOf("place === 'gym'") >= 0);
+    ok('默认值就是「练过一阵 / 一周 3 练 / 健身房」',
+      /DEF_LEVEL = 'some'/.test(jWelcome) && /DEF_DAYS = 3/.test(jWelcome) &&
+      /DEF_PLACE = 'gym'/.test(jWelcome));
+    ok('onLoad 就算出计划摘要（不点也能看到今天练什么）',
+      /onLoad[\s\S]{0,600}this\.refresh\(DEF_DAYS/.test(jWelcome));
+    ok('没有分步引导（不留 step / 下一步）',
+      jWelcome.indexOf('step:') < 0 && jWelcome.indexOf('pickLevel(e) {') >= 0 &&
+      !/this\.setData\(\{ step/.test(jWelcome) && wWelcome.indexOf('class="dots"') < 0);
+    ok('主按钮是「就这样，开始」', wWelcome.indexOf('就这样，开始') >= 0);
+    ok('按钮文案不随「等服务端」变化（别让人看到技术话术跳一下）',
+      wWelcome.indexOf('正在检查你之前的记录') < 0);
+
     // 记录页：「换一个」不能在顶行（状态栏那一条）——那条带右侧被微信胶囊占着，
     // 真机上点不到（2026-11-11 用户实测）。必须放在胶囊下方的内容区。
     const wRec = fs.readFileSync(pathm.join(__dirname, 'pages/record/index.wxml'), 'utf8');

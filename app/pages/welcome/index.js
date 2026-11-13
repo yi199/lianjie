@@ -2,15 +2,26 @@ const db = require('../../utils/db');
 const sync = require('../../utils/sync');
 const P = require('../../data/plan');
 
+/**
+ * 引导页只做一件事：在 10 秒内让人看到「今天练什么」。
+ *
+ * 所以没有分步、没有「下一步」：三个问题都预选好默认值，
+ * 用户什么都不点，按「就这样，开始」也能拿到一份能用的计划。
+ * 想改的人改一项，下面的计划摘要当场重算。
+ */
+
+const DEF_LEVEL = 'some';   // 练过一阵
+const DEF_DAYS = 3;         // 一周 3 练
+const DEF_PLACE = 'gym';    // 健身房
+
 Page({
   data: {
     sbh: 20,
-    step: 0,          // 0 品牌 / 1 水平 / 2 频率与场所
-    level: '',
-    days: 0,
-    place: '',
-    canFinish: false,
+    level: DEF_LEVEL,
+    days: DEF_DAYS,
+    place: DEF_PLACE,
     summary: '',
+    meta: '',
     leaving: false,
     checking: false   // 正在等服务端配置（本地没有引导态时）
   },
@@ -28,6 +39,9 @@ Page({
       return;
     }
 
+    // 默认值先算出计划摘要：即使服务端迟迟不回，用户也已经看到「今天练什么」
+    this.refresh(DEF_DAYS, DEF_PLACE, DEF_LEVEL);
+
     // 本地没有引导态，也可能只是「换了设备」。先等服务端配置回来再决定，
     // 否则用户明明用过，清个缓存就要重填一遍表。
     // ready() 自带 4 秒上限，网络慢也不会卡在这里。
@@ -42,23 +56,15 @@ Page({
     });
   },
 
-  start() {
-    if (this.data.checking) return;    // 还在等同步，别让人抢先点进引导
-    this.setData({ step: 1 });
-  },
-
-  back() {
-    this.setData({ step: Math.max(0, this.data.step - 1) });
-  },
-
   /** 「继续即表示同意…」→ 隐私政策与用户协议（纯本地也必须有这一页，审核会看） */
   gotoPrivacy() {
     wx.navigateTo({ url: '/pages/privacy/index' });
   },
 
-  /** 选水平 → 自动进下一步 */
   pickLevel(e) {
-    this.setData({ level: e.currentTarget.dataset.v, step: 2 });
+    const level = e.currentTarget.dataset.v;
+    this.setData({ level: level });
+    this.refresh(this.data.days, this.data.place, level);
   },
 
   pickDays(e) {
@@ -73,25 +79,25 @@ Page({
     this.refresh(this.data.days, place, this.data.level);
   },
 
-  /** 两项都选了才允许开始，并把生成的计划摘要显示出来 */
+  /** 把生成的计划摘要显示出来（跟着选项实时变） */
   refresh(days, place, level) {
     if (!days || !place) {
-      this.setData({ canFinish: false, summary: '' });
+      this.setData({ summary: '', meta: '' });
       return;
     }
-    const plans = P.buildPlan(days, place, level || 'some');
+    const plans = P.buildPlan(days, place, level || DEF_LEVEL);
     const names = plans.map(function (p) { return p.name; }).join(' / ');
     this.setData({
-      canFinish: true,
-      summary: '一周 ' + days + ' 练 · ' + (place === 'home' ? '居家' : '健身房') + ' · ' + names
+      meta: '一周 ' + days + ' 练 · ' + (place === 'home' ? '居家' : '健身房'),
+      summary: names
     });
   },
 
   finish() {
-    if (!this.data.canFinish || this.data.leaving) return;
+    if (this.data.checking || this.data.leaving) return;
 
     db.finishOnboarding({
-      level: this.data.level || 'some',
+      level: this.data.level || DEF_LEVEL,
       days: this.data.days,
       place: this.data.place
     });
