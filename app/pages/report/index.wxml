@@ -3,6 +3,7 @@
 <view class="wrap {{fx ? 'enter-r' : ''}}">
 
   <view class="head rise d1">
+    <view class="sharedchip" wx:if="{{shared}}">好友的训练战报</view>
     <view class="kicker">{{dateText}}</view>
     <view class="h1en">Session Report</view>
     <view class="h1">{{head}}</view>
@@ -48,12 +49,14 @@
     </view>
   </view>
 
-  <view class="comment rise d5">{{comment}}</view>
+  <view class="comment rise d5" wx:if="{{comment}}">{{comment}}</view>
 
 </view>
 
 <view class="footbar rise d6">
-  <view class="sharerow">
+  <!-- 好友快照：只读，只有一个行动；想转发走右上角胶囊菜单 -->
+  <view class="btn" wx:if="{{shared}}" hover-class="btn-hover" bindtap="done">{{btnText}}</view>
+  <view class="sharerow" wx:else>
     <button class="btn ghost sharebtn" open-type="share" hover-class="btn-hover">分享</button>
     <view class="btn" hover-class="btn-hover" bindtap="done">{{btnText}}</view>
   </view>

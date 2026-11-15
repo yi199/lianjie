@@ -374,6 +374,47 @@ ok('今天的战报 → 回到训练 tab（shell 带 tab=0）',
   calls.length === 1 && calls[0][0] === 'relaunch' && calls[0][1] === '/pages/shell/index?tab=0',
   JSON.stringify(calls));
 
+/* ---- 战报分享快照：好友打开看到的是分享者那份，不是自己的空数据 ---- */
+const shareMsg = todayReport.onShareAppMessage();
+const m = shareMsg.path.match(/[?&]snap=([^&]+)$/);
+ok('自己的战报 → 分享 path 带 snap 参数', !!m, shareMsg.path.slice(0, 60));
+
+// 模拟好友端：全新页面实例，只拿链接里的 snap，不依赖本地数据
+const friendPage = loadPage('./pages/report/index');
+friendPage.onLoad({ snap: m[1] });
+ok('好友端进入只读快照模式', friendPage.data.shared === true && friendPage.sharedMode === true);
+ok('好友端看到的是分享者的数字',
+  friendPage.data.r.sets === todayReport.data.r.sets &&
+  friendPage.data.r.ton === todayReport.data.r.ton,
+  friendPage.data.r.sets + ' 组 / ' + friendPage.data.r.ton + ' 吨');
+ok('好友端底栏只有「我也开始练」', friendPage.data.btnText === '我也开始练', friendPage.data.btnText);
+ok('好友端标题/文案来自快照而非本地重算', friendPage.data.head === todayReport.data.head);
+
+calls.length = 0;
+friendPage.done();
+ok('好友点「我也开始练」→ 已引导用户进自己首页（reLaunch shell）',
+  calls.length === 1 && calls[0][0] === 'relaunch' && calls[0][1] === '/pages/shell/index',
+  JSON.stringify(calls));
+
+// 好友再转发：快照原样跟着走，不断链
+const fwd = friendPage.onShareAppMessage();
+ok('快照模式转发仍带同一个 snap', fwd.path.indexOf('snap=' + m[1]) >= 0);
+ok('快照模式朋友圈 query 也带 snap', friendPage.onShareTimeline().query.indexOf('snap=') === 0);
+
+// 坏链接：decode 失败 → 回退本地模式，绝不白屏
+const broken = loadPage('./pages/report/index');
+broken.onLoad({ snap: '!!!not-base64!!!' });
+ok('坏 snap 回退本地模式（shared=false）', broken.data.shared === false);
+
+// 静态结构：快照模式底栏没有分享按钮（转发走胶囊菜单），但有「好友的训练战报」标识
+const wShared = require('fs').readFileSync(require('path').join(__dirname, 'pages/report/index.wxml'), 'utf8');
+ok('wxml：快照模式不显示分享按钮、只留行动按钮',
+  /wx:if="\{\{shared\}\}"[^>]*bindtap="done"/.test(wShared) && /wx:else>/.test(wShared));
+ok('wxml：有「好友的训练战报」标识', wShared.indexOf('好友的训练战报') >= 0);
+
+// encode 兜底：极端数据打包失败时 path 回退落地页（这里手工构造 null 场景验证分支存在即可）
+ok('分享标题仍按战报数字生成', shareMsg.title.indexOf(todayReport.data.r.sets + ' 组') >= 0, shareMsg.title);
+
 /* ================= 9. 动作详情页（E4） ================= */
 console.log('\n=== 9. 动作详情页 ===');
 
@@ -1130,8 +1171,11 @@ function fakeDetail(out) {
       jReport2.indexOf('onShareTimeline') >= 0 &&
       /showShareMenu[\s\S]{0,120}shareTimeline/.test(jReport2));
     ok('分享给朋友带自定义缩略图', jReport2.indexOf('msg.imageUrl = this.shareImg') >= 0);
-    ok('分享落点是首页，不是战报页（别人打开没有那天的数据）',
-      /path: '\/pages\/welcome\/index'/.test(jReport2) && jReport2.indexOf("path: '/pages/report") < 0);
+    ok('自己的战报分享卡片带快照（好友打开看到的是这份战报，不是自己的空数据）',
+      jReport2.indexOf("require('../../utils/share-snapshot')") >= 0 &&
+      jReport2.indexOf("'/pages/report/index?snap=' + encodeURIComponent(token)") >= 0);
+    ok('快照打包失败仍有回退落点（落地页），分享本身不挂',
+      jReport2.indexOf(": '/pages/welcome/index'") >= 0);
     // 微信只允许「右上角 ··· → 分享到朋友圈」，没有能让按钮直接发朋友圈的接口。
     // 所以按钮文案必须是「分享」，不能写「分享到朋友圈」（写了就是谎报行为）。
     ok('分享按钮文案是「分享」，不谎称能直接发朋友圈',
