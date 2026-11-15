@@ -1,26 +1,18 @@
 # 力见 — 项目交接（新对话开工先读这份）
 
-> 换新对话时，第一句话直接说：**读一下 E:\wx小程序\HANDOFF.md，我们接着做**。
-> 最后更新：2026-11-11（上线加固 + 纯本地定位 + 三件套 + 隐私页 + 合并进 main + 上线清单）
+> 换新对话第一句：**读一下 E:\wx小程序\HANDOFF.md，读完用三句话复述，然后等指令**。
+> 最后更新：**2026-11-15**（交接整理：历史归档到 docs/变更历史.md，本文只留现在有效的事实）
+> 变更动机查 `docs/变更历史.md`（**别整读**，只在问「当时为什么这么做」时翻）。
 
 ## 一句话
 
-微信**原生**小程序：健身训练记录 + 训练数据可视化，带**多设备同步**（自建 Go 后端）。单人用、纯本地优先、不社交、不卖课。
+微信**原生**小程序：健身训练记录 + 力量地形可视化。单人用、**纯本地优先**、不社交、不卖课。
+带自建 Go 后端的多设备同步，但**首版纯本地发布**，后端代码原样保留（见约定 12）。
 
-> **产品定位（2026-11-11 定，别再绕回「要不要微信登录」）**：主打**轻量、无需登录**。
-> 微信小程序的登录本来就是静默的（`wx.login` 无 UI），所以「无需登录」不需要额外做什么。
-> **首版按纯本地发布**（`config.js` 的 `trial` / `release` 留空）。**后端与同步代码原样保留**
-> （不删、不阉割），靠 `config.js` 一个开关随时能开 —— 见「架构与约定」第 12 条。
->
-> ⚠️ **UI 口径（2026-11-11 用户当面纠正）**：**别在界面里反复强调「数据只在这台手机上 / 记得备份」**。
-> 原话「绝大多数人也不是很会在意这个」。数据安全是工程顾虑，不该变成用户的日常负担：
-> - 「数据」区**不摆常驻状态行**（纯本地时 `syncState === 'local'`，wx:if 直接不渲染；只有真连了云端、有东西要传才出现）；
-> - 备份/恢复**收进一行「备份与恢复」+ 动作面板**，不各占一行；
-> - 诊断信息收进页脚「反馈问题」，不进设置区；
-> - 不在战报页/首页做「记得备份」的友情提示。
-> 能力仍在（换手机、排障都得靠它），只是**低频动作不该占屏幕**。
-
-对标产品是「杯间餐时」（居家调饮社区），**只借视觉语言和产品形态，不抄内容结构**（用户明确反对换皮）。
+- 名字：**力见**（2026-11-13 定；旧名练界，代码里只在备份兼容处保留）。
+- 对标「杯间餐时」：**只借视觉语言与产品形态，不抄内容结构**。
+- ⚠️ **UI 口径**：别在界面里反复强调「数据只在这台手机 / 记得备份」（用户原话：「绝大多数人也不是很会在意这个」）。
+  低频动作不该占屏幕：不摆常驻状态行、备份/恢复收进一行、诊断收进页脚「反馈问题」、不做备份提醒。
 
 ## 分支地图（先看这里，别推错）
 
@@ -28,376 +20,136 @@
 
 | 位置 | 分支 | 指向 | 状态 |
 |---|---|---|---|
-| **本地 + 远端** | **`main`** | **`849aad2`** | **主线。两个远端已同步到同一提交，feat/dev 完全包含在里面**（2026-11-11 合并） |
-| **本地 + 远端** | **`feat/dev`** | **`3547078`** | **日常工作分支**。所有修改先提交到这里，稳定后再合 main |
-| github | `feat/fonts-tabbar` `feat/catalog` `feat/fonts-rebuild` `feat/fonts-rebuild-2` `feat/safe-storage` | `b78a4ee` `17c559a` `f2e72f6` `1bb28cb` `05b291b` | **协作者的分支**（对应 PR #37–#41，内容已进 main）。**不要删**，即使看起来"已经合并了" |
-| gitee | `feat/dev` `feat/backend-sync-design` `feat/onboarding-rewards` | `3547078` `f055522` `452ad47` | gitee 上也有 feat/dev 了（2026-11-11 新建）；后两个是历史残留 |
-| 本地 | `feat/backend-sync-design` `feat/onboarding-rewards` | `f055522` `452ad47` | 历史残留，远端本来就没有这两个 |
-| 本地 | `backup/pre-main-merge` `backup/pre-merge-20261111` | `0f84b6e` `3547078` | 合并前的临时备份，确认跑得没问题后可 `git branch -D` |
+| 本地 + 两远端 | **`main`** | **`c50c0b9`** | 主线；github / gitee 已回读一致 |
+| 本地 + 两远端 | **`feat/dev`** | **`4ac25b4`** | 日常工作分支；提交先落这里，稳定后 `--no-ff` 合 main |
+| github | `feat/fonts-tabbar` `feat/catalog` `feat/fonts-rebuild(-2)` `feat/safe-storage` | — | 协作者分支（内容已进 main）。**不要删** |
+| 本地+gitee | `feat/backend-sync-design` `feat/onboarding-rewards` | `f055522` `452ad47` | 历史残留，内容已在 main |
+| 本地 | `backup/pre-main-merge` `backup/pre-merge-20261111` | `0f84b6e` `3547078` | 合并前备份，确认无误可删 |
 
-远端：`gitee`(man-qianyi/lianjie) + `github`(yi199/lianjie，ssh://git@ssh.github.com:443)。
-
-2026-11-04 删过**自己的** `feat/fonts-on-main`（已合并进 main）；同一天新开了 `feat/dev` 作为日常分支。
-2026-11-11 把 `feat/dev`（13 个提交）用 `--no-ff` 合进 main，**在 main 上重跑过七套 751 项 + `check_app.sh` + `go test`**，然后两个远端一起推到 `849aad2`（gitee 的 main 从此不再落后）。
-
-### ★ squash 合并的坑（2026-11-04 踩到，已处理完）
-
-主线用 **squash** 合并，每个 PR 压成一个新 SHA，**源分支与 main 失去血缘**：
-`git rev-list --count github/main..feat/fonts-on-main` 会给出 32 这种假数字。
-
-**判断一个分支能不能删，不能看 `--is-ancestor`，要看内容**：
-`git diff --shortstat main <branch>` —— 为空、或差异只体现"main 比它多"，才是真合并了。
-合并时同理：先 `git diff main <branch>` 确认分支是超集，再 `git merge <branch> -X theirs`，
-冲突块全是"分支新增、main 侧为空"的那种。
+远端：`gitee`(man-qianyi/lianjie) + `github`(yi199/lianjie，走 `ssh://git@ssh.github.com:443`)。
+**squash 合并会让 `rev-list` 失真**：判断分支能否删/是否真合并，看 `git diff --shortstat main <branch>`，别看 `--is-ancestor`。
 
 ## 怎么跑
 
 ```bash
-# 七套自测都要绿（数据层 / 页面 / 同步 / 训练记录 / 进步 / 动作库 / 指标）
-cd app && node test.js && node test-page.js && node test-sync.js && node test-training.js   && node test-progress.js && node test-catalog.js && node test-metrics.js
+# 七套自测（改完必跑）+ 分享快照（在飞时也要跑）
+cd app && for f in test.js test-page.js test-sync.js test-training.js test-metrics.js test-catalog.js test-progress.js; do node $f || break; done
+node test-share-snapshot.js        # 工作区有这份文件时才有（见「在飞」）
 
-# 语法 / JSON / wxml 类名 / db 方法检查
-bash _cache/check_app.sh
+bash _cache/run_all_tests.sh       # 只报各套项数/失败数
+bash _cache/check_app.sh           # 语法 / JSON / wxml 类名 / db 方法 / 字体缺字
 ```
 
-### 本地起后端（真库联调）
-
-本机没有 Docker，Postgres 装在 **WSL Ubuntu 24.04** 里（PG 16.15），Windows 侧跑 Go 二进制：
-
-```bash
-# 1. 起库（WSL 里）
-wsl -u root -- pg_ctlcluster 16 main start
-
-# 2. 起后端（Windows，DEV_MODE + :18081）
-bash _cache/run_api.sh        # 自动取 WSL IP 拼 DATABASE_URL，日志打在终端
-
-# 3. 真链路自检：登录 / 推 / 幂等重推 / 换设备拉 / 墓碑 / LWW / 用户隔离 / 配置文档
-python3.12 _cache/e2e_test.py
-
-# 4. 后端 30 项测试（含 17 个集成，要真库）
-cd server && TEST_DATABASE_URL="postgres://postgres:postgres@<WSL_IP>:5432/lianjie_test?sslmode=disable" \
-  go test ./... -v
-```
-
-**★ WSL2 的 localhost 转发不可靠**：`DATABASE_URL` 用 `127.0.0.1:5432` 时，单个连接能通，但
-`go test` 一并发就 `connection refused`（17 个集成测试全红）。必须用 WSL 的 IP
-（`wsl -u root -- hostname -I`），`run_api.sh` 已经现取现用。
-
-开发者工具（`E:\微信web开发者工具`，项目名 lianjian）里的 develop 版指向
-`http://127.0.0.1:18081/api`，后端一起来它就会登录成 `dev-local-1` 并上传本地记录。
-
-```bash
-# 真机 / 模拟器
-# 微信开发者工具 → 导入 E:\wx小程序\app → AppID: wxfbe33a79e7898c0a
-# 详情 → 本地设置 → 勾「不校验合法域名」，后端走 http://127.0.0.1:18081
-```
-
-Windows + git-bash。`_cache/` 是本地产物目录（脚本、截图、字体源文件），**不进版本库**。
+- 开发者工具：导入 `E:\wx小程序\app`，AppID **`wxfbe33a79e7898c0a`**；详情→本地设置→勾「不校验合法域名」。
+- 后端（可选，纯本地版用不到）：PG 在 WSL Ubuntu（`wsl -u root -- pg_ctlcluster 16 main start`），
+  `bash _cache/run_api.sh` 起 `:18081`；`go test ./...` 需 `GOPROXY=https://goproxy.cn,direct`。
+  **WSL2 会空闲回收 VM**，跑联调前挂一个 `wsl -u root -- sleep infinity` 钉住。
+- Windows + git-bash；`_cache/` 是本地产物（脚本/截图/字体源），**不进版本库**。
 
 ## 目录
 
 ```
-app/                    小程序源码（唯一需要改的前端）
-  pages/                13 页：welcome 引导 / today 今天 / record 记录 /
-                        report 战报 / stats 数据 / my 我的 /
-                        programs 方案中心 / builder 自建方案 /
-                        metrics 身体指标 / my-exercises 我的动作 /
-                        exercise 动作详情 / progress 进步 / privacy 隐私与协议
-  components/set-row/   单组记录行（重量/次数可编辑，受控 input）
-  data/                 exercises.js 105 个动作 / plan.js 训练日队列 /
-                        programs.js 6 个官方方案 / fonts.js 字体 base64（勿手改）
-  utils/                db.js 数据层（唯一读写入口）/ storage.js 分片存储+上传队列 /
-                        sync.js 同步调度 / terrain.js 力量地形绘制 /
-                        config.js 后端地址 / date.js / volume.js
-  store/index.js        极简跨页通知
-  test.js test-page.js test-sync.js test-training.js   四套自测
-server/                 Go 后端（v2/v3 已实现，单体 + Postgres）
-docs/                   文档体系（见下）
-文档/                   产品说明 / 加入开发指南
-原型/                   早期原型 HTML（本地保留、不入版本库；与工程是两份代码）
+app/                  小程序源码（唯一要改的前端）
+  pages/              13 页：shell（tab 容器）/ welcome / today / record / report / stats /
+                      my / programs / builder / metrics / my-exercises / exercise / progress / privacy
+  components/         set-row（组行）/ tab-today|tab-stats|tab-my（薄壳）/ tab-bar（底栏）
+  data/               exercises 105 动作 / plan 训练日队列 / programs 6 方案 / fonts base64（勿手改）
+  utils/              db 数据层（唯一读写入口）/ storage / sync / terrain / poster / config / date / volume
+server/               Go 后端（保留的扩展能力）
+docs/                 上线清单 / 提审操作手册 / 技术方案 / 开发计划 / 开发标准 / 接口 / 设计文档 / 变更历史
+文档/                 产品说明、加入开发指南
+原型/                 早期 HTML 原型（本地保留、不入库）
 ```
 
-**docs/ 现在的结构**（朋友 11-01 重组，一份事实只写一处）：
+## 架构与约定（破坏这些就会返工）
 
-```
-上线清单.md              ★ 提审前照这个打勾（备案 / 类目 / 隐私指引 / 真机 14 项 / 审核话术 / 时间线）
-提审操作手册.md          ★ MP 后台逐栏可照抄版（类目 / 备案每栏 / 隐私指引正文 / 审核备注原文 / 驳回应对）
-技术方案.md              为什么这么设计（架构 / 同步协议 / 一致性取舍）
-开发计划.md              阶段、模块、验收，带「状态」列
-开发标准.md              「改动怎么做才不算错」：文档纪律 / 接口纪律 / 硬约束
-接口/HTTP契约.md         端点、字段、校验、错误码（原「后端接口契约」）
-接口/训练记录.md          客户端数据层函数签名、状态
-设计文档/<模块>.md        每个模块的表、业务规则、边界（动作库 / 训练记录 / 训练日程 / 有氧记录 / 进步可视化）
-```
-
-## 架构与约定（破坏这些就会重蹈覆辙）
-
-1. **原生小程序，不用 uni-app**。调试直接对应源码，不要引入编译层。
-2. **所有数据读写只走 `app/utils/db.js`**。页面里不准直接碰 `wx.getStorageSync`；`storage.js` 只准 `db.js` 和 `sync.js` 引用。将来换后端只改这两个文件。
-3. **本地存储按月分 key**（`lj.sets.YYYY-MM`），训练记录按年分（`lj.workouts.YYYY`）。单 key 上限 1MB，塞一个 key 约 31 个月写满。
-4. **字号只用令牌**（`app.wxss` 的 `--fs-*`，现在 **8 档**：19/24/30/38/46/60/76/96rpx）。曾经出现过 19–25rpx 七个近似字号用了 59 次，整页糊成一片灰。颜色同理，只用 CSS 变量。
-5. **字体**：中文 `LJSans`（思源黑体 VF 子集）+ 英文数字 `LJGrotesk`（Space Grotesk），OFL 1.1 可商用，全部 base64 在 `data/fonts.js`，`wx.loadFontFace` 异步加载，失败静默回落系统黑体。**改中文文案必须重做子集**（见「常用操作」）。
-6. **计划模型是「训练日排队」**：本周 N 次，A→B→C 轮流，跳过自动顺延。**不是**「周一推日、周三拉日」。
-7. **力量地形是山脊线**：横轴 12 周，每周一个峰，折线不做平滑。**不是**部位雷达图（犯过一次，commit 88f0166 修的）。
-8. **同步协议**：本地优先 + 服务端 `rev` 版本号游标 + LWW（客户端时刻，夹紧 2 分钟）+ 墓碑 `done=false`。撤销删除永远不物理删（会复活）。配置文档整份同步、服务端不解析。
-9. **原型与工程是两份代码**。改工程的视觉后要同步 `力见_小程序演示.html`（生成脚本 `_cache/make_interactive.py`）。
-11. **底部切换栏是自定义的**（`app/custom-tab-bar/`，`app.json` 里 `tabBar.custom: true`）。
-   加新的 tab 页时，**必须在 onShow 里 `this.getTabBar().setData({ selected: N })`**，
-   否则进来时高亮会停在上一个 tab；页面还要自己让出栏高
-   （`padding-bottom: calc(var(--sp5) + 120rpx + env(safe-area-inset-bottom))`）。
-10. **一个 PR 一件事，PR 描述写 `Closes #issue`**（见 `CONTRIBUTING.md` 和 `.github/pull_request_template.md`）。
-11. **动作档案在本地**：`app/data/exercise-meta.js` 存表格里那 5 个展示列（难度 / 器材 / 主要肌群 /
-    单双侧 / 类型），详情页「看讲解」把它们渲染成「动作档案」卡片。数据源是
-    `健身动作库_105动作清单_v1.xlsx` 的「动作库」页；改表后重新生成该文件即可。
-    详情页**只保留**：标签 / 动作名 / 插画（有图才显示）/ 一句话要点 / 动作档案。
-    「怎么做」步骤和「怎么记」两块已按用户要求删除；`steps` 仍由后端提供，但页面不再渲染。
-12. **★ 后端与同步代码是「保留的扩展能力」，不是死代码（2026-11-11）**。首版纯本地发布，但：
-    - **一行都不许删**：`server/`、`utils/sync.js`、`utils/storage.js` 的待上传队列、`/api/*` 契约全部保留；
-    - **开关只有一处**：`utils/config.js` 的 `trial` / `release`。留空 = 纯本地（sync 全部短路，零请求零定时器）；
-    - **打开即接管历史**：纯本地模式下 `putLocal(row, track=false)`，行**不进队列**，所以光填地址只会把「以后新写的」传上去。
-      为此 `sync.js` 里有 `backfillOnce()`：第一次真正和云端握手时调 `db.syncMarkAll()` 把本机历史一次性排进队列，
-      用 `lj.sync.backfilled` 记住只做一次。**删掉它，「随时能开云端」就是一句空话。**
-    - 验证：`test-sync.js` 第 16 节（假服务端）+ `test-sync-real.js` 第 7 节（真库：纯本地 3 组 → 填地址 → 上云 → 换设备拉回 → 不重推）。
+1. **原生小程序**，不用 uni-app，不引入编译层。
+2. **所有数据读写只走 `app/utils/db.js`**；页面里不准碰 `wx.getStorageSync`，`storage.js` 只给 db/sync 用。
+3. **存储按月分 key**（`lj.sets.YYYY-MM`），单 key 1MB 上限。
+4. **字号只用令牌**（`app.wxss` 的 `--fs-*`，8 档：**22/27/32/40/49/63/78/96rpx**）。写死 rpx 会被测试揪出来；改字号只改这一处。
+5. **字体**：中文 `LJSans`（思源黑体子集）+ 英文数字 `LJGrotesk`（Space Grotesk），OFL 1.1，base64 在 `data/fonts.js`，`wx.loadFontFace` 异步加载。**改中文文案必须重做子集**。
+6. **计划模型是「训练日排队」**：本周 N 次 A→B→C 轮流，跳过自动顺延。**不是**「周一推日」。
+7. **力量地形是山脊线**：横轴 12 周、每周一峰、不做平滑；**不是**雷达图。纵轴是**组数**（自重/计时算不出吨），单位只在顶端刻度。
+8. **同步协议**：本地优先 + 服务端 `rev` 游标 + LWW（夹紧 2 分钟）+ 墓碑 `done=false`，永不物理删。
+9. **三个 tab 装在同一个 swiper 容器里**（`pages/shell` + `components/tab-*`）。`app.json` **没有 tabBar**，所以
+   **全项目禁止 `wx.switchTab(` / `getTabBar(`**，一律 `utils/tabkit.goTab(i)` / `backToShell()`；每个 tab 自己套 `scroll-view`。
+10. **动画只能加在「不含 `position: fixed` 后代」的容器上**（transform 会让后代 fixed 相对它定位）。
+11. **顶行右侧禁放可点元素**：微信胶囊会吃掉点击（`padding-right` 让位实测无效）。按钮一律放到胶囊下沿以下。
+12. **★ 后端与同步代码是「保留的扩展能力」不是死代码**：`server/`、`sync.js`、待上传队列、`/api/*` 一行都不许删；
+    唯一开关是 `utils/config.js` 的 `trial`/`release`（留空 = 纯本地，sync 全短路）。开云端靠 `sync.backfillOnce()` 一次性接管历史。
+13. **动效口径**：嫌平庸，要 spring / 胶囊滑块 / 跟手横滑；改交互前先做可交互 HTML 原型让他点选。
+14. **一个 PR 一件事**；动作档案在 `data/exercise-meta.js`（改 xlsx 后重生成）。
 
 ## 红线（用户反复强调过）
 
-- **不许照抄杯间餐时**：不能只把酒换成健身。文案、结构、图形都要自己长出来。
-- **版权**：不用第三方图片、图标库、字体文件。图形用 Pillow/SVG 自绘，字体用 OFL 开源字体子集化。
-- **不做**：付费抽奖/盲盒、排行榜、身材对比图、AR 体型扫描。
+- **不许照抄杯间餐时**（不能只把酒换成健身）。
+- **版权**：不用第三方图片/图标库/字体文件；图形自绘、字体用 OFL 子集。
+- **不做**：付费抽奖/盲盒、排行榜、身材对比图、AR 体测。
 - 不输出任何令牌、密码、连接字符串到聊天或文件。
+- **别回退已砍的东西**：示例数据入口、分步引导、「存成图片」、顶行右侧可点按钮 —— 都有反向断言守着。
 
-## 当前状态
+## 当前状态（2026-11-15 快照，接手先复跑）
 
-### 已完成
+- `main` = `c50c0b9`（本地/github/gitee 三处一致）；`feat/dev` = `4ac25b4`。
+- **七套自测 851 项全绿**、`check_app.sh` 全通过、字体 995 字 **0 缺字**（2026-11-15 实跑）。
+- 主包约 1.3MB（上限 2MB）；AppID `wxfbe33a79e7898c0a`；`trial`/`release` 为空（纯本地）。
+- 产品能力现状：一屏引导（默认值）→ 今天 → 记录（一键完成剩下的组）→ 战报（5:4 分享图 + 原生分享）→ 数据（组数地形）→ 我的。
+- **没有相册权限**：存图功能已删，隐私能力声明只有**剪切板**（备份/恢复）。别再往回调。
 
-- **★ 改名：练界 → 力见（2026-11-13）**：用户与朋友商定，小程序正式定名**力见**（力 + 见）。全项目 35 处替换：品牌字（9 个页面的 brand 行、欢迎页 mark）、`app.json` navigationBarTitleText、隐私政策与用户协议正文、分享标题（today/stats/report）、分享图 footer、`project.config.json` 的 `description` 与 `projectname`（lianjie → **lijian**）、server 注释（main.go / schema.sql / nginx.conf）。**字号字体不用改**：`LJGrotesk`/`LJSans` 的 LJ 正好对应 LiJian。**关键兼容**：备份 JSON 的 `app` 标记从 `练界` 改为 `力见`，但 `normalizeImport()` **同时接受两者**——他手机上改名前的旧备份必须还能恢复，否则改名等于把人数据锁死（test.js 有专门用例）。名称仍需在 MP 后台查重（被占备选：力见记 / 力见训练记 / 今日力见），**名称定下来才能提备案**（两者必须一致）。
+### 在飞（未提交，另一路会话在做）
 
-- **★ 战报接入微信分享（2026-11-13）**：用户要求「不要存图片，直接分享」。**微信的能力边界要写清楚**：小程序**不能**把一张图直接发到朋友圈或发给好友——分享永远是「小程序卡片」。所以改法：①底部主分享位换成 `<button open-type="share">分享给朋友</button>`（点了直接弹微信分享面板）；②`onShareTimeline` + `wx.showShareMenu({menus:['shareAppMessage','shareTimeline']})` 打开「分享到朋友圈」（朋友圈里是**半屏小程序**，不是图片）；③分享卡片缩略图另画一张 **1080×864（5:4）** —— `poster.drawShare()`，山脊抽成公共 `ridge()` 与海报共用形状语言；④`onShareAppMessage` 的 `path` 指向 `/pages/welcome/index`（指到战报页别人打开是空数据）；⑤**「存成图片」整个功能已删除**（2026-11-13 用户拍板：用户要图自己截图，少一个入口少一条权限）——`poster.js` 只剩 5:4 分享图，3:4 海报的 `draw()/wrap()/roundRect()` 一并删掉；隐私政策与提审手册里的**相册（仅写入）声明也删了**（声明了不用 = 虚假陈述，审核会问），能力声明回到只有剪切板。图片在 `onLoad` 里预生成（`prepShare()`，`onShareAppMessage` 只能同步返回，来不及现画），失败静默降级为页面截图。`test-page.js` +7。
+- **战报分享快照**：`?snap=` 把战报汇总字段编码进链接，好友点开**只读渲染**（不读本地数据）。
+  改动文件：`utils/share-snapshot.js`(新)、`app/test-share-snapshot.js`(新)、`pages/report/index.{js,wxml,wxss}`、`test-page.js`。
+  **测试已绿（38 项 + 11 条页面断言），未 commit，未真机验收。** 开工前先 `git status` 问用户归属，**绝不 `git add -A`**。
+- 真机待验（分享快照）：编译 → 分享给「文件传输助手」→ 点开确认只读 → 再转发不断链 → 「我也开始练」落点。
 
-- **★ 记录页「一键完成剩下的组」（2026-11-13）**：外部评测 P0「记录压到 3 次点击内」的剩余部分。重量/次数本来就按上次预填好，照计划做完的人不该点 4 下勾 —— 现在完成 1 组后，组记录下方出现「剩下的 N 组按这样完成」，一下就记完。**边界**：①只在 `doneCount>0 && doneCount<sets.length` 时出现（一组没做时不给，避免误触）；②每组的数字仍可单组点开改、改完立刻落库（不牺牲准确度）；③走的是逐组勾选同一条 `validateSet` 校验，任一组不合法就整批拦下（防止一次写进多条 0kg）；④批量完成**不启动**组间休息计时。`test-page.js` +8。
+### 未完成（按优先级）
 
-- **★ 全局字号上调一档（2026-11-13）**：有用户反馈「字有点小」。`app.wxss` 档位整体上调：label 19→22 / note 24→27 / body 30→32 / h2 38→40 / h1 46→49 / title 60→63 / num 76→78。同时把 `components/set-row`（组行）和 `components/tab-bar`（底栏文字）里写死的 16/17/24/30rpx 全改回 `var(--fs-*)`——**以后调字号只改 app.wxss 一处**。副作用处理：我的页两行卡片标题（「体重·体脂·腰围·心率」「自己加的，能换也能删」）在 32rpx 下会换行，已改文案保一行。
+1. **小程序备案未提交**（1–20 工作日，最长一环）。名称已定**力见**，**先到 MP 后台试改名称查重**（被占备选：力见记/力见训练记/今日力见），**名称与备案必须一字不差**。
+2. **MP 后台**：用户隐私保护指引（只声明**剪切板**）、服务类目 **工具 → 健康管理**、基本信息、体验成员（约 15 人）。
+3. **真机验收**（swiper 版从未逐项签字）：横滑跟手 / 点底栏同步 / 每 tab 滚到底 / 下拉刷新 / 数据页有山 / 详情返回不重启容器 / 一键完成按钮位置 / 分享卡片缩略图 / ··· 里是否有「分享到朋友圈」。
+4. 给人体验：体验版**二维码 7 天失效** → 加体验成员 + 发小程序卡片，别发码图；简历只放视频 + GitHub（仓库已 public）。
+5. 低优先：C6 测试补强（双设备并发/分页/时钟偏差）、S7 部署实操（证书/限流/备份演练）、训练日程与有氧记录（只有设计）。
 
-- **★ 引导页压成一屏（2026-11-13）**：原来是「品牌 → 你练了多久 → 一周几次/在哪练」三屏连点，用户至少点 4 下才看到「今天练什么」。现在三个问题**同屏**、全部**预选默认值**（练过一阵 / 3 天 / 健身房），`onLoad` 就把计划摘要算出来 —— **什么都不点直接按「就这样，开始」也能进**。改一项摘要当场重算。删掉 step/back/dots/canFinish 那套分步逻辑；按钮文案不再被「正在检查你之前的记录…」替换（技术话术不许在首屏闪）。`test-page.js` +7（含反向断言：不许再回到分步）。
+## 已知的坑（一条顶半小时）
 
-- **★ 战报「存成图片」（2026-11-11）**：战报页底部多了「存成图片」，把这次训练画成 **1080×1440** 的海报存进相册 —— 练完发一张图是健身用户的本能，也是这个产品唯一不花钱的传播口子。
-  - `utils/poster.js`：`posterTexts(data)` 纯函数（文案口径，可测）+ `draw(ctx, data)` 只负责画。**数字口径和战报页完全一致**（负重看吨 / 自重看次 / 计时看秒）。
-  - 画面：日期 + 大标题 + 三个数字 + PR + 一句评语 + 最近 12 周山脊 + 底部落款。评语填住中段空白，山脊**按实际最大值归一**（海报没刻度，用 `niceScale` 会压平成台阶）。
-  - 用 `wx.createOffscreenCanvas` 离屏画，不占页面布局；`canvasToTempFilePath` → `saveImageToPhotosAlbum`。
-  - 相册权限被拒 → 弹窗引导 `wx.openSetting`，不是只弹一句「失败」。
-  - **合规**：隐私政策加「存成图片（只写入，不读取）」；`docs/提审操作手册.md` 的能力声明从「只有剪贴板」改成「剪切板 + 相册（仅写入）」——**提审时漏了这条会被判「使用未声明的能力」**。
-  - 测试 +9：三个数字口径（含 bw/sec 两种）、PR 带过去、按钮/离屏/openSetting、隐私文案、以及用假 ctx 真画 4 种边界数据（空 / 计时 / 自重 / 长评语）确认不抛错。七套 **815 项**全绿。
-
-- **★ 「反馈问题」改成真反馈入口（2026-11-11）**：用户问「为什么点了出现复制成功」——因为那个按钮其实只是 `wx.setClipboardData`，「复制成功」是微信自己的提示，**名字和行为对不上**，用户以为能反馈，结果只是复制了一段技术文本。
-  - 现在：页脚「反馈问题」是 `<button open-type="feedback">`，点开是**微信官方的意见反馈页**（后台「反馈管理」能收到，用户可附截图），不需要自己的服务器。
-  - 复制本机信息挪到**长按**（`bindlongpress="diagInfo"`）：点=去反馈，长按=带上环境/存储用量/最近报错，提示改成「本机信息已复制，可粘到反馈里」。不新增入口。
-  - `button` 的默认外观（方块背景、边框、最小高度、居中）在 `.aboutbtn` 里全部剥掉，视觉上和旁边两行小字一致。
-  - 隐私政策同步改写：说明「点」打开官方反馈页、「长按」复制本机信息，两者都由用户主动触发。
-  - 七套 **805 项**全绿（+3 断言：必须是 `open-type="feedback"`、复制只能挂在长按、隐私文案两者都写到）。
-
-- **★ 去掉「示例数据」这类开发入口（2026-11-11）**：用户要求把明显不是给用户用的功能清掉。
-  - 删掉两处创建入口：数据页空态的「先看看示例数据」按钮（`loadDemo`）、我的页的「填入示例数据」行（`fillDemo`）。两个方法一起删了。
-  - **数据层保留**：`db.loadDemo()` / `db.clearDemo()` / `data/plan.makeDemoSets()` 是七套测试的夹具（造 12 周训练数据），不能删。
-  - 保留两处**只在示例数据存在时才出现**的提示（数据页顶部「现在混着示例数据…清除」、进步页底部说明）——它们是清理老数据的安全网，正常用户看不到。
-  - 顺手对齐隐私政策：正文里原来写「诊断信息」这个按钮名，实际界面上叫「**反馈问题**」（在页脚），已改成一致。
-  - 八条断言锁死：两个入口不许回来、`db.loadDemo` 必须还在、隐私页只能写「反馈问题」。七套 **802 项**全绿。
-
-- **★ tab 改成 swiper 容器：真正的横滑（2026-11-11）**：用户要「像 App 一样的横滑切换」。
-  - 前提：微信页面之间不能自定义转场（旧页销毁、新页创建，两者不可能同屏），**唯一能做到跟手横滑的办法是把三个 tab 塞进同一个页面的 `<swiper>`**。
-  - 架构：`pages/shell/index` 是唯一容器（swiper，`duration=300`、`easingOutCubic`）+ 三个组件 `components/tab-{today,stats,my}` + 底栏组件 `components/tab-bar`。`app.json` **删掉了 tabBar**（`tabBar.list` 最少要 2 项，单容器页用不了它），`custom-tab-bar/` 目录已删。
-  - **业务逻辑一行没重写**：三个 tab 的 `pages/*/index.js` 仍然导出同一份配置（末尾 `module.exports = cfg`），组件用 `utils/tabkit.js` 的 `asComponent()` 把 Page 配置转成 Component 配置；wxml 用 `<include>`、wxss 用 `@import` 引页面那份 —— 单一来源，不维护两份。
-  - 组件拿不到 `pageLifetimes.show`（三个 tab 同处一页），所以「成为当前 tab」由 `active` 属性驱动，`observer` 里延迟 24–80ms 再跑一次原来的 `onShow`（数据页要等 canvas 布局完才量得到尺寸）。
-  - 每个 tab 内部是 `scroll-view`（swiper-item 里没有页面级滚动），下拉刷新走 `refresher-enabled`。
-  - 跳 tab 全改成 `utils/tabkit.js` 的 `goTab(i)`（栈里有 shell 就让它滑，没有就 `reLaunch('/pages/shell/index?tab=i')`）和 `backToShell()`；**`wx.switchTab` 全项目已清零**，`test-page.js` 有断言守着。
-  - 底栏不再需要「接力」：同一个实例，`pos` 跟着 `selected` 变，CSS transition 自然滑。
-  - 七套 **796 项**全绿（新增 16 项：架构、组件复用、没有 switchTab/getTabBar 残留）。
-
-- **★ 切 tab 不再「整页重载」（2026-11-11）**：用户反馈「底栏丝滑了，但切页面时新旧页面的切换很僵硬」。
-  - 根因不是没动画，而是**动画播错了场合**：tab 页是常驻实例（`switchTab` 不销毁页面），原来每次 `onShow` 都重播「内容逐块错峰入场」，两次切换之间页面明明还在，却像重新加载了一遍。
-  - 现在分三种场合：**首次进入** = 错峰入场（220ms，`.enter`）；**切 tab 回来** = 只做 120ms 整体淡入（`.enter-fade`，无位移、无错峰）；**进详情页** = 从右滑入 280ms（`.enter-r`）。
-  - 顺手纠正方向：`programs`（换个计划）和 `builder`（建方案）本来就是 `navigateTo` 进来的详情页，之前错用了 tab 页的上移入场，现在归到 `enter-r`。
-  - 边界（对用户要说清）：微信 WebView 渲染下**跨页真正的左右滑动做不到**，新旧页面无法同时存在，也就不可能交叉淡入。能做到"最接近"的就是这一层 120ms 淡入；要真滑动只能把三个 tab 合成一个页面用 `swiper` 容器（等于换架构，上线前不做）。
-  - 七套 **780 项**全绿。
-
-- **★ 底栏滑块（2026-11-11）**：两种皮肤，真机上比。切换手势：**「我的」页脚版本号连点 5 次**（存本地 `lj.tabSkin`，只为调试，不加正式入口）。
-  - `pill`（默认）：深绿胶囊滑过去，选中项图标/文字反白。图标是深色 png 改不了色，用 `filter: brightness(0) invert(1)` 反相 —— 不用额外做一套白图标。
-  - `card`：浅色卡片浮在纸面（内高光 + 投影），图标上移 4rpx。
-  - **⚠️ 最大的坑**：自定义 tabBar 在**每个 tab 页都是独立实例**，`switchTab` 时旧实例销毁、新实例创建 —— 直接写 CSS transition 只会「闪一下」（胶囊一出生就在目标位置）。必须接力：`switchTab` 时把 `selected` 写进 `app.globalData.tabFrom` → 新实例 `attached` 先把滑块摆到 `tabFrom`（`noFx` 关掉过渡）→ 页面 `onShow` 的 `setData({selected})` 触发 observer，隔一帧再滑到目标。
-  - 滑块分两层（`.pill` 对齐三分之一 / `.pill-in` 做视觉）：`translateX(N * 100%)` 的百分比是**自身宽度**，外层若等于「三分之一减间距」，第二三项会累积错位。
-  - 点击时 `wx.vibrateShort({type:'light'})` 轻震一下（不支持就静默跳过）。
-  - 顺手删掉原来那条 5rpx 高的「小把手」——小到看不见，等于没做指示器。
-  - 七套 **779 项**全绿（+10：接力四步、点当前 tab 不跳、皮肤存本地…）。
-
-- **★ 页面转场（2026-11-11）**：详情页从右滑入、tab 页逐块上移。
-  - 前提（别忘）：微信 WebView 渲染下**页面级转场是系统写死的「右进左出」**，改不了；要自定义得切 Skyline（重构级，未做）。所以只做**内容层**动画。
-  - tab 页（today/stats/my/programs/builder）：容器不动，**直接子元素**分别延迟 0/45/90/135ms 上移 10rpx + 淡入 —— 容器和子元素都动会叠成两遍位移。
-  - 详情页（record/exercise/report/metrics/my-exercises/privacy）：`utils/enter.js` 在 onLoad 挂 `enter-r`，整块 translateX 28rpx + 淡入 280ms，和系统滑动同向。
-  - 硬性约束（有测试守着）：**被动画的容器里不能有 `position: fixed` 元素** —— `transform` 会把它变成相对容器定位。record 的 `.rest`/`.footbar`、report 的 `.footbar`、metrics 的 `.bar` 都在缩进 0 的层级（与容器同级），实测 nav 与底栏位移 0px。
-  - 不做退场动画：返回是系统接管，插动画会打架。
-  - 七套 **769 项**全绿（+7：enterFx 的置空/挂类/clearFx、6 详情页接没接、tab 页不许接、固定元素没被包进容器）。
-
-- **★ 地形为何改按「组数」画（2026-11-11）**：数据页山脊线的纵轴从「吨」改成「每周完成组数」。
-  - 起因：用户在真机/截图上看图时问「有些运动没有吨啊」——**自重（俯卧撑/引体/徒手深蹲）和计时（平板支撑）都没有「重量×次数」**，动作库 105 个动作里 **51 个自重 + 10 个计时**，超过一半没有吨。
-  - 旧口径的后果：混练的人只看到举铁那部分，纯自重的那几周**塌成贴地的深谷**，像「白练了」。旧代码只在「整段时间完全没负重」时才退回组数，是半兜底。
-  - 现在：`utils/terrain.js` 新增 `seriesOf(weeks)`，纵轴固定取 `weeklyVolume()` 的 `sets` 列；**单位写在顶端刻度里（「50 组」）**，不再单独占一行小字 —— 那行 10px 灰字连原作者都找不到（2026-11-11 原话「数据页小字在哪？」），单位必须跟数字长在一起。`tickLabel(v, unit)` 抽成纯函数，有测试。**吨没消失**——它在 TOTAL / BEST 两张卡里（TOTAL 小字改成「吨 · 负重累计」，说清只算负重）。
-  - 代价（接受）：地形看不出强度（8 组轻和 8 组重一样高）。强度由力量水平 / 进步指数 / PR 三处负责，地形只回答「这周练了多少」。
-  - 连带改了**示例数据**：`data/plan.js` 加 `DEMO_ATTEND`（每周练几次：`[3,3,3,2,3,3,3,1,3,3,2,3]`）+ 每次最后一组偶尔少做 1–2 组（确定性抖动，不用随机数）。否则十二周每周都是 47 组，地形会画成**一块砖**（或整齐的等距锯齿，一眼假）。
-  - 测试 +3：`seriesOf` 只认 sets 列、吨为 0 的那周仍有正常高度。七套 **754 项**。
-
-- **★ 隐私政策 + 用户协议（2026-11-11）**：新页面 `pages/privacy`（一页两节，13 个页面）。
-  - 文案与实现严格对齐：**不注册、不登录、不联网**，数据只在本机；唯二离开手机的动作是用户主动点「备份」/「诊断信息」（都只进系统剪贴板）。
-  - 覆盖审核会看的点：收集了什么（没有）、数据存哪、怎么删（`删除我的全部数据`）、训练风险免责、未成年人、条款更新、联系渠道（小程序「反馈与投诉」）。
-  - 入口两处：**引导页底部「继续即表示同意《隐私政策与用户协议》」**、我的页页脚「隐私政策 · 用户协议」。
-  - ⚠️ **文案与实现必须同步**：哪天给 `config.js` 的 `release` 填域名、开云同步，这一页必须改成「会上传哪些数据、存多久、如何撤回同意」，否则就是虚假陈述。
-  - 测试：页面 9 项（含「关键条款不能被删掉」的反向断言 —— 直接断言 wxml 里有「不收集」「训练风险」「删除我的全部数据」），七套合计 **750 项**。
-- **★ 纯本地三件套（2026-11-11）**：把「无需登录」这条路补齐到能用。
-  - **备份 / 恢复**：`db.exportData()` 生成整份 JSON → 剪贴板；「从备份恢复」读剪贴板 → **先算账再确认**（「将恢复 3120 组…」）→ 落地。
-    规则是 **只加不删**：同 id 比 `updatedAt`，新的赢；墓碑不导；示例数据不导；`app !== '力见'` 或不是 JSON 整份拒绝。
-    这是纯本地路线换手机的**唯一出路**（没有账号，数据只能靠用户自己带走）。落地位置 `utils/storage.js` 的 `importRows/importWorkouts/importMetrics/importExercises` + `db.inspectImport/applyImport`。
-  - **本地诊断日志**：新模块 `utils/diag.js`（只依赖 safeStorage，环形 40 条）。`report.send()` 现在**先把错误落本机再考虑上报** —— 纯本地模式没有服务端可发，这一步就是唯一的线索。
-    「我的 → 诊断信息」一键复制（环境 / 存储用量 / 本机数据量 / 最近错误）。
-  - **文案去技术化 + 入口合并**：删掉独立的「同步」栏，并进「数据」区顶部一条状态行（纯本地显示「数据保存在这台手机上 / 换手机前用下面的『备份』带走」）；
-    「删除账号 → 删除我的全部数据」；「重新引导」入口**删除**（三个旋钮能改设置，删数据能重来，两个入口做同一件事）；自建动作页脚、欢迎页提示里的「同步」字样全部换掉。
-  - **顺手修掉一个真 bug**：`exportData` 里把 `metricKinds()` 返回的**定义对象**当 key 用过（`metricKinds()` 返回 `{kind,cn,unit…}`），
-    导致「导出我的数据」里**身体指标永远是空的**。上一轮就写错了，这轮被导入往返测试抓出来。
-  - 验收：七套 **750 项全绿**（+40/累计：数据层 18 / 页面 20 / 诊断 2）、`check_app.sh` 全过、字体子集 984 字 / 380KB（cmap 实测 0 缺字）、我的页渲染截图逐行核对无遮挡。
-- **★ 纯本地定位落地（2026-11-11）**：产品定为「轻量、无需登录」，首版纯本地发布；后端与同步代码原样保留。
-  发现并修掉扩展性的真漏洞：纯本地模式下 `putLocal(row, track=false)` 让行不进待上传队列，**光给 config.js 填地址只会把「以后新写的」传上去，历史全留在手机里**（`db.syncMarkAll()` 早就写好了，但生产代码从没调过）。
-  现在 `sync.js` 的 `backfillOnce()` 在第一次真正握手时自动全量入队（`lj.sync.backfilled` 记住只做一次）。
-  七套自测 **710 项全绿**（+5）；`test-sync-real.js` 新增第 7 节，用真库验证「纯本地 3 组 → 填地址 → 上云 → 换设备拉回 → 之后只推新行」。
-- **★ 上线加固第一轮（2026-11-11）**：把「上线前代码审计」里能自己改的五条全部落地。
-  - **全局错误兜底**：`utils/report.js`（叶子模块，只依赖 config）+ `app.js` 的 `onError`/`onUnhandledRejection`/`onPageNotFound`；节流（同一错误 60 秒一次、单次启动最多 20 条）、纯本地模式**一行请求都不发**；`onPageNotFound` 顺手 `reLaunch` 回首页，不让用户停在白屏。
-  - **后端 `POST /api/client-error`（v3.4）**：免登录、8KB 体积上限、字段长度上限、`kind` 白名单、按 IP 独立限流；**只记日志不落库**，栈里的换行压成 `⏎` 保证一条错误占一行。
-  - **删除账号（合规）**：后端 `DELETE /api/account` 一条 `delete from users` 走外键级联（五张业务表都带 `on delete cascade`），幂等；客户端「我的 → 数据 → 删除账号」二次确认 → `sync.deleteAccount()` → `db.resetAll()` → 回引导页。**成功后必须清 token/游标**，否则下次请求会 401 重登、建新号再把本地残留推上去。
-  - **导出数据**：`我的 → 导出我的数据` 把 profile / sets / metrics / 自建动作 / 自建方案打成 JSON 复制到剪贴板（纯本地生成，不需要后端）。
-  - **限流信任开关**：`ratelimit.go` 的 `X-Real-IP` 改成只有 `TRUST_PROXY=true` 才采信，默认按 `RemoteAddr`；`.env.example` 与 `deploy/README.md` 已写「前面有 Nginx 才打开」。
-  - **胶囊适配**：`app.js` 用 `getMenuButtonBoundingClientRect` 算 `capsulePad`（拿不到时按右边距 7 + 宽 87 兜底）；动作页/进步页的右上英文小标加 `padding-right`（纯文字，让位就够）。**记录页「换一个」已从顶行挪走**：`padding-right` 让位在小米 12S Pro 上仍点不到（落了 8px 进胶囊热区），最终放在英文名那一行（胶囊下方），`test-page.js` 加了三条反向断言。
-  - **验收**：七套自测 **705 项全绿**（+21）、`check_app.sh` 全过、字体子集重建到 **925 字 / 360KB**（`check-font-cmap.py` 0 缺字）、Go 单测 + `TRUST_PROXY` / 错误上报 / `oneLine` 共 8 项新增；**用 WSL 真 PG 跑了全套集成测试（含新的 `TestIntegrationDeleteAccount`）全 PASS**，临时库跑完已 `drop`。
-- **★ 2026-11-04 主线合并**：`github/main` 从 `5c530a9` 推到 `0677811`，一口气合了 5 个 PR —— #37 字体 + 自定义 tabBar、#38 动作库 E1–E4、#39 字体补动作库新页面的 7 个缺字、#40 本地写满不丢数据（`safeStorage`）、#41 补安全存储提示里的 3 个字。
-  - 合并前先在独立 worktree 里预演过：tabbar 零冲突，catalog 只有 `app/utils/db.js` 的 `alternatives` 一处 8 行冲突（取 `CAT.candidates`）。
-  - **合完在真实 main 上复验**：449 项测试全过、0 缺字、字体子集 319KB。
-  - 剩下 **47 文件 / 4355 行** 还在 `feat/fonts-on-main` 上，见「未完成」。
-- **P1 后端 S1–S8**：鉴权、存储与迁移、`/sync` 推拉（rev 游标 / LWW / 时钟夹紧 / 落败行回推 / 去回声）、只读查询、限流探针、集成测试。
-- **S7 部署配置已写好**：`server/deploy/`（`nginx.conf` TLS + `limit_req` + `X-Real-IP`、`proxy_common.conf`、`backup.sh` 每日 pg_dump 留 14 天、`README.md`）。**但一次都没在真服务器上跑过。**
-  - **2026-11-04 已首次跑通真库**：WSL 里装 PG 16，`go test` 30 项全 PASS（含 17 个集成）。
-- **前后端真链路已验证**（2026-11-04）：Go 后端 :18081 + 真 Postgres，`_cache/e2e_test.py` 14 项全过
-  （登录 / 推 3 组 / 幂等重推 applied=0 / 换设备全量拉 / 墓碑可传播 / 旧值不覆盖 / 用户隔离 / 无 token 401 / 配置文档跨设备）。
-  同一时刻开发者工具里的小程序自动登录成 `dev-local-1` 并上传了本地记录（3 组 + 1 次训练 + 配置），库里有据可查。
-- **P2 前端存储 C1/C2**：`storage.js` 分片 + 待上传队列；`db.js` 全部改走它；`uncheckSet` 修掉「取消勾选不落库」的老 bug。**对页面的方法签名一个没变**。
-- **P3 接入同步 C3/C4/C5**：`sync.js`（单飞 / 防抖 / 分批 / 退避 / 401 重登）；`config.js` 按环境选地址，留空 = 纯本地；`app.js` 启动链路；welcome 从服务端恢复引导态；today/stats 收到远端变更刷新；my 页清空文案。
-- **★ M1 端到端**：朋友已在微信开发者工具里跑通（记录 → 上传 → 换设备拉回、断网补传）。
-- **训练记录 v0.3（部分）**：`workouts` 表、`sets` 新增 `blockId` / `trackVer` / `rir` / `assist`，「先选动作再记组」「热身组」「跨零点算哪天」。**多训练块还没实现**。
-- **字体（我们这条线独有）**：思源黑体 VF + Space Grotesk，770 字子集，303KB（抽字时跳过注释，注释里的字不进包）。
-- **P5 身体指标 v0.1**（2026-11-04）：`pages/metrics`（体重/体脂率/腰围/静息心率，大数字 + 趋势图 + 最近记录 + 底部录入）、`utils/metricChart.js`、`storage.js` 加 metrics 分片与 `m:` 队列、`db.js` 加 8 个接口、同步载荷接上 `metrics`；40 项自测。评级与自重负荷换算（V3）仍未做。
-- **动作库 E2 客户端数据源**（2026-11-04）：`utils/catalog.js`（269 行）成为动作数据的唯一入口——服务端清单 `/ 自建 / 包内快照` 三路合一，`retired` 过滤、换动作候选、选动作面板、详情缓存（7 天 TTL + 50 条 LRU）、变更通知、清空。`db/storage/sync/plan/builder` 全部改走它；自建动作 `u-` id 规则（≤16 字节）、墓碑、`x:` 上传队列（排在批次最前）、`customExercises` 同步载荷。**`test-catalog.js` 68 项**。
-- **记录页交互收紧**（2026-11-04，`6b45f3d`）：打勾前必须填数字（负重看重量、自重/计时看次数秒数，底部「完成这组」走同一条校验）；已完成的组点勾要 showModal 二次确认（默认「不动它」）才撤销；已完成的组也不能被改成非法值（清空重量会被拒）。`test-page.js` 95 项。
-- **动作库 E3 我的动作页**（2026-11-04，`8048109`）：`pages/my-exercises` 列表/新建/编辑/删除（名字·部位·场所·记法·要点，满 30 个给提示，被服务端拒绝的行标红显示原因）；「我的」页加入口；`db.suggestWeight` 改走 `CAT.find`（自建动作也能算加重档位）、`makeBlock` 兜底优先用行里的 `exCn`（不再把 `u-` id 漏到界面）；`test.js` +2 项。
-- **动作库 E4 动作详情页**（2026-11-04，`699c254`）：`pages/exercise`——骨架同步渲染（名字/英文/部位·场所·记法/要点/怎么记全走本地 `catalog.find`），再异步 `catalog.detail(id)` 拉 `steps` + `imgDetail`（缓存 7 天 TTL + 50 条 LRU 由 catalog 负责，页面不自己实现）；没图给虚线占位不空白、图挂了 `binderror` 就当没图、讲解拉不到显示「讲解没拉到 + 再试一次」而要点照旧；自建动作不打后端。训练页动作名旁加「看讲解 ›」入口。`test-page.js` +19 项。
-- **自定义底部 tabBar**（2026-11-04）：`app/custom-tab-bar/`，纸面底 `#EDE8D9`（比页面深一档）+ 上沿细线 + 选中项陶土色小把手 + 按压缩放；栏高 92rpx（≈原生）。三个 tab 页 `onShow` 里 `getTabBar().setData({selected})`，页面自己让出 `104rpx + 安全区`。
-- **文档体系**：拆成 `接口/` + `设计文档/`，新增 `开发标准.md`、`CONTRIBUTING.md`、PR 模板。
-- **上线加固 P0-1（2026-11-04）**：`utils/safeStorage.js` 成为**唯一**的本地写入入口（storage / catalog / db / sync 全部改走它）。本地空间满时 `wx.setStorageSync` 抛异常不再冒到页面；storage 层写失败即丢内存缓存回落到磁盘真相（宁可少显示，不做「看着有、重进就没」）；提示只弹一次、带真实用量。索引 key 写失败时不写半截（`migrateLegacy` 失败保留老 key 下次重来）。**`test.js` 第 21 节 5 项**专门测这条路径（monkey-patch 让 `lj.sets.*` 写失败）→ 七套 **630 项**全绿。
-- **力量地形纵轴（2026-11-05，`eb6281e`）**：左边三档刻度（顶 / 中 / 0）+ 轴线 + 两条极淡虚线；上限定在 1/1.5/2/2.5/3/4/5/6/8×10ⁿ 整档，最高峰留一成余量；山脚收在 0 基线；单位由「每周容量 · 吨/组」小字交代。演示页 `力见_小程序演示.html` 同步改（该文件被 `.gitignore:59` 忽略，不进库）。
-- **上线加固 P0-2（2026-11-04）**：`project.config.json` 的 `packOptions.ignore` 排掉 8 个 `test*.js`（**156KB** 不再进线上包）。
-
-- **力量水平 V3（2026-11-05）**：`data/strength-standard.js`（5 个标准动作 × 男/女 × 四档门槛，**参考值不是研究数据**，界面标「仅供参考」）+ `utils/strength.js`（估算 1RM ÷ 体重 → 新手/入门/中级/进阶/精英，缺性别或缺体重就只提示缺什么，绝不编默认值）；性别 / 出生年份进配置文档（`saveProfile` 显式传空才清除，改计划不会抹掉）；进步页新增「力量水平」栏（**放在空态之外**——只练过一次的人也看得到），五档小圆点 + 距下一档还差多少。`test-progress.js` 95 → 115 项。**RIR 录入界面仍未做**（字段早就有了）。
-- **同步可见（2026-11-05）**：我的页「同步」栏四态（本地模式 / 正在同步 / 没传上去 / 已同步 + 上次多久前），页面可见时 3 秒轮询自动更新；**只有失败态才出现「重试」**——同步本来就是全自动的（2 秒防抖 + 指数退避 + 空闲轮询），不该给用户一个「要按一下」的按钮。删掉「数据只存在这台手机里，不上传」那句错话。
-- **补录与回看（2026-11-05）**：数据页日历格子可点 → 那天战报（战报认日期，过去那天说「那天」、按钮变「回到数据」）；身体指标页可把日期往回翻着录（今天 / 昨天 / 10.03），记录行点一下切到那天、每行都能删。
-- **P7 进步可视化 V1 + V2**（2026-11-04，`9ce7717`）：`data/progress-model.js`（**纯参数表**：四种模型归属、体重系数、肌群参与度、进阶阶梯、噪声/停滞/起点参数）+ `utils/progress.js`（实际负荷、Epley+RIR 估算、序列/趋势/停滞事实/全身指数/肌群分摊/七类高光/数据质量）；`pages/progress` 整体变化页（指数、周走势、肌群、高光、动作榜可展开）+ 数据页入口。**`test-progress.js` 95 项**。示例数据默认不进统计，且铺了 12 周、带「涨→卡住→突破」的故事（点「示例数据」就能看到停滞提示和升级高光）。V3（体重/性别/评级/RIR 录入）与 V4 校准未做。
-- **动作库 v1.3 · E1 服务端**（2026-11-04）：`exercises` / `catalog_meta` / `user_exercises` 三张表；`GET /api/catalog?since=`（免登录、独立 IP 限流、`since>=rev` → 304 空 body、`order by hot desc,id`）；`GET /api/exercises/{id}`（要登录，`steps: string[]` + `imgDetail`，都可空）；`/sync` 加第 4 类资源 `customExercises`（LWW + 墓碑 + `rejected.kind=customExercise`）和 `catalogRev`；`cmd/seed-catalog` + `content/exercises.json`（105 个动作 / 18 个 hot）。后端 **76 项断言组全绿**（14 单元 + 23 集成，含四表分页、rev 区间、坏行隔离），HTTP 契约升到 **v3.3**。**E2（数据源）/ E3（我的动作页）/ E4（详情页）客户端三块均已完成**（见上）。
-
-### 未完成 / 在飞
-
-- ~~待拆的下几批 PR~~ **已作废**：`feat/fonts-on-main` 已于 2026-11-04 19:23 整体合进 `main`（merge `39652f7`），身体指标 P5 v0.1 / 进步可视化 P7 V1+V2 / S7 部署配置 / 真后端测试 `test-sync-real.js` 现在都在 main 里。
-- **C6 测试补强**：双设备并发、分页、时钟偏差；`test-sync.js` 现在只有「顺序模拟换设备」，没有两套独立状态。
-- **S7 部署实操**：配置齐了，缺「在一台真服务器上照 README 走一遍」——证书签发、`limit_req` 生效、备份还原演练都没验过。
-- **P0 小程序备案**：**还没提交**，1–20 个工作日，是整条上线链最长的一环。
-  ⚠️ 注意口径：**纯本地版不需要域名 / 服务器 / ICP 备案**（那些是「连云端」方案的假设）。
-  只需 MP 后台的「小程序备案」+ 服务类目（体育-在线健身）+ 基本信息 + 用户隐私保护指引。详见 `docs/上线清单.md` §1。
-- **真机验收（纯本地版）**：2026-11-11 用户在小米 12S Pro 上按 14 项清单点了一遍，回复「好像没什么问题了」。
-  - 第 5 项（记录页「换一个」点不到）与第 8 项（数据页纵轴单位）**经两轮修复后专项重验通过**；其余 12 项整体没问题，**未逐项签字**。
-  - 原「两台真机互相同步 / 弱网 / 杀进程 / 改时钟」在纯本地版**不适用**（没有网络、没有同步）；开云端那天再补。
-- **P5 身体指标**：M1–M3 已做（v0.1）；和 V3 的对接（体重换算自重负荷、力量水平评级）2026-11-05 已补完。
-- **P6 上线准备**：~~隐私协议 / 用户协议页面~~ **已做（`pages/privacy`，2026-11-11）**；剩下**后台「用户隐私保护指引」还得你自己填**（纯本地版可声明不采集个人信息）、监控告警与灰度未做。~~数据导出 / 注销~~ **已完成（2026-11-11）**；~~换手机带数据~~ **备份 / 恢复已完成（2026-11-11）**。
-- **训练日程 / 有氧记录**：只有 v0.1 设计，无代码。
-
-## 已知的坑
-
-| 坑 | 表现 | 解法 |
-|---|---|---|
-| **Go 依赖下不来** | `go build` 报 `proxy.golang.org ... connection failed` | `export GOPROXY=https://goproxy.cn,direct`。本机直连不通，不加这条永远编译不了 |
-| **按钮写着「反馈」其实只是复制** | 点「反馈问题」弹「复制成功」，用户不知道复制了干什么 | 小程序没有"打开反馈页"的 API，只能用 `<button open-type="feedback">`（微信官方反馈页）。别用剪贴板冒充反馈；要带诊断信息就挂在长按上 |
-| **删了 tabBar 之后 `wx.switchTab` 全废** | 点底栏/返回按钮没反应，控制台报 switchTab 失败 | `app.json` 没有 tabBar 时 `wx.switchTab` 直接失败。全部换成 `utils/tabkit.goTab(i)` / `backToShell()`；`test-page.js` 里有一条「全项目不许再出现 `wx.switchTab(`」的断言 |
-| **swiper 里页面不滚动** | 内容被裁在 swiper-item 里，划不动 | swiper-item 没有页面级滚动，每个 tab 必须自己套 `scroll-view`（本项目的 `components/tab-*/index.wxml` 第一层就是它） |
-| **swiper 里 canvas 量不到尺寸** | 数据页地形图空白（`fields({size:true})` 一直是 0） | 非当前 swiper-item 未布局。组件用 `active` 属性驱动，延迟 80ms 再跑 `onShow` → `drawTerrain()`；`drawTerrain` 本身也有 `if (!w || !h) return` 兜底 |
-| **自定义 tabBar 做不出滑动** | 写了 CSS transition，切 tab 时胶囊还是「闪一下」就到目标位 | 每个 tab 页的 tabBar 是**独立实例**，旧实例随页面销毁。必须接力：跳转前把当前序号存 `globalData`，新实例 `attached` 先无过渡摆到旧位置，下一帧再滑到新位置。另外 `translateX(N*100%)` 的百分比是自身宽度，滑块外层要占满三分之一整格 |
-| **深色底上的 png 图标看不见** | 选中项背景变深色，深色图标糊成一片 | png 不能改色，用 `filter: brightness(0) invert(1)` 反相成白色，比再出一套白图标省事 |
-| **给容器加动画后 fixed 元素乱跑** | 底栏/浮层突然跑到页面中间或跟着内容漂 | `transform` 会让后代的 `position: fixed` 变成相对该容器定位。**动画只能加在「不含 fixed 后代」的容器上**（本项目是 `.page`/`.wrap`，fixed 的底栏都在同级）。`test-page.js` 有断言守着 |
-| **页面转场做不出来** | 想自定义整页切换动画，改类没用 | WebView 渲染下系统写死右进左出，改不了；只有 Skyline 引擎的「容器转场动画」能做。别在 `.page` 上加动画指望改变**页面之间**的切换 |
-| **地形画成一块砖 / 整齐锯齿** | 示例数据每周组数一模一样，山脊线变成平顶矩形 | 改 `data/plan.js` 的 `DEMO_ATTEND`（漏课要不规律）+ 每次少做 1–2 组。**改了地形口径就要顺手看一眼示例数据的形状**，否则用户点「示例数据」看到的是一张坏图 |
-| **改中文文案漏字** | 新字显示成方框（只在真机/工具里看得见） | 重做字体子集（命令见下）。先跑 `node _cache/check_font_chars.js` 看缺几个字 |
-| **测试把日期写死** | 过几天跑就红，误以为是回归 | **已修（2026-11-03）**：`weeklyProgress(date)` / `alternatives(exId, planKey, date)` 都接受可选日期，测试传固定日期；示例数据改成「最近五周含今天」。以后新增用例别用 `D.today()` 当真值 |
-| **换字体后文字被挤断** | 「4 × 10」断成两行、`一周 2 练` 的「练」掉下去压住标签行 | Space Grotesk 比 Georgia 宽。flex 行里的数字/短句加 `flex-shrink: 0; white-space: nowrap`（`.pss` / `.pm` 已加） |
-| **WSL 里的 Postgres 会自己消失** | 后端突然全是 `500 DB_ERROR`（10s 超时），PG 日志里是「上次 09:13 干净关闭，09:24 才启动」，且这段时间写的数据可能丢 | WSL2 会空闲回收虚拟机。跑联调前先挂一个 `wsl -u root -- sleep infinity`（后台进程）把 VM 钉住；真要认真跑集成测试，用服务器上的 PG 或 Windows 原生安装 |
-| **分支被删 / 推错** | `git fetch --prune` 后本地跟踪分支 `[deleted]`；或推了非当前分支显示 up-to-date | 先 `git branch --show-current`；工作分支 = **`feat/dev`**（2026-11-04 起） |
-| **Edge headless 截图** | 目标 HTML 被浏览器进程锁住，写入失败 | 换文件名再写 |
-| **中文日期字距** | 套英文的 `0.26em` → "周 三 · 1 0 月 2 9 日" | 中文用 `.date`，字距 `0.06em` |
-| **类名冲突** | `.today` / `.side` 在 demo 里撞名，布局塌 | 加前缀或改名 |
-| **杠铃物理** | 每组加一片是错的 | 片数恒定，颜色逐个点亮表示进度 |
-| **旧版本假数据** | 升级后仍显示 126 条假记录 | `db.migrate()` 清 `lj.seeded` |
-| **8080 被别的进程（Docker）占** | 后端连不上 / 连错了进程 | `netstat -ano \| grep :8080` 找到占用者，再换端口或停它 |
-| **`wx.login` 每次都是新用户** | 开发者工具里重新登录一次，数据就没了 | `config.js` 的 `DEV_LOGIN_CODE`：**开发版返回固定 code**，同步层据此走固定身份；只有非 develop 环境才走真实 `wx.login` |
-| **拆 PR 脚本的 `git reset --hard`** | 开发者工具同时开着时，热重载读到「文件刚被删、还没写回」的瞬间：报 `app.json: 未找到 pages/xxx/index.wxml`，或者更阴的 `module 'utils/xxx.js' is not defined`（模块表里还挂着「已删除」状态，文件明明在磁盘上）。2026-11-04 13:06 那次 5 个新页面全报 ENOENT，就是 `_cache/build_tabbar_pr.sh` 的 reset 干的 | 跑这类脚本前先关掉模拟器；已经踩了分两步：① `cli.bat cache --clean compile --project ...` ② `touch` 引用它的模块（如 `utils/catalog.js`）逼编译器重新解析依赖图。判据是日志里出现 `Compiling utils/xxx.js suceess` |
-| **`wx://not-found`（点某个页面就报）** | Console 报 `Component is not found in path "wx://not-found"`，栈里全是 `recurseComponentImpl`，**不给页面名也不给文件名**；从数据页点「强了多少」进进步页时必现（2026-11-05） | wxml 里只有 `view` / `text` / `block` 三个内置标签、开闭配平、页面 json 无组件声明、app.json 无全局组件 —— 静态查不出野组件。最后**同时**做了两件事才消失：① 清缓存重编译（批量脚本改过 wxml，编译产物可能是半截的）；② 把嵌套的 `<block wx:else>` 换成扁平 `<view wx:if>/<view wx:else>`，嵌套 `wx:for-item` 补 `wx:key`。两处一起改的，**没法定论是哪一处**。以后遇到按这个顺序：先清缓存 → 再查嵌套 block / 无 key 的 for-item → 最后用 `wx:if` 开关一行关掉可疑区块做二分 |
-| **scroll-view 放进 flex 列里会把兄弟压扁** | iPhone 14 Pro 真机：建方案页的「选动作」抽屉，部位 chip 只剩半截、底部「已选 N 个 / 完成」整条消失（2026-11-08）。三版才收口：`flex:1;height:0`（aa053ed）真机仍复现；「外套 view + scroll-view 绝对定位撑满」（3395419）真机**更乱**；`f7d21ee` 版待真机确认（用户报「全乱」后改的第三版） | 根因是 scroll-view 内部有滚动层，不肯像普通 div 那样把「自动最小尺寸」缩到内容以下，用内容高度参与 flex 计算。**终版：让 scroll-view 只有一种高度来源——显式像素高度**：`.sheet` 不做 flex 列，`.sheeth` 定高 120rpx、`.parttabs` 死高 88rpx、`.sheetf` 定高 `calc(128rpx + env(safe-area-inset-bottom))`，列表 `height: calc(78vh - 44.8vw - env(safe-area-inset-bottom))`（44.8vw = 336rpx = 头 120 + chip 88 + 底 128；用 vw 不赌 rpx 在 calc 里的转换）。**别用 absolute 救**：微信里 scroll-view 靠绝对定位算不出高度，会塌成一团。渲染管线仍是 Chromium，只能证明算式自洽（393 视口 62.9+46.1+488.5+67.1=664.6=78vh、scrollH 2557/clientH 488），真机结论必须由用户确认 |
-| **顶行右侧的可点元素被胶囊吃掉点击** | 自定义导航（`navigationStyle: custom`）下，顶行右侧的按钮正好落在微信胶囊那条带上，**系统层会吃掉那块点击**：记录页「换一个」点了没反应（iPhone 14 Pro 实测：内容行 y 62–94、胶囊 y 59–91）。**注意：`padding-right` 让位并不足以解决** —— 2026-11-11 在小米 12S Pro 上仍然点不到（让出 8px 落进胶囊的触摸热区） | **顶行只放不可点的东西**（返回键在左边没问题、标题会被胶囊压到就让它压）。可点的按钮一律放到胶囊下沿（约 y>95）以下的内容区 —— 记录页的「换一个」已挪到英文名那一行（`class="subrow"`），`test-page.js` 有反向断言守着。`capsulePad` 只用来给右上角的**文字**让位（别让它压到胶囊上），不要指望它救点击 |
-| **并行会话 `reset --hard` 吞掉未提交改动** | 2026-11-04 19:21 另一个会话在同一工作树里 `git reset --hard` + 切分支，把未提交的 5 个文件改动整个清空（页面看着像「改回去了」，`git status` 却是干净的） | 收工前把改动落成提交，或至少 `git diff > _cache/xxx.patch`（`_cache` 被 ignore，不会被 reset 碰掉）；改代码前先 `git rev-parse --abbrev-ref HEAD` 确认落在哪条分支 |
-| **字体子集是全局生成物** | 合完 PR 才发现界面出方框。`node test-*.js` 永远抓不到（缺字只在渲染时暴露），`check_app.sh` 也只比较字数不比较字符集 | **所有会改文案的 PR 合完之后最后重建**，否则每合一个就要补一次（2026-11-04 连着补了两次）。重建后必须按 cmap 实测：从 `.js/.wxml/.json` 剥掉注释取中文，与子集 cmap 求差集，测试文件和 `.wxss` 不计入 |
-| **squash 合并让 rev-list 失真** | `git rev-list --count main..分支` 显示领先 32 个提交，实际内容早就合过一大半 | 看真实剩余量用 `git diff --stat main 分支`。拆 PR 从新 main 开分支 + cherry-pick，别再用旧基点 reset |
+| 坑 | 解法 |
+|---|---|
+| 顶行右侧按钮点不到 | 微信胶囊吃掉点击（iPhone/小米都实测），`padding-right` 无效 → 挪到 y>95 内容区 |
+| 删 tabBar 后点底栏没反应 | `wx.switchTab` 直接失败 → 全换 `tabkit.goTab/backToShell`，有断言禁它 |
+| swiper 里内容划不动 | swiper-item 无页面级滚动 → 每个 tab 套 `scroll-view` |
+| swiper 非当前项 canvas 量不到尺寸 | 用 `active` 驱动 + 延迟 80ms 重绘，绘制函数自己判 `w/h` 兜底 |
+| 给容器加动画后 fixed 元素乱跑 | transform 改变 fixed 参照 → 动画只加在不含 fixed 后代的容器 |
+| 页面之间转场做不出来 | WebView 写死右进左出（只有 Skyline 能自定义）→ 别在 `.page` 上加动画指望它 |
+| scroll-view 放进 flex 列把兄弟压扁 | 只能靠**显式像素高度**（vw 算），别用 absolute 救 |
+| 改中文文案出现方框 | 重做字体子集；`check_app.sh` 会按 cmap 报缺字 |
+| 测试把「今天」写死 | 过一次日期就红（不是回归）→ 用例传固定日期，别用 `D.today()` 当真值 |
+| 地形画成一块砖/整齐锯齿 | 改地形口径必须顺手看 `data/plan.js` 的示例数据形状 |
+| 深色底 png 图标看不见 / 底栏滑动「闪一下」 | 图标用 `filter: brightness(0) invert(1)` 反相；底栏是每 tab 独立实例 → `globalData.tabFrom` 接力（先摆旧位，下一帧再滑） |
+| 并行会话 `reset --hard` 吞改动 | 收工前落成 commit，或 `git diff > _cache/x.patch`；改代码前先看当前分支 |
+| `wx://not-found` 报错不给页面名 | 先清缓存重编译 → 再查嵌套 `<block wx:else>` / 无 `wx:key` 的 for-item → 最后用 wx:if 二分 |
+| 后端环境：PG 自己消失 / Go 依赖下不来 | WSL2 空闲回收 VM → 挂 `sleep infinity`；依赖走 `GOPROXY=https://goproxy.cn,direct` |
+| Edge headless 截图不出文件 | 中文路径必须 `file:///` + %编码；失败就换 user-data-dir 或改用 Chrome |
+| 改名后旧备份打不开 | 备份 `app` 标记改力见，但 `normalizeImport` **同时接受练界**——别「顺手清理」掉 |
 
 ## 常用操作
 
 ```bash
-# 七套自测（改完必跑，现在全绿 · 合计 750 项）
-cd app && for f in test.js test-page.js test-sync.js test-training.js test-metrics.js test-catalog.js test-progress.js; do echo "--- $f"; node $f || break; done
+# 双远端推送（先确认分支是 feat/dev 还是 main）
+git branch --show-current && git push gitee <b> && git push github <b>
 
-# 同上但只报项数（_cache 不进版本库；没有就手敲上面那行）
-bash _cache/run_tests.sh
+# 没有开发者工具时看页面：渲染成 HTML → 截图（判 UI 一律 430 宽）
+RENDER_W=430 node _cache/render_pages.js
+bash _cache/shot.sh                      # Edge headless；Edge 抽风就换 Chrome
 
-# 语法 / JSON / db 方法 / 字体缺字，一把过（有失败项退出码 1）
-bash _cache/check_app.sh
+# 改文案后重做字体子集
+bash _cache/rebuild_fonts.sh             # 内部：collect_chars → fontTools.subset → make_fonts_js
 
-# 没有开发者工具时看页面效果：渲染成 HTML → 逐页截图 → 拼成对照图
-RENDER_W=430 node _cache/render_pages.js   # 模拟 wx/Page/Component，跑 onLoad 拿 data，wxml 求值成 HTML
-                                           # 判 UI 一律 430 宽（iPhone 15 PM）；不传 RENDER_W 仍是 375
-bash _cache/shot.sh               # Edge headless 截 375×812 @2x（老脚本，430 见 shot_exercise.sh）
-python3.12 _cache/stitch.py       # 拼成 _cache/grid1.png / grid2.png
-
-# 双远端推送（先确认当前分支）
-git branch --show-current
-git push gitee <当前分支> && git push github <当前分支>
-
-# 重新生成演示页（含地形/字体）
-python3.12 _cache/make_interactive.py
-
-# ★ 改文案后重做字体子集（漏字会显示成方框）
-node _cache/check_font_chars.js                                      # 先看缺几个字
-python3.12 _cache/collect_chars.py                                   # 抽字表
-python3.12 -m fontTools.subset C:/Windows/Fonts/NotoSansSC-VF.ttf \
-  --text-file=E:/wx小程序/_cache/fonts/chars.txt --flavor=woff2 \
-  --output-file=E:/wx小程序/_cache/fonts/noto.sub.woff2
-python3.12 _cache/make_fonts_js.py                                   # 生成 data/fonts.js
-
-# 后端
-cd server && export GOPROXY=https://goproxy.cn,direct
-docker compose up -d db
-go test ./...
+python3.12 _cache/make_share_preview.py   # 5:4 分享图预览
 ```
 
-## 用户偏好（影响怎么做，不只是做什么）
+## 交接惯例
 
-- 要先看效果再定：给对比图/截图，别只描述。
-- 反感术语堆砌，先讲「是什么／跟我什么关系」。
-- 对版权敏感，每个外来素材都要说清授权。
-- 说「改好了」要核实文件，可能只做了一半——**先读文件再信**。
-- 任务进度存桌面或根目录文档（像这份）；但简单答疑直接在对话里答，别为每句话生成文件。
-- 要拍板时用编号选项写在正文里，他不用弹窗。
+- **开工**：读这份 → `git fetch --prune && git status` → 复跑七套 → 三句话复述 → 等指令（别急着改代码）。
+- **收工**：`docs/变更历史.md` 追加一条（日期+动机+影响）；这份只留「现在仍然有效的事实」，≤150 行。
+- **用户偏好**：先给效果图再定方案；反感术语堆砌；说「改好了」要**先读文件核实**；拍板用正文编号选项。
