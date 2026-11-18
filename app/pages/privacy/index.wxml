@@ -79,7 +79,7 @@
     <view class="dp">本协议适用中华人民共和国法律。</view>
 
     <view class="dh">八、生效</view>
-    <view class="dp">你继续使用本小程序，即表示已阅读并同意以上内容。最近更新：{{updated}}。</view>
+    <view class="dp">当你在引导页主动勾选同意并开始使用本小程序，即表示你已阅读并同意以上内容；你可以随时在「我的」里删除全部数据后停止使用。最近更新：{{updated}}。</view>
   </view>
 
   <view class="about">力见 {{version}} · 更新于 {{updated}}</view>

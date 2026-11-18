@@ -11,7 +11,7 @@ Page({
   data: {
     sbh: 20,
     cpad: 102,
-    updated: '2026 年 11 月 11 日',
+    updated: '2026 年 11 月 18 日',
     version: 'v0.1'
   },
 

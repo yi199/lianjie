@@ -6,8 +6,9 @@ const P = require('../../data/plan');
  * 引导页只做一件事：在 10 秒内让人看到「今天练什么」。
  *
  * 所以没有分步、没有「下一步」：三个问题都预选好默认值，
- * 用户什么都不点，按「就这样，开始」也能拿到一份能用的计划。
  * 想改的人改一项，下面的计划摘要当场重算。
+ * 唯一不能预选的是协议：审核要求用户自主勾选，默认不勾选，
+ * 没勾就点「开始」只会晃一下勾选框，不会进首页。
  */
 
 const DEF_LEVEL = 'some';   // 练过一阵
@@ -23,7 +24,9 @@ Page({
     summary: '',
     meta: '',
     leaving: false,
-    checking: false   // 正在等服务端配置（本地没有引导态时）
+    checking: false,  // 正在等服务端配置（本地没有引导态时）
+    agreed: false,    // 协议勾选态：必须用户主动点，绝不默认 true
+    shake: false      // 未勾选就点开始：勾选框抖一下提示
   },
 
   onLoad() {
@@ -56,9 +59,15 @@ Page({
     });
   },
 
-  /** 「继续即表示同意…」→ 隐私政策与用户协议（纯本地也必须有这一页，审核会看） */
+  /** 点协议文字 → 隐私政策与用户协议（纯本地也必须有这一页，审核会看） */
   gotoPrivacy() {
     wx.navigateTo({ url: '/pages/privacy/index' });
+  },
+
+  /** 用户主动勾选 / 取消勾选协议；勾选后立刻停掉抖动提示 */
+  toggleAgree() {
+    const agreed = !this.data.agreed;
+    this.setData({ agreed: agreed, shake: false });
   },
 
   pickLevel(e) {
@@ -95,6 +104,14 @@ Page({
 
   finish() {
     if (this.data.checking || this.data.leaving) return;
+
+    // 未主动勾选协议：不进首页，只给一个抖动反馈（不弹模态、不打断）
+    if (!this.data.agreed) {
+      const self = this;
+      this.setData({ shake: true });
+      setTimeout(function () { self.setData({ shake: false }); }, 480);
+      return;
+    }
 
     db.finishOnboarding({
       level: this.data.level || DEF_LEVEL,
