@@ -181,14 +181,76 @@
   border-color: #EFEDE2;
 }
 
-/* 「继续即表示同意《隐私政策与用户协议》」——可点，但视觉上压在最后一行 */
-.legal {
-  margin-top: 20rpx;
-  text-align: center;
-  font-size: var(--fs-label);
-  color: var(--muted2);
-  text-decoration: underline;
-  text-underline-offset: 6rpx;
+/* ---------------- 协议勾选（审核要求：用户主动勾选，不得默认同意） ---------------- */
+
+.legal-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20rpx;
 }
 
-.legal-hover { color: var(--green); }
+/* 自绘勾选框：不用第三方图标库（版权红线） */
+.box {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  border: 2rpx solid #C4C1B2;
+  background: #FFFFFF;
+  margin-right: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  transition: background .18s, border-color .18s, transform .12s;
+}
+
+.box.on {
+  background: #3C4A32;
+  border-color: #3C4A32;
+}
+
+.box-hover {
+  transform: scale(0.9);
+}
+
+/* 对勾：两根旋转的条拼成，纯 CSS 自绘 */
+.tick {
+  width: 15rpx;
+  height: 9rpx;
+  border-left: 3rpx solid #F6F4EA;
+  border-bottom: 3rpx solid #F6F4EA;
+  transform: rotate(-45deg) translateY(-2rpx);
+}
+
+.legal-text {
+  font-size: var(--fs-label);
+  color: var(--muted2);
+  letter-spacing: 0.5rpx;
+}
+
+.legal-link {
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 4rpx;
+}
+
+.legal-hover .legal-link {
+  color: var(--green-deep);
+}
+
+/* 未勾选就点开始：勾选框左右抖一下，代替弹窗打断 */
+.box.shake {
+  animation: boxShake .42s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes boxShake {
+  10%, 90% { transform: translateX(-2rpx); }
+  20%, 80% { transform: translateX(4rpx); }
+  30%, 50%, 70% { transform: translateX(-7rpx); }
+  40%, 60% { transform: translateX(7rpx); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box.shake { animation: none; }
+}

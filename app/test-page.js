@@ -843,14 +843,18 @@ function fakeDetail(out) {
     ok('写明删除方式', wxml.indexOf('删除我的全部数据') >= 0);
     ok('带更新日期（改文案要一起改）', wxml.indexOf('{{updated}}') >= 0);
 
-    // 入口不能丢：引导页同意语 + 我的页页脚
+    // 入口不能丢：引导页主动勾选 + 协议链接 + 我的页页脚
     const wWelcome = fs.readFileSync(pathm.join(__dirname, 'pages/welcome/index.wxml'), 'utf8');
     const wMy = fs.readFileSync(pathm.join(__dirname, 'pages/my/index.wxml'), 'utf8');
-    ok('引导页有「继续即表示同意」入口', wWelcome.indexOf('继续即表示同意') >= 0 &&
-      wWelcome.indexOf('gotoPrivacy') >= 0);
+    ok('引导页不再默认同意（「继续即表示同意」文案已删）', wWelcome.indexOf('继续即表示同意') < 0);
+    ok('引导页有用户主动勾选框（绑定 toggleAgree）', wWelcome.indexOf('bindtap="toggleAgree"') >= 0 &&
+      wWelcome.indexOf("agreed ? 'on'") >= 0);
+    ok('引导页协议链接仍可点开隐私页', wWelcome.indexOf('gotoPrivacy') >= 0 &&
+      wWelcome.indexOf('《隐私政策与用户协议》') >= 0);
     ok('我的页页脚有隐私政策入口', wMy.indexOf('隐私政策') >= 0 && wMy.indexOf('gotoPrivacy') >= 0);
 
-    // 引导页必须是一屏：三个问题同时在，全部预选默认值，什么都不点也能开始。
+    // 引导页必须是一屏：三个问题同时在，全部预选默认值；
+    // 但协议勾选是唯一的例外——必须用户主动点（审核红线，见下方行为测试）。
     // 反面：不许再回去做「下一步 / 分步」——那会让用户连点三次才看到「今天练什么」。
     const jWelcome = fs.readFileSync(pathm.join(__dirname, 'pages/welcome/index.js'), 'utf8');
     ok('引导页一屏问完三个问题（三个问题块都在同一屏）',
@@ -869,6 +873,50 @@ function fakeDetail(out) {
     ok('主按钮是「就这样，开始」', wWelcome.indexOf('就这样，开始') >= 0);
     ok('按钮文案不随「等服务端」变化（别让人看到技术话术跳一下）',
       wWelcome.indexOf('正在检查你之前的记录') < 0);
+
+    /* ---- 协议勾选行为：默认不勾选、未勾选拦截、勾选后才放行（2026-11 提审驳回整改） ---- */
+    db.resetAll();
+    const wp = loadPage('./pages/welcome/index');
+    wp.onLoad();
+    // 等 onLoad 里 sync.ready() 的 then 跑完（测试环境立即 resolve），checking 归位
+    await new Promise(function (r) { setTimeout(r, 0); });
+
+    ok('协议默认不勾选（绝不默认同意）', wp.data.agreed === false, String(wp.data.agreed));
+    ok('初始不抖动', wp.data.shake === false);
+
+    // 未勾选直接点开始：必须拦截——不写引导态、不跳页，只让勾选框抖一下
+    calls.length = 0;
+    wp.finish();
+    ok('未勾选点「开始」不写引导态', !db.hasOnboarded());
+    ok('未勾选点「开始」不跳页',
+      !calls.some(function (c) { return c[0] === 'relaunch'; }), JSON.stringify(calls));
+    ok('未勾选点「开始」触发勾选框抖动提示', wp.data.shake === true);
+    await new Promise(function (r) { setTimeout(r, 520); });
+    ok('抖动 480ms 后自动复位', wp.data.shake === false, String(wp.data.shake));
+
+    // 勾选是用户自主行为：能勾上，也能再点取消
+    wp.toggleAgree();
+    ok('主动勾选后 agreed=true', wp.data.agreed === true, String(wp.data.agreed));
+    ok('勾选同时清掉抖动态', wp.data.shake === false);
+    wp.toggleAgree();
+    ok('再点一次可以取消勾选（不是强制同意）', wp.data.agreed === false);
+    wp.toggleAgree();
+
+    // 点协议文字：打开隐私政策页（勾选框和链接是两个独立热区）
+    calls.length = 0;
+    wp.gotoPrivacy();
+    ok('点协议文字打开隐私政策页',
+      calls.some(function (c) { return c[0] === 'nav' && c[1] === '/pages/privacy/index'; }),
+      JSON.stringify(calls));
+
+    // 勾选后点开始：放行，写引导态并跳首页（reLaunch 有 200ms 淡出延迟）
+    calls.length = 0;
+    wp.finish();
+    ok('勾选后点「开始」写入引导态', db.hasOnboarded());
+    await new Promise(function (r) { setTimeout(r, 260); });
+    ok('勾选后点「开始」跳进首页',
+      calls.some(function (c) { return c[0] === 'relaunch' && c[1] === '/pages/shell/index'; }),
+      JSON.stringify(calls));
 
     // 记录页：「换一个」不能在顶行（状态栏那一条）——那条带右侧被微信胶囊占着，
     // 真机上点不到（2026-11-11 用户实测）。必须放在胶囊下方的内容区。
